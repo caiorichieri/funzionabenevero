@@ -1782,6 +1782,23 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
     # Rationale: Italian psychology/sexology services are IVA-exempt under
     # art. 10 DPR 633/72; the therapist emits an exempt "fattura sanitaria"
     # separately, so Stripe should NOT calculate additional VAT.
+    # Build success/cancel URLs server-side from trusted env config.
+    # The client-supplied origin_url is used only as a soft hint; if it doesn't
+    # match our allow-list we fall back to FRONTEND_URL/REACT_APP_BACKEND_URL.
+    # This prevents open-redirect abuse post-payment.
+    trusted_origins = {
+        "https://funzionabene.it",
+        "https://www.funzionabene.it",
+    }
+    env_origin = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+    if env_origin:
+        trusted_origins.add(env_origin)
+    client_origin = (req.origin_url or "").rstrip("/")
+    if client_origin in trusted_origins:
+        base_url = client_origin
+    else:
+        base_url = env_origin or next(iter(trusted_origins))
+
     session = _stripe.checkout.Session.create(
         mode="payment",
         line_items=[{
@@ -1796,8 +1813,8 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
             },
             "quantity": 1,
         }],
-        success_url=f"{req.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{req.origin_url}/payment/cancel?session_id={{CHECKOUT_SESSION_ID}}",
+        success_url=f"{base_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{base_url}/payment/cancel?session_id={{CHECKOUT_SESSION_ID}}",
         metadata={
             "appointment_id": appointment_id,
             "terapeuta_id": req.terapeuta_id,

@@ -468,3 +468,17 @@ Vedi: /app/memory/test_credentials.md
 - Mostra: versione #, data effettiva, hash SHA-256, box introduttivo per il paziente
 - Auto-aggiornata quando l'admin pubblica una nuova versione — traccia audit invariata
 - Modellata su `miodottore.it/contratto-quadro`
+
+---
+
+## 🧪 E2E Test Report (iteration_6.json — Feb 18, 2026)
+- **Backend: 100% (14/14)** — auth, password reset, mandato, Stripe checkout accounting (30/70 + marca da bollo), contratti CRUD, GDPR audit, legal endpoints
+- **Frontend: 93% (14/15)** — only miss is a test-script limitation (not a real bug)
+- **retest_needed: False**
+
+### Code review comments applied
+- ✅ **[SECURITY]** Open-redirect mitigation: Stripe success/cancel URLs now built server-side from trusted allow-list (`funzionabene.it`, `www.funzionabene.it`, `FRONTEND_URL`, `REACT_APP_BACKEND_URL`). Client-supplied `origin_url` accepted only if in allow-list; otherwise fallback to env. Verified via curl attack — attacker `origin_url=evil.example.com` correctly rejected.
+
+### Deferred to backlog
+- server.py 2339 linhas → split in routers (Fase C refactor)
+- PLATFORM_FEE_PERCENT → env/DB config (P2)
