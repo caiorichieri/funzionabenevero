@@ -34,6 +34,8 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
   const [smsOtpDev, setSmsOtpDev] = useState("");
   const [smsPrivacy, setSmsPrivacy] = useState(false);
   const [smsPhoneLocked, setSmsPhoneLocked] = useState(false);
+  // Fattura sanitaria: patient opts out of Sistema TS transmission (art.3 DM 31/07/2015)
+  const [opposizioneTS, setOpposizioneTS] = useState(false);
 
   // Check if current user already has dati fiscali completi (skip step if yes)
   const gotoAfterAuth = async () => {
@@ -181,6 +183,7 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
         durata_minuti: 50,
         tipologia: "individuale",
         modalita: "classica",
+        opposizione_ts: opposizioneTS,
         origin_url: window.location.origin,
       }, { withCredentials: true });
       // Full-page redirect to Stripe Checkout
@@ -434,11 +437,13 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
               />
             )}
 
-            {/* PAYMENT (mocked) */}
+            {/* PAYMENT — riepilogo + opposizione TS + redirect a Stripe */}
             {step === "payment" && (
               <div data-testid="step-payment">
-                <h2 className="font-serif text-3xl text-[#0A0A0A] leading-tight">Pagamento</h2>
-                <p className="mt-2 text-sm text-[#0A0A0A]/70">Saldo sicuro con cifratura SSL. (Mock — integreremo Nexi XPay)</p>
+                <h2 className="font-serif text-3xl text-[#0A0A0A] leading-tight">Riepilogo e pagamento</h2>
+                <p className="mt-2 text-sm text-[#0A0A0A]/70">
+                  Il pagamento avviene su <strong>Stripe</strong> con cifratura bancaria. Nessun dato di carta transita sui nostri server.
+                </p>
 
                 <div className="mt-6 p-5 brand-card space-y-3 text-sm">
                   <div className="flex justify-between">
@@ -455,41 +460,40 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
                   </div>
                 </div>
 
-                <form onSubmit={handlePayment} className="mt-8 space-y-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/60 mb-2">Numero carta</label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0A0A0A]/40" />
-                      <input
-                        data-testid="mock-card-number"
-                        type="text" placeholder="4242 4242 4242 4242" defaultValue="4242 4242 4242 4242"
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-[#0A0A0A]/15 rounded-xl text-[#0A0A0A]"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/60 mb-2">Scadenza</label>
-                      <input data-testid="mock-card-exp" type="text" placeholder="12/28" defaultValue="12/28" className="w-full px-4 py-3 bg-white border border-[#0A0A0A]/15 rounded-xl text-[#0A0A0A]" />
-                    </div>
-                    <div>
-                      <label className="block text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/60 mb-2">CVC</label>
-                      <input data-testid="mock-card-cvc" type="text" placeholder="123" defaultValue="123" className="w-full px-4 py-3 bg-white border border-[#0A0A0A]/15 rounded-xl text-[#0A0A0A]" />
-                    </div>
-                  </div>
+                {/* Mandato all'incasso disclosure */}
+                <div className="mt-5 p-4 rounded-2xl bg-[#F4CB78]/25 border border-[#F58A1F]/25 text-xs text-[#0A0A0A]/85 leading-relaxed">
+                  Il servizio è <strong>erogato direttamente dal professionista</strong> (Dr. {terapista.nome} {terapista.cognome}) — iscritto all&apos;Ordine e titolare della prestazione sanitaria.
+                  BIDOC SRL gestisce l&apos;incasso per suo conto in mandato all&apos;incasso con rappresentanza.
+                  La <strong>fattura sanitaria</strong> ti verrà emessa a nome del professionista, esente IVA ex art. 10 DPR 633/72.
+                </div>
 
-                  <div className="mt-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-amber-300/80 text-xs">
-                    <strong>Modalità demo:</strong> Nessun addebito verrà effettuato. Integrazione Nexi XPay in arrivo.
-                  </div>
+                {/* Opposizione al Sistema TS */}
+                <label className="mt-4 flex items-start gap-3 text-xs text-[#0A0A0A]/80 leading-relaxed cursor-pointer p-3 rounded-2xl hover:bg-[#0A0A0A]/[0.03]">
+                  <input
+                    data-testid="opposizione-ts-check"
+                    type="checkbox" checked={opposizioneTS}
+                    onChange={(e) => setOpposizioneTS(e.target.checked)}
+                    className="mt-0.5 accent-[#0A0A0A]"
+                  />
+                  <span>
+                    <strong>Mi oppongo</strong> alla trasmissione dei dati di questa fattura al <em>Sistema Tessera Sanitaria</em> (art. 3 D.M. 31/07/2015).
+                    <br />
+                    <span className="text-[#0A0A0A]/55">In caso di opposizione, non potrai detrarre la spesa nel 730 precompilato — potrai comunque farlo tramite il modello 730 ordinario allegando la fattura.</span>
+                  </span>
+                </label>
 
-                  <button
-                    data-testid="booking-pay-submit"
-                    type="submit" disabled={loading}
-                    className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 disabled:opacity-40 bg-gradient-to-br from-[#F58A1F] to-[#F5D419] hover:from-[#E07A0F] hover:to-[#E5C419] text-[#0A0A0A] font-bold rounded-2xl shadow-md hover:shadow-lg"
-                  >
-                    {loading ? "Elaborazione..." : `Paga €${terapista.prezzo_sessione || 90} e verifica SMS`}
-                  </button>
-                </form>
+                <button
+                  data-testid="booking-pay-submit"
+                  type="button"
+                  onClick={handlePayment}
+                  disabled={loading}
+                  className="mt-6 w-full inline-flex items-center justify-center gap-3 px-6 py-4 disabled:opacity-40 bg-gradient-to-br from-[#F58A1F] to-[#F5D419] hover:from-[#E07A0F] hover:to-[#E5C419] text-[#0A0A0A] font-bold rounded-2xl shadow-md hover:shadow-lg"
+                >
+                  {loading ? "Elaborazione..." : `Continua · €${terapista.prezzo_sessione || 90}`}
+                </button>
+                <p className="mt-3 text-center text-[10px] text-[#0A0A0A]/50">
+                  Per sicurezza ti chiederemo un codice SMS prima del pagamento.
+                </p>
               </div>
             )}
 

@@ -13,6 +13,7 @@ import TerapistiPage from "@/pages/admin/TerapistiPage";
 import PazientiPage from "@/pages/admin/PazientiPage";
 import AppuntamentiPage from "@/pages/admin/AppuntamentiPage";
 import BlogPage from "@/pages/admin/BlogPage";
+import ContrattiPage from "@/pages/admin/ContrattiPage";
 import TerapistaDashboard from "@/pages/therapist/TerapistaDashboard";
 import TerapistaProfile from "@/pages/therapist/TerapistaProfile";
 import TerapistaBlogPage from "@/pages/therapist/TerapistaBlogPage";
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="pazienti" element={<PazientiPage />} />
             <Route path="appuntamenti" element={<AppuntamentiPage />} />
             <Route path="blog" element={<BlogPage />} />
+            <Route path="contratti" element={<ContrattiPage />} />
           </Route>
 
           {/* Therapist routes */}

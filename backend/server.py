@@ -209,6 +209,17 @@ class ConsentLogInput(BaseModel):
     language: Optional[str] = None
     page_url: Optional[str] = None
 
+# ─── Contracts (editable "Mandato all'incasso" and similar) ───────────────────
+class ContractInput(BaseModel):
+    kind: str  # e.g. "mandato_all_incasso"
+    title: str
+    content_html: str
+    effective_date: Optional[str] = None
+
+class ContractAcceptInput(BaseModel):
+    contract_id: str
+    scrolled_to_end: bool = False
+
 # ─── FastAPI setup ────────────────────────────────────────────────────────────
 app = FastAPI(title="FunzionaBene API")
 api_router = APIRouter(prefix="/api")
@@ -1459,6 +1470,139 @@ async def list_audit_consents(
     return {"total": total, "skip": skip, "limit": limit, "items": items}
 
 
+# ─── Contracts (editable Mandato all'incasso) ────────────────────────────────
+# Immutable version log: admin can create new versions but never edit past ones.
+# Therapist acceptance records: contract_id, version, therapist_id, timestamp,
+# IP (anonymized), content_hash for legal traceability.
+import hashlib as _hlib
+
+
+def _hash_contract(content_html: str) -> str:
+    return _hlib.sha256(content_html.encode("utf-8")).hexdigest()
+
+
+@api_router.get("/admin/contracts")
+async def list_contracts(user: dict = Depends(require_admin)):
+    """Return all contract versions grouped by kind, most recent first."""
+    out = []
+    async for doc in db.contracts.find({}).sort("created_at", -1):
+        out.append({
+            "id": str(doc["_id"]),
+            "kind": doc.get("kind"),
+            "title": doc.get("title"),
+            "content_html": doc.get("content_html"),
+            "content_hash": doc.get("content_hash"),
+            "version": doc.get("version"),
+            "effective_date": doc.get("effective_date"),
+            "is_current": doc.get("is_current", False),
+            "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+            "created_by": doc.get("created_by"),
+        })
+    return {"items": out}
+
+
+@api_router.post("/admin/contracts")
+async def create_contract(data: ContractInput, user: dict = Depends(require_admin)):
+    """Create a new immutable version of a contract kind."""
+    now = datetime.now(timezone.utc)
+    prev = await db.contracts.find({"kind": data.kind}).sort("version", -1).to_list(1)
+    next_ver = (prev[0]["version"] + 1) if prev else 1
+    await db.contracts.update_many(
+        {"kind": data.kind, "is_current": True},
+        {"$set": {"is_current": False}},
+    )
+    doc = {
+        "kind": data.kind,
+        "title": data.title,
+        "content_html": data.content_html,
+        "content_hash": _hash_contract(data.content_html),
+        "version": next_ver,
+        "effective_date": data.effective_date or now.isoformat(),
+        "is_current": True,
+        "created_at": now,
+        "created_by": user["_id"],
+    }
+    result = await db.contracts.insert_one(doc)
+    return {"id": str(result.inserted_id), "version": next_ver}
+
+
+@api_router.get("/contracts/current/{kind}")
+async def get_current_contract(kind: str):
+    """Public: fetch the current (active) version of a contract kind."""
+    doc = await db.contracts.find_one({"kind": kind, "is_current": True})
+    if not doc:
+        raise HTTPException(404, "Contratto non trovato")
+    return {
+        "id": str(doc["_id"]),
+        "kind": doc.get("kind"),
+        "title": doc.get("title"),
+        "content_html": doc.get("content_html"),
+        "content_hash": doc.get("content_hash"),
+        "version": doc.get("version"),
+        "effective_date": doc.get("effective_date"),
+    }
+
+
+@api_router.post("/contracts/accept")
+async def accept_contract(data: ContractAcceptInput, request: Request, user: dict = Depends(require_auth)):
+    """Therapist (or any user) accepts a contract. Write-once acceptance log."""
+    contract = await db.contracts.find_one({"_id": ObjectId(data.contract_id)})
+    if not contract:
+        raise HTTPException(404, "Contratto non trovato")
+    now = datetime.now(timezone.utc)
+    raw_ip = _client_ip(request)
+    doc = {
+        "user_id": user["_id"],
+        "user_role": user["role"],
+        "contract_id": data.contract_id,
+        "contract_kind": contract.get("kind"),
+        "contract_version": contract.get("version"),
+        "content_hash": contract.get("content_hash"),
+        "ip_anonymized": _anonymize_ip(raw_ip),
+        "user_agent": (request.headers.get("user-agent") or "")[:300],
+        "scrolled_to_end": data.scrolled_to_end,
+        "accepted_at": now,
+    }
+    result = await db.contract_acceptances.insert_one(doc)
+    return {
+        "id": str(result.inserted_id),
+        "contract_kind": contract.get("kind"),
+        "contract_version": contract.get("version"),
+        "accepted_at": now.isoformat(),
+    }
+
+
+@api_router.get("/contracts/my-acceptances")
+async def my_contract_acceptances(user: dict = Depends(require_auth)):
+    """List contracts accepted by the current user."""
+    out = []
+    async for doc in db.contract_acceptances.find({"user_id": user["_id"]}).sort("accepted_at", -1):
+        out.append({
+            "id": str(doc["_id"]),
+            "contract_kind": doc.get("contract_kind"),
+            "contract_version": doc.get("contract_version"),
+            "content_hash": doc.get("content_hash"),
+            "accepted_at": doc.get("accepted_at").isoformat() if doc.get("accepted_at") else None,
+        })
+    return {"items": out}
+
+
+@api_router.get("/admin/contracts/{contract_id}/acceptances")
+async def list_contract_acceptances(contract_id: str, user: dict = Depends(require_admin)):
+    """Admin: audit trail of who accepted a specific contract."""
+    out = []
+    async for doc in db.contract_acceptances.find({"contract_id": contract_id}).sort("accepted_at", -1):
+        out.append({
+            "id": str(doc["_id"]),
+            "user_id": doc.get("user_id"),
+            "user_role": doc.get("user_role"),
+            "ip_anonymized": doc.get("ip_anonymized"),
+            "user_agent": doc.get("user_agent"),
+            "accepted_at": doc.get("accepted_at").isoformat() if doc.get("accepted_at") else None,
+        })
+    return {"items": out}
+
+
 # ─── STRIPE PAYMENTS ──────────────────────────────────────────────────────────
 import stripe as _stripe
 
@@ -1476,6 +1620,8 @@ class CheckoutBookingRequest(BaseModel):
     modalita: Optional[str] = "classica"
     note: Optional[str] = None
     origin_url: str
+    # Fattura sanitaria fields — required for compliance
+    opposizione_ts: bool = False  # patient opts out of Sistema TS transmission
 
 
 @api_router.post("/payments/checkout/booking")
@@ -1508,6 +1654,13 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
     amount_cents = int(round(prezzo * 100))
     platform_fee_cents = int(round(amount_cents * PLATFORM_FEE_PERCENT / 100))
     therapist_amount_cents = amount_cents - platform_fee_cents
+
+    # Marca da bollo di €2 obligatoria per fatture sanitarie esenti IVA da €77,47
+    # in su (soglia storica da D.P.R. 642/1972 aggiornato). Il paziente paga la
+    # sessione al lordo — il bollo è a carico del professionista sanitario.
+    MARCA_DA_BOLLO_SOGLIA_CENTS = 7747
+    marca_da_bollo_required = amount_cents >= MARCA_DA_BOLLO_SOGLIA_CENTS
+    marca_da_bollo_amount = 200 if marca_da_bollo_required else 0
 
     # 1. Create pending appointment
     appt_doc = {
@@ -1566,6 +1719,11 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
         "platform_fee_amount": platform_fee_cents,
         "platform_fee_percent": PLATFORM_FEE_PERCENT,
         "therapist_amount": therapist_amount_cents,
+        # Fattura sanitaria compliance fields
+        "opposizione_ts": req.opposizione_ts,
+        "marca_da_bollo_required": marca_da_bollo_required,
+        "marca_da_bollo_amount": marca_da_bollo_amount,
+        "fattura_sanitaria_status": "da_emettere",
         "status": "initiated",
         "payment_status": "pending",
         "payout_status": "pending",  # tracked separately for manual Connect/payout later
@@ -1774,6 +1932,7 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
     await seed_data()
+    await _seed_default_contract()
     # Backfill: make existing self-certified therapists publicly visible under the new gate
     await db.terapisti.update_many(
         {"autocertificazione_firmata": True, "documenti_verificati": {"$exists": False}},
@@ -1782,6 +1941,55 @@ async def startup():
     if not scheduler.running:
         scheduler.start()
         logging.info("[SCHEDULER] started")
+
+
+async def _seed_default_contract():
+    """Insert the default 'Mandato all'incasso con Rappresentanza' contract only if
+    no version exists yet. Admin can create new versions at will after this."""
+    existing = await db.contracts.find_one({"kind": "mandato_all_incasso"})
+    if existing:
+        return
+    default_html = """
+<h2>Mandato all'incasso con Rappresentanza</h2>
+<p><strong>Tra il Terapeuta</strong> — professionista sanitario iscritto all'Albo — <strong>e BIDOC SRL</strong>, con sede in Via Mazzini, 62 · Spilimbergo (PN) · P.IVA 01985930930, quale titolare del marchio <em>Funzionabene</em> (di seguito "la Piattaforma").</p>
+
+<h3>1. Natura del rapporto</h3>
+<p>La Piattaforma opera in <strong>mandato all'incasso con rappresentanza</strong> per conto del Terapeuta, ai sensi degli artt. 1703 e ss. c.c.. La Piattaforma non è parte del contratto sanitario tra Terapeuta e paziente: essa svolge esclusivamente attività di intermediazione tecnica, gestione dell'agenda, incasso e ripasso dei corrispettivi.</p>
+
+<h3>2. Prestazione sanitaria</h3>
+<p>La prestazione sanitaria è erogata direttamente dal Terapeuta al paziente. Il Terapeuta è l'unico titolare del rapporto sanitario e dei relativi obblighi (consenso informato, tenuta cartella clinica, riservatezza professionale ex art. 622 c.p. e Codice Deontologico).</p>
+
+<h3>3. Emissione della fattura sanitaria</h3>
+<p>Il Terapeuta autorizza la Piattaforma a emettere e trasmettere, in suo nome e per suo conto, la <strong>fattura sanitaria esente IVA</strong> (art. 10 DPR 633/72 c.1 n.18) al paziente, comprensiva della marca da bollo di €2,00 per fatture di importo pari o superiore a €77,47. La fattura riporterà i dati del Terapeuta (P.IVA, iscrizione all'Albo).</p>
+
+<h3>4. Sistema Tessera Sanitaria (Sistema TS)</h3>
+<p>La Piattaforma trasmette al Sistema TS, per conto del Terapeuta, i dati delle spese sanitarie sostenute dai pazienti, salvo espressa <strong>opposizione</strong> del paziente stesso (art. 3 D.M. 31/07/2015). Il paziente esprime la propria opposizione al momento della prenotazione.</p>
+
+<h3>5. Incasso e ripasso</h3>
+<p>La Piattaforma incassa il corrispettivo dal paziente per conto del Terapeuta, applicando una <strong>commissione di gestione</strong> pari al 30% del valore lordo della prestazione. Il ripasso del 70% è effettuato al Terapeuta mediante bonifico bancario sull'IBAN indicato, con cadenza <strong>mensile</strong>, entro il giorno 10 del mese successivo.</p>
+
+<h3>6. Fattura di commissione</h3>
+<p>Sulla commissione trattenuta, la Piattaforma emette al Terapeuta una <strong>fattura elettronica</strong> mensile ex art. 21 DPR 633/72, con applicazione IVA al 22%.</p>
+
+<h3>7. Durata e recesso</h3>
+<p>Il presente mandato è a tempo indeterminato. Ciascuna parte può recedere con preavviso di 30 giorni, salvo diritto di completare le prenotazioni già confermate.</p>
+
+<h3>8. Legge applicabile</h3>
+<p>Il presente contratto è disciplinato dalla legge italiana. Foro competente esclusivo: Pordenone.</p>
+""".strip()
+    now = datetime.now(timezone.utc)
+    await db.contracts.insert_one({
+        "kind": "mandato_all_incasso",
+        "title": "Mandato all'incasso con Rappresentanza",
+        "content_html": default_html,
+        "content_hash": _hash_contract(default_html),
+        "version": 1,
+        "effective_date": now.isoformat(),
+        "is_current": True,
+        "created_at": now,
+        "created_by": "system_seed",
+    })
+    logging.info("[CONTRACT] seeded default Mandato all'incasso v1")
 
 async def seed_data():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@funzionabene.it")

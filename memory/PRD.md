@@ -382,3 +382,54 @@ Vedi: /app/memory/test_credentials.md
 - L'utente deve completare **KYC** (Know Your Customer) su Stripe usando l'onboarding URL sopra.
 - Il **preview webhook** funziona in preview; alla deploy in produzione servirà il **webhook production** (Emergent lo auto-inietta al re-deploy dopo KYC).
 - Utente può cambiare tax mode a "Stripe Tax" o "Stripe managed" chiedendo qui.
+
+---
+
+## 📜 MANDATO ALL'INCASSO CON RAPPRESENTANZA — Fase 1 (Feb 18, 2026)
+
+### Architettura fiscale
+- BIDOC SRL opera in **mandato all'incasso con rappresentanza** (artt. 1703 e ss. c.c.) per conto del terapeuta.
+- Il terapeuta è **l'unico titolare della prestazione sanitaria**. BIDOC è solo intermediario finanziario/tecnico.
+- **Fattura sanitaria** emessa a nome del terapeuta (P.IVA del terapeuta + iscrizione Albo). Esente IVA ex art. 10 DPR 633/72 c.1 n.18.
+- **Marca da bollo €2,00** obbligatoria per fatture ≥ €77,47 (DPR 642/1972) — calcolata automaticamente in `payment_transactions.marca_da_bollo_required/amount`.
+- **Fattura di commissione** mensile BIDOC → terapeuta (30% + IVA 22%) — Fase 2.
+
+### Sistema Tessera Sanitaria — Opposizione
+- Paziente può opporsi alla trasmissione ex art. 3 D.M. 31/07/2015.
+- Checkbox al momento del pagamento ("Mi oppongo alla trasmissione…").
+- Registrato in `payment_transactions.opposizione_ts` (bool).
+- Copy inforativo: opposizione non impedisce detrazione via 730 ordinario.
+
+### Contratti editabili (immutable versioning)
+- Nuova collection `contracts` — schema versionato. Ogni versione ha `content_hash` SHA-256.
+- Admin può creare **nuove versioni**, ma **mai modificare** una versione passata.
+- Endpoints:
+  - `GET /api/admin/contracts` (admin) — tutte le versioni
+  - `POST /api/admin/contracts` (admin) — crea nuova versione, demotisce la precedente
+  - `GET /api/contracts/current/{kind}` (public) — versione attiva
+  - `POST /api/contracts/accept` (auth) — accetta versione (write-once, con IP anonimizzato)
+  - `GET /api/contracts/my-acceptances` (auth) — le mie accettazioni
+  - `GET /api/admin/contracts/{id}/acceptances` (admin) — audit trail per versione
+- Seed automatico all'avvio: v1 del "Mandato all'incasso con Rappresentanza" (default text 2.6KB, integralmente editabile).
+
+### Terapeuta — Gate di accettazione
+- Componente `MandatoAcceptanceGate.jsx` avvolge `TerapistaDashboard`.
+- Se il terapeuta non ha accettato la **versione corrente** (match by `content_hash`), il modal blocca il dashboard.
+- Pulsante "Accetto il mandato" **disabilitato** finché il terapeuta non scorre l'intero documento.
+- Al click, POST `/api/contracts/accept` → dashboard sblocca.
+
+### Admin — Editor visuale
+- Pagina `/admin/contratti` con card della versione attiva (con hash) + storico versioni + audit modal.
+- Modal editor: title + textarea HTML + anteprima live + pulsante "Pubblica nuova versione".
+
+### Test verificati
+- ✅ Contract seed automatico al primo boot
+- ✅ Terapeuta login → modal aparece + botão desabilitado
+- ✅ Scroll até fim → botão habilita → click → aceitação registrada com content_hash
+- ✅ Login seguinte → modal NÃO aparece (hash matches)
+- ✅ Admin /admin/contratti renderiza card v#1 com hash + botões Nuova versione/Accettazioni
+
+### Aggiornamenti legali
+- `TerminiPage.jsx` interamente riscritto: nuovo §1 "Ruolo di BIDOC SRL — Mandato all'incasso", §4 fattura sanitaria, §5 Sistema TS opposizione, §6 Stripe pagamenti.
+- `PrivacyPage.jsx` — nuovo §8.bis "Trasmissione al Sistema TS" con diritto di opposizione + istruzioni.
+- `BookingSheet.jsx` — step payment redesenhado: rimosso mock card, aggiunto disclosure mandato + checkbox opposizione TS + button "Continua · €X" → SMS OTP → Stripe.

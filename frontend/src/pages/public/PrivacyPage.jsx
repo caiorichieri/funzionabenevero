@@ -77,9 +77,25 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>Resend</strong> (servizi email transazionali) — USA, con clausole contrattuali standard UE.</li>
         <li><strong>Daily.co</strong> (videochiamate sicure) — USA, con clausole contrattuali standard UE.</li>
-        <li><strong>Nexi XPay</strong> (gestione pagamenti) — Italia.</li>
+        <li><strong>Stripe</strong> (gestione pagamenti) — Irlanda/USA, con clausole contrattuali standard UE.</li>
+        <li><strong>Skebby</strong> (invio SMS di verifica) — Italia.</li>
+        <li><strong>Sistema Tessera Sanitaria</strong> (MEF — Ministero dell&apos;Economia e delle Finanze) — Italia. Vedi paragrafo successivo.</li>
         <li><strong>Hosting:</strong> server nell&apos;Unione Europea.</li>
       </ul>
+
+      <h2>8.bis Trasmissione al Sistema Tessera Sanitaria (Sistema TS)</h2>
+      <p>
+        I dati relativi a spese sanitarie sostenute presso i professionisti operanti sulla piattaforma vengono
+        <strong>trasmessi automaticamente al Sistema Tessera Sanitaria</strong> del MEF ai fini della predisposizione della
+        dichiarazione dei redditi precompilata (art. 3 D.M. 31/07/2015).
+      </p>
+      <p>
+        <strong>Diritto di opposizione:</strong> il paziente può opporsi a questa trasmissione in ogni momento, direttamente al
+        momento della prenotazione tramite l&apos;apposita casella o successivamente tramite il portale
+        <a href="https://sistemats1.sanita.finanze.it" target="_blank" rel="noreferrer"> sistemats1.sanita.finanze.it</a>.
+        L&apos;opposizione non impedisce la detrazione fiscale del 19% (art. 15 TUIR): in quel caso occorre presentare il 730
+        ordinario allegando la fattura.
+      </p>
 
       <h2>9. Diritti dell&apos;interessato (artt. 15-22 GDPR)</h2>
       <ul>
