@@ -8,6 +8,8 @@ const PATIENT_ROLES = ["paziente"];
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import OTPPage from "@/pages/OTPPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import TerapistiPage from "@/pages/admin/TerapistiPage";
 import PazientiPage from "@/pages/admin/PazientiPage";
@@ -44,6 +46,7 @@ import LavoraConNoiPage from "@/pages/public/LavoraConNoiPage";
 import ContattiPage from "@/pages/public/ContattiPage";
 import PaymentSuccessPage from "@/pages/public/PaymentSuccessPage";
 import PaymentCancelPage from "@/pages/public/PaymentCancelPage";
+import MandatoLegalePage from "@/pages/public/MandatoLegalePage";
 import NotFoundPage from "@/pages/public/NotFoundPage";
 
 import "@/App.css";
@@ -84,11 +87,14 @@ export default function App() {
             <Route path="/contatti" element={<ContattiPage />} />
             <Route path="/payment/success" element={<PaymentSuccessPage />} />
             <Route path="/payment/cancel" element={<PaymentCancelPage />} />
+            <Route path="/mandato-legale" element={<MandatoLegalePage />} />
           </Route>
 
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registrati" element={<RegisterPage />} />
           <Route path="/verifica-otp" element={<OTPPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Admin routes */}
           <Route path="/admin" element={<ProtectedRoute roles={ADMIN_ROLES}><Layout /></ProtectedRoute>}>

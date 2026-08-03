@@ -227,3 +227,64 @@ async def send_reminder_email(ctx: dict, when: str) -> bool:
         "subject": subject,
         "html": _reminder_template(ctx, when),
     })
+
+
+
+async def send_password_reset_email(email: str, reset_url: str, nome: str = "") -> bool:
+    """Send password reset link. Returns True on success. Never leaks user existence in logs."""
+    if not SEND_EMAILS:
+        logger.info(f"[EMAIL DISABLED] Password reset link ready for {email}")
+        return False
+    if not RESEND_API_KEY or RESEND_API_KEY == "placeholder_resend_key":
+        logger.warning("[EMAIL] No Resend API key configured, skipping password reset send")
+        return False
+
+    ciao = f"Ciao {nome}," if nome else "Ciao,"
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#F4EAA8;font-family:-apple-system,Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F4EAA8;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;padding:48px 40px;box-shadow:0 20px 40px rgba(0,0,0,0.08);">
+        <tr><td>
+          <div style="text-align:center;margin-bottom:32px;">
+            <div style="font-family:'Georgia',serif;font-size:36px;color:#0A0A0A;font-weight:700;">FunzionaBene</div>
+          </div>
+          <h1 style="color:#0A0A0A;font-family:'Georgia',serif;font-size:28px;margin:0 0 16px;">Reimposta la tua password</h1>
+          <p style="color:#0A0A0A;font-size:15px;line-height:1.6;margin:0 0 24px;">{ciao}</p>
+          <p style="color:#0A0A0A;font-size:15px;line-height:1.6;margin:0 0 24px;">
+            Abbiamo ricevuto una richiesta di reset della tua password. Clicca sul pulsante qui sotto per crearne una nuova.
+          </p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="{reset_url}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#F58A1F,#F5D419);color:#0A0A0A;text-decoration:none;font-weight:700;border-radius:999px;font-size:15px;">Imposta nuova password</a>
+          </div>
+          <p style="color:#0A0A0A;font-size:13px;line-height:1.6;margin:0 0 12px;">
+            Se il pulsante non funziona, copia questo link nel tuo browser:<br/>
+            <span style="color:#F58A1F;font-size:11px;word-break:break-all;">{reset_url}</span>
+          </p>
+          <hr style="border:none;border-top:1px solid #eee;margin:32px 0;"/>
+          <p style="color:#666;font-size:12px;line-height:1.5;margin:0;">
+            Il link scade tra <strong>30 minuti</strong> e può essere usato <strong>una sola volta</strong>.<br/>
+            Se non hai richiesto il reset, ignora semplicemente questa email — la tua password attuale rimane valida.
+          </p>
+        </td></tr>
+      </table>
+      <p style="color:#0A0A0A;opacity:0.5;font-size:11px;margin-top:20px;">
+        BIDOC SRL · Via Mazzini 62 · Spilimbergo (PN) · funzionabene.it
+      </p>
+    </td></tr>
+  </table>
+</body></html>"""
+
+    params = {
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [email],
+        "subject": "Reimposta la tua password FunzionaBene",
+        "html": html,
+    }
+    try:
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"[EMAIL SENT] password reset (id={result.get('id') if isinstance(result, dict) else result})")
+        return True
+    except Exception as e:
+        logger.error(f"[EMAIL ERROR] password reset send failed: {e}")
+        return False

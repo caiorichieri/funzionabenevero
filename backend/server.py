@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, BeforeValidator, EmailStr
 
-from email_service import send_otp_email, send_booking_confirmation_email, send_reminder_email
+from email_service import send_otp_email, send_booking_confirmation_email, send_reminder_email, send_password_reset_email
 from daily_service import create_room_for_appointment, create_meeting_token, get_room_presenza
 from sms_service import send_sms_otp
 from codicefiscale import codicefiscale
@@ -1603,6 +1603,106 @@ async def list_contract_acceptances(contract_id: str, user: dict = Depends(requi
     return {"items": out}
 
 
+# ─── Password Reset ──────────────────────────────────────────────────────────
+# Follows OWASP Forgot Password Cheat Sheet:
+# - crypto-secure single-use tokens (32 bytes URL-safe = 256 bits)
+# - store only SHA-256 hash (raw token never persisted)
+# - 30-minute expiration
+# - generic responses (never reveal if email exists)
+# - atomic consume via find_one_and_update
+# - timing-safe comparison
+import hmac as _hmac
+import hashlib
+
+RESET_TOKEN_MINUTES = 30
+_DUMMY_HASH_FOR_TIMING = bcrypt.hashpw(b"timing-padding-unused", bcrypt.gensalt()).decode()
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=40, max_length=512)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+def _token_digest(raw: str) -> str:
+    return hashlib.sha256(raw.encode("ascii")).hexdigest()
+
+
+def _get_frontend_origin(request: Request) -> str:
+    """Prefer trusted config; fall back to Origin header only if not set."""
+    env_url = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL")
+    if env_url:
+        return env_url.rstrip("/")
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    return origin.rstrip("/")
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest, request: Request):
+    email = body.email.strip().lower()
+    user = await db.users.find_one({"email": email}, {"_id": 1, "email": 1, "nome": 1})
+
+    if user is None:
+        # Timing equalization — perform bcrypt work in the not-found branch too.
+        bcrypt.checkpw(b"timing-padding", _DUMMY_HASH_FOR_TIMING.encode())
+    else:
+        raw_token = _secrets.token_urlsafe(32)
+        now = datetime.now(timezone.utc)
+        # Invalidate any prior unused tokens for this user
+        await db.password_reset_tokens.delete_many({
+            "user_id": user["_id"], "used_at": None,
+        })
+        await db.password_reset_tokens.insert_one({
+            "user_id": user["_id"],
+            "token_hash": _token_digest(raw_token),
+            "expires_at": now + timedelta(minutes=RESET_TOKEN_MINUTES),
+            "used_at": None,
+            "created_at": now,
+        })
+        frontend = _get_frontend_origin(request)
+        reset_url = f"{frontend}/reset-password?token={raw_token}"
+        try:
+            await send_password_reset_email(email, reset_url, user.get("nome", ""))
+        except Exception as e:
+            logging.error(f"[RESET] email send exception: {e}")
+
+    # Uniform response regardless of user existence.
+    return {"message": "Se un account esiste con questa email, riceverai un link per il reset."}
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(body: ResetPasswordRequest):
+    generic_error = HTTPException(400, "Il link di reset non è valido o è scaduto.")
+    digest = _token_digest(body.token)
+    now = datetime.now(timezone.utc)
+
+    # Atomic single-use claim
+    token_doc = await db.password_reset_tokens.find_one_and_update(
+        {"token_hash": digest, "used_at": None, "expires_at": {"$gt": now}},
+        {"$set": {"used_at": now}},
+        projection={"user_id": 1, "token_hash": 1},
+    )
+    if token_doc is None:
+        raise generic_error
+    # Defensive timing-safe compare
+    if not _hmac.compare_digest(token_doc["token_hash"], digest):
+        raise generic_error
+
+    new_hash = hash_password(body.new_password)
+    result = await db.users.update_one(
+        {"_id": token_doc["user_id"]},
+        {"$set": {"password_hash": new_hash, "password_changed_at": now}},
+    )
+    if result.modified_count != 1:
+        logging.error("[RESET] consumed token but user update failed")
+        raise HTTPException(500, "Impossibile completare il reset.")
+
+    return {"message": "Password reimpostata con successo. Ora puoi accedere."}
+
+
 # ─── STRIPE PAYMENTS ──────────────────────────────────────────────────────────
 import stripe as _stripe
 
@@ -1931,6 +2031,8 @@ def schedule_reminders(app_id: str, ctx: dict):
 async def startup():
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
+    await db.password_reset_tokens.create_index("token_hash", unique=True)
+    await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
     await seed_data()
     await _seed_default_contract()
     # Backfill: make existing self-certified therapists publicly visible under the new gate

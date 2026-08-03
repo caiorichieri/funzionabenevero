@@ -433,3 +433,38 @@ Vedi: /app/memory/test_credentials.md
 - `TerminiPage.jsx` interamente riscritto: nuovo §1 "Ruolo di BIDOC SRL — Mandato all'incasso", §4 fattura sanitaria, §5 Sistema TS opposizione, §6 Stripe pagamenti.
 - `PrivacyPage.jsx` — nuovo §8.bis "Trasmissione al Sistema TS" con diritto di opposizione + istruzioni.
 - `BookingSheet.jsx` — step payment redesenhado: rimosso mock card, aggiunto disclosure mandato + checkbox opposizione TS + button "Continua · €X" → SMS OTP → Stripe.
+
+---
+
+## 🔑 Password Reset Flow (Feb 18, 2026)
+
+### Backend (`server.py`)
+- Endpoint `POST /api/auth/forgot-password` — public, generic response, timing-equalized. Genera token single-use di 32 byte URL-safe (256 bits) tramite `secrets.token_urlsafe`. Persiste **solo SHA-256 hash** in `password_reset_tokens`. Invia email via Resend. TTL 30 minuti.
+- Endpoint `POST /api/auth/reset-password` — atomic single-use claim via `find_one_and_update` (`used_at: null, expires_at > now`). Timing-safe compare tramite `hmac.compare_digest`. Aggiorna `users.password_hash` (bcrypt) + `password_changed_at`.
+- Segue OWASP Forgot Password Cheat Sheet: no user enumeration, hashed tokens, single-use, expiring, generic errors.
+- Startup indexes: `token_hash` unique + `expires_at` TTL.
+
+### Email template (`email_service.py`)
+- `send_password_reset_email(email, reset_url, nome)` — HTML gradient warm brand-consistent, CTA arancione, disclosure 30-min/one-use, senza logging del raw token.
+
+### Frontend
+- `/forgot-password` — form email, generic success message, mascote sereno.
+- `/reset-password?token=…` — password + confirm, **strength meter live 0-5**, generic error, no auto-login post-reset, `history.replaceState` per rimuovere token dall'URL, redirect a `/login`.
+- Link "Password dimenticata?" aggiunto nella LoginPage.
+
+### Test verificati
+- ✅ `forgot-password`: identical response per email esistente e non esistente
+- ✅ `reset-password` con token fake → 400 genérico
+- ✅ Token reale (inserito nel DB con hash conosciuto) → reset OK
+- ✅ Login con nuova password funziona
+- ✅ **Second use dello stesso token → 400** (single-use enforcement)
+- ✅ Indexes creati: unique(token_hash) + TTL(expires_at)
+
+---
+
+## 📄 `/mandato-legale` — Public Contract Page (Feb 18, 2026)
+- Nuova pagina pubblica accessible dal footer ("Legale > Mandato legale")
+- Fetches `/api/contracts/current/mandato_all_incasso` e ne renderizza il contenuto HTML corrente
+- Mostra: versione #, data effettiva, hash SHA-256, box introduttivo per il paziente
+- Auto-aggiornata quando l'admin pubblica una nuova versione — traccia audit invariata
+- Modellata su `miodottore.it/contratto-quadro`

@@ -174,6 +174,7 @@ function Footer() {
             <li><Link to="/privacy" className="hover:text-[#0A0A0A]">Privacy Policy</Link></li>
             <li><Link to="/cookie" className="hover:text-[#0A0A0A]">Cookie Policy</Link></li>
             <li><Link to="/termini" className="hover:text-[#0A0A0A]">Termini e Condizioni</Link></li>
+            <li><Link to="/mandato-legale" className="hover:text-[#0A0A0A]">Mandato legale</Link></li>
           </ul>
         </div>
       </div>
