@@ -41,6 +41,8 @@ import ChiSiamoPage from "@/pages/public/ChiSiamoPage";
 import IlNostroMondoPage from "@/pages/public/IlNostroMondoPage";
 import LavoraConNoiPage from "@/pages/public/LavoraConNoiPage";
 import ContattiPage from "@/pages/public/ContattiPage";
+import PaymentSuccessPage from "@/pages/public/PaymentSuccessPage";
+import PaymentCancelPage from "@/pages/public/PaymentCancelPage";
 import NotFoundPage from "@/pages/public/NotFoundPage";
 
 import "@/App.css";
@@ -79,6 +81,8 @@ export default function App() {
             <Route path="/il-nostro-mondo" element={<IlNostroMondoPage />} />
             <Route path="/lavora-con-noi" element={<LavoraConNoiPage />} />
             <Route path="/contatti" element={<ContattiPage />} />
+            <Route path="/payment/success" element={<PaymentSuccessPage />} />
+            <Route path="/payment/cancel" element={<PaymentCancelPage />} />
           </Route>
 
           <Route path="/login" element={<LoginPage />} />

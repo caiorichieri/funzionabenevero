@@ -173,19 +173,21 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
       await axios.post(`${API}/sms/verify-otp`, { phone: smsPhone, otp_code: smsOtp }, { withCredentials: true });
       const pazienteRes = await axios.get(`${API}/pazienti/profilo/me`, { withCredentials: true });
       const paziente_id = pazienteRes.data._id;
-      await axios.post(`${API}/public/prenota`, {
+      // Create pending appointment + Stripe checkout session, then redirect
+      const checkoutRes = await axios.post(`${API}/payments/checkout/booking`, {
         terapeuta_id: terapista._id,
         paziente_id,
         data_ora: slot.data_ora,
         durata_minuti: 50,
-        tipo: "online",
-        note: "Pagamento mock — da sostituire con Nexi XPay",
+        tipologia: "individuale",
+        modalita: "classica",
+        origin_url: window.location.origin,
       }, { withCredentials: true });
-      setStep("success");
+      // Full-page redirect to Stripe Checkout
+      window.location.href = checkoutRes.data.checkout_url;
     } catch (err) {
       const d = err.response?.data?.detail;
-      setError(typeof d === "string" ? d : "Errore nella verifica SMS");
-    } finally {
+      setError(typeof d === "string" ? d : "Errore durante la creazione del pagamento");
       setLoading(false);
     }
   };

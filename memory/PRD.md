@@ -337,3 +337,48 @@ Vedi: /app/memory/test_credentials.md
 - [x] **DPO**: Caio Silvestre Richieri — Via Circonvallazione Sud, 80 · Codroipo (UD) · C.F. SLVCAI76D16Z602F · P.IVA 03157410303 · privacy@funzionabene.it.
 - [x] **Phone = WhatsApp**: +39 345 112 4503 (già correctly set, ora centralizzato).
 - [x] Aggiornati: `ContattiPage.jsx` (Sede + nuova sezione DPO), `PublicLayout.jsx` (Footer), `PrivacyPage.jsx` (Sezione 1 Titolare + nuova Sezione 2 DPO, sezioni 3-10 rinumerate).
+
+---
+
+## 💳 STRIPE PAYMENTS INTEGRATION (Feb 18, 2026)
+
+### Architecture
+- **Flow A** (Claimable sandbox) — sandbox provisionato via `POST /stripe/sandboxes`.
+- Chiavi in `backend/.env`: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_ACCOUNT_ID`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_MODE=test`.
+- **Onboarding URL** (per claim + KYC produzione):
+  https://dashboard.stripe.com/onboard_sandbox/YWNjdF8xVTBMdFZBZnZaYU55bWpMLDE3ODYzNzM3OTIv100sh4g4waP
+
+### Modello di business
+- **70% terapeuta, 30% BIDOC SRL** (`PLATFORM_FEE_PERCENT=30`).
+- **Split registrato in DB** (`payment_transactions.therapist_amount` + `platform_fee_amount`). Payouts al terapeuta sono **manuali** per ora (BIDOC fa bonifico mensile + segna `payout_status="paid"`). Migrazione a Stripe Connect Express è possibile senza breaking changes.
+- **Prezzo per terapeuta** (`prezzo_sessione` in `terapisti`). Nessun price catalog Stripe — usa `price_data` inline per checkout dinamico.
+- **Tax mode: DIY**. Razionale: la psicoterapia in IT è **esente IVA** ex art. 10 DPR 633/72 comma 1 n. 18. Il terapeuta emette fattura sanitaria separatamente (Sistema TS). Stripe processa solo il pagamento — non calcola tasse.
+
+### Endpoints
+- `POST /api/payments/checkout/booking` (auth: paziente) — crea appuntamento PENDING + Stripe Checkout Session + payment_transaction. Ritorna `checkout_url`.
+- `GET /api/payments/status/{session_id}` (public) — polling status; fallback a Stripe API se webhook ritarda.
+- `POST /api/stripe/webhook` (public, sig-verified) — gestisce `checkout.session.completed/expired/failed`, `charge.refunded`.
+- `GET /api/therapist/earnings` (auth: terapeuta) — riepilogo incassi (paid_out, pending_payout, sessions_count, platform_fee_total).
+
+### Frontend
+- `BookingSheet.jsx` — flusso: review → auth → OTP → dati fiscali → **verifica SMS** → **Stripe Checkout redirect**.
+- `PaymentSuccessPage.jsx` (`/payment/success`) — polling `/api/payments/status/{session_id}` fino a paid.
+- `PaymentCancelPage.jsx` (`/payment/cancel`) — messaggio calmo + CTA torna-home.
+
+### Business logic
+- Appuntamento passa `in_attesa_pagamento` → `confermato` **solo dopo payment_status=paid**.
+- Daily.co room + email di conferma create **solo dopo pagamento riuscito**.
+- `_mark_payment_paid()` idempotente — chiamata sia da webhook che da polling è safe.
+
+### Test verificati (curl + Python)
+- ✅ Sandbox provisionato (sk_test_51U0LtV...).
+- ✅ Checkout URL generato per €90 (con URL Stripe reale).
+- ✅ Split 30/70 salvato correttamente (€27 / €63).
+- ✅ Simulazione paid → appuntamento confermato + email + idempotency.
+- ✅ `/therapist/earnings` ritorna €63 pending per la terapista Maria.
+- ✅ `/payment/cancel` UI renderizza con mascote `sereno`.
+
+### NOTE PER PRODUZIONE
+- L'utente deve completare **KYC** (Know Your Customer) su Stripe usando l'onboarding URL sopra.
+- Il **preview webhook** funziona in preview; alla deploy in produzione servirà il **webhook production** (Emergent lo auto-inietta al re-deploy dopo KYC).
+- Utente può cambiare tax mode a "Stripe Tax" o "Stripe managed" chiedendo qui.

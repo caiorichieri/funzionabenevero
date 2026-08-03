@@ -1051,6 +1051,54 @@ async def send_messaggio(data: MessaggioInput, user: dict = Depends(require_auth
     return doc
 
 # ─── PRENOTAZIONE PUBBLICA ────────────────────────────────────────────────────
+async def _finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
+    """Provision Daily.co room + send confirmation emails + schedule reminders.
+    Called AFTER the payment succeeds (webhook or polling)."""
+    appt = await db.appuntamenti.find_one({"_id": ObjectId(appointment_id)})
+    if not appt:
+        return None
+    # Idempotent: only create room if not present
+    if not appt.get("daily_room_url"):
+        room = await create_room_for_appointment(appointment_id, appt["data_ora"], appt["durata_minuti"])
+        if room:
+            await db.appuntamenti.update_one(
+                {"_id": ObjectId(appointment_id)},
+                {"$set": {"daily_room_url": room.get("room_url"), "daily_room_name": room.get("room_name")}},
+            )
+            appt["daily_room_url"] = room.get("room_url")
+            appt["daily_room_name"] = room.get("room_name")
+    # Skip emails if already sent
+    if appt.get("_confirmation_email_sent"):
+        return appt
+    try:
+        terapista = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
+        paziente = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])})
+        if terapista and paziente:
+            t_user = await db.users.find_one({"_id": terapista.get("user_id")})
+            ctx = {
+                "paziente_nome": paziente.get("nome", ""),
+                "paziente_cognome": paziente.get("cognome", ""),
+                "paziente_email": paziente_user.get("email"),
+                "terapista_nome": terapista.get("nome", ""),
+                "terapista_cognome": terapista.get("cognome", ""),
+                "terapista_email": t_user.get("email") if t_user else None,
+                "data_ora": appt["data_ora"],
+                "durata_minuti": appt["durata_minuti"],
+                "prezzo": terapista.get("prezzo_sessione", 90),
+                "room_url": appt.get("daily_room_url"),
+                "app_id": appointment_id,
+            }
+            await send_booking_confirmation_email(ctx)
+            schedule_reminders(appointment_id, ctx)
+        await db.appuntamenti.update_one(
+            {"_id": ObjectId(appointment_id)},
+            {"$set": {"_confirmation_email_sent": True}},
+        )
+    except Exception as e:
+        logging.error(f"[BOOKING EMAIL] failed: {e}")
+    return appt
+
+
 @api_router.post("/public/prenota")
 async def prenota_pubblico(data: AppuntamentoInput, user: dict = Depends(require_auth)):
     if user["role"] != "paziente":
@@ -1073,39 +1121,11 @@ async def prenota_pubblico(data: AppuntamentoInput, user: dict = Depends(require
     doc["paziente_user_id"] = user["_id"]
     result = await db.appuntamenti.insert_one(doc)
     app_id = str(result.inserted_id)
-    # Create Daily.co room for video session
-    room = await create_room_for_appointment(app_id, data.data_ora, data.durata_minuti)
-    if room:
-        await db.appuntamenti.update_one(
-            {"_id": result.inserted_id},
-            {"$set": {"daily_room_url": room.get("room_url"), "daily_room_name": room.get("room_name")}}
-        )
-        doc["daily_room_url"] = room.get("room_url")
-        doc["daily_room_name"] = room.get("room_name")
     doc["_id"] = app_id
-    # Send confirmation emails (paziente + terapista) + schedule reminders
-    try:
-        terapista = await db.terapisti.find_one({"_id": ObjectId(data.terapeuta_id)})
-        paziente = await db.pazienti.find_one({"_id": ObjectId(data.paziente_id)})
-        if terapista and paziente:
-            t_user = await db.users.find_one({"_id": terapista.get("user_id")})
-            ctx = {
-                "paziente_nome": paziente.get("nome", ""),
-                "paziente_cognome": paziente.get("cognome", ""),
-                "paziente_email": user.get("email"),
-                "terapista_nome": terapista.get("nome", ""),
-                "terapista_cognome": terapista.get("cognome", ""),
-                "terapista_email": t_user.get("email") if t_user else None,
-                "data_ora": data.data_ora,
-                "durata_minuti": data.durata_minuti,
-                "prezzo": terapista.get("prezzo_sessione", 90),
-                "room_url": doc.get("daily_room_url"),
-                "app_id": app_id,
-            }
-            await send_booking_confirmation_email(ctx)
-            schedule_reminders(app_id, ctx)
-    except Exception as e:
-        logging.error(f"[BOOKING EMAIL] failed: {e}")
+    finalized = await _finalize_confirmed_booking(app_id, user)
+    if finalized:
+        doc["daily_room_url"] = finalized.get("daily_room_url")
+        doc["daily_room_name"] = finalized.get("daily_room_name")
     return doc
 
 # ─── SMS OTP (Skebby) ─────────────────────────────────────────────────────────
@@ -1437,6 +1457,270 @@ async def list_audit_consents(
             "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
         })
     return {"total": total, "skip": skip, "limit": limit, "items": items}
+
+
+# ─── STRIPE PAYMENTS ──────────────────────────────────────────────────────────
+import stripe as _stripe
+
+_stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+PLATFORM_FEE_PERCENT = 30  # BIDOC retention (%)
+
+
+class CheckoutBookingRequest(BaseModel):
+    terapeuta_id: str
+    paziente_id: str
+    data_ora: str
+    durata_minuti: int
+    tipologia: Optional[str] = "individuale"
+    modalita: Optional[str] = "classica"
+    note: Optional[str] = None
+    origin_url: str
+
+
+@api_router.post("/payments/checkout/booking")
+async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depends(require_auth)):
+    """Create a pending appointment + Stripe Checkout Session. On payment success
+    (webhook or polling), the appointment is confirmed and the Daily.co room + emails
+    are provisioned. Split accounting: 70% therapist, 30% platform, tracked in DB."""
+    if user["role"] != "paziente":
+        raise HTTPException(403, "Solo i pazienti possono prenotare")
+
+    # Reuse the same SMS-verification guard as /public/prenota
+    u_doc = await db.users.find_one({"_id": ObjectId(user["_id"])})
+    tv_at = (u_doc or {}).get("telefono_verificato_at")
+    if isinstance(tv_at, str):
+        try:
+            tv_at = datetime.fromisoformat(tv_at)
+        except Exception:
+            tv_at = None
+    if tv_at and tv_at.tzinfo is None:
+        tv_at = tv_at.replace(tzinfo=timezone.utc)
+    if not (u_doc and u_doc.get("telefono_verificato") and tv_at and (datetime.now(timezone.utc) - tv_at) <= timedelta(minutes=60)):
+        raise HTTPException(403, "Verifica il numero di telefono via SMS prima di procedere al pagamento")
+
+    terapista = await db.terapisti.find_one({"_id": ObjectId(req.terapeuta_id)})
+    if not terapista:
+        raise HTTPException(404, "Terapista non trovato")
+    prezzo = terapista.get("prezzo_sessione") or 0
+    if prezzo <= 0:
+        raise HTTPException(400, "Prezzo sessione non configurato per questo terapista")
+    amount_cents = int(round(prezzo * 100))
+    platform_fee_cents = int(round(amount_cents * PLATFORM_FEE_PERCENT / 100))
+    therapist_amount_cents = amount_cents - platform_fee_cents
+
+    # 1. Create pending appointment
+    appt_doc = {
+        "terapeuta_id": req.terapeuta_id,
+        "paziente_id": req.paziente_id,
+        "paziente_user_id": user["_id"],
+        "data_ora": req.data_ora,
+        "durata_minuti": req.durata_minuti,
+        "tipologia": req.tipologia,
+        "modalita": req.modalita,
+        "note": req.note,
+        "stato": "in_attesa_pagamento",
+        "created_at": datetime.now(timezone.utc),
+    }
+    ins = await db.appuntamenti.insert_one(appt_doc)
+    appointment_id = str(ins.inserted_id)
+
+    # 2. Create Stripe Checkout Session (dynamic price_data, DIY tax mode).
+    # Rationale: Italian psychology/sexology services are IVA-exempt under
+    # art. 10 DPR 633/72; the therapist emits an exempt "fattura sanitaria"
+    # separately, so Stripe should NOT calculate additional VAT.
+    session = _stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "eur",
+                "product_data": {
+                    "name": f"Sessione con {terapista.get('nome','')} {terapista.get('cognome','')}",
+                    "description": f"{req.durata_minuti}' · {req.modalita} · {req.tipologia}",
+                    "metadata": {"terapeuta_id": req.terapeuta_id},
+                },
+                "unit_amount": amount_cents,
+            },
+            "quantity": 1,
+        }],
+        success_url=f"{req.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{req.origin_url}/payment/cancel?session_id={{CHECKOUT_SESSION_ID}}",
+        metadata={
+            "appointment_id": appointment_id,
+            "terapeuta_id": req.terapeuta_id,
+            "paziente_id": req.paziente_id,
+            "paziente_user_id": user["_id"],
+        },
+        customer_email=user.get("email"),
+    )
+
+    # 3. Persist payment_transaction with the split accounting
+    await db.payment_transactions.insert_one({
+        "session_id": session.id,
+        "appointment_id": appointment_id,
+        "terapeuta_id": req.terapeuta_id,
+        "paziente_id": req.paziente_id,
+        "paziente_user_id": user["_id"],
+        "amount": amount_cents,
+        "currency": "eur",
+        "platform_fee_amount": platform_fee_cents,
+        "platform_fee_percent": PLATFORM_FEE_PERCENT,
+        "therapist_amount": therapist_amount_cents,
+        "status": "initiated",
+        "payment_status": "pending",
+        "payout_status": "pending",  # tracked separately for manual Connect/payout later
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    })
+
+    # 4. Link session to appointment for cancel path
+    await db.appuntamenti.update_one(
+        {"_id": ins.inserted_id},
+        {"$set": {"stripe_session_id": session.id}},
+    )
+
+    return {
+        "checkout_url": session.url,
+        "session_id": session.id,
+        "appointment_id": appointment_id,
+        "amount": amount_cents,
+        "currency": "eur",
+    }
+
+
+async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] = None) -> bool:
+    """Idempotent: transition tx→paid, appointment→confermato, and provision room+emails.
+    Returns True if this call actually flipped the tx to paid."""
+    tx = await db.payment_transactions.find_one({"session_id": session_id})
+    if not tx:
+        return False
+    if tx.get("payment_status") == "paid":
+        return False
+    now = datetime.now(timezone.utc)
+    upd = {
+        "status": "completed",
+        "payment_status": "paid",
+        "updated_at": now,
+    }
+    if payment_intent_id:
+        upd["stripe_payment_intent_id"] = payment_intent_id
+    result = await db.payment_transactions.update_one(
+        {"session_id": session_id, "payment_status": {"$ne": "paid"}},
+        {"$set": upd},
+    )
+    if result.modified_count == 0:
+        return False
+    # Confirm the linked appointment
+    appt_id = tx.get("appointment_id")
+    if appt_id:
+        await db.appuntamenti.update_one(
+            {"_id": ObjectId(appt_id)},
+            {"$set": {"stato": "confermato", "paid_at": now}},
+        )
+        # Provision Daily.co + emails
+        paziente_user = await db.users.find_one({"_id": ObjectId(tx["paziente_user_id"])})
+        if paziente_user:
+            paziente_user["_id"] = str(paziente_user["_id"])
+            await _finalize_confirmed_booking(appt_id, paziente_user)
+    return True
+
+
+@api_router.get("/payments/status/{session_id}")
+async def get_payment_status(session_id: str):
+    """Unauthenticated status probe used by the /payment/success page.
+    Returns only status flags — no sensitive info leaked."""
+    tx = await db.payment_transactions.find_one({"session_id": session_id})
+    if not tx:
+        raise HTTPException(404, "Transaction not found")
+    # Webhook fallback: verify with Stripe directly if still pending
+    if tx.get("payment_status") != "paid":
+        try:
+            s = _stripe.checkout.Session.retrieve(session_id)
+            if s.payment_status == "paid" or s.status == "complete":
+                await _mark_payment_paid(session_id, s.payment_intent)
+                tx = await db.payment_transactions.find_one({"session_id": session_id})
+        except _stripe.error.StripeError:
+            pass
+    return {
+        "session_id": session_id,
+        "status": tx.get("status"),
+        "payment_status": tx.get("payment_status"),
+        "appointment_id": tx.get("appointment_id"),
+    }
+
+
+@api_router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    try:
+        event = _stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+    except _stripe.error.SignatureVerificationError:
+        raise HTTPException(400, "Invalid signature")
+    obj, t = event["data"]["object"], event["type"]
+    if t == "checkout.session.completed":
+        if obj.get("payment_status") == "paid":
+            await _mark_payment_paid(obj["id"], obj.get("payment_intent"))
+    elif t == "checkout.session.async_payment_succeeded":
+        await _mark_payment_paid(obj["id"], obj.get("payment_intent"))
+    elif t in ("checkout.session.async_payment_failed", "checkout.session.expired"):
+        new_status = "failed" if "failed" in t else "expired"
+        await db.payment_transactions.update_one(
+            {"session_id": obj["id"]},
+            {"$set": {"status": new_status, "payment_status": new_status, "updated_at": datetime.now(timezone.utc)}},
+        )
+        # Also cancel the pending appointment
+        tx = await db.payment_transactions.find_one({"session_id": obj["id"]})
+        if tx and tx.get("appointment_id"):
+            await db.appuntamenti.update_one(
+                {"_id": ObjectId(tx["appointment_id"]), "stato": "in_attesa_pagamento"},
+                {"$set": {"stato": "annullato", "annullato_motivo": f"payment_{new_status}"}},
+            )
+    elif t == "charge.refunded":
+        pi = obj.get("payment_intent")
+        if pi:
+            await db.payment_transactions.update_one(
+                {"stripe_payment_intent_id": pi},
+                {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": datetime.now(timezone.utc)}},
+            )
+    return {"status": "ok"}
+
+
+@api_router.get("/therapist/earnings")
+async def therapist_earnings(user: dict = Depends(require_auth)):
+    """Show the therapist their earnings breakdown (paid = 70% of paid sessions).
+    Marketplace split is currently tracked in DB; automatic Stripe Connect payouts
+    can be added later without breaking this contract."""
+    if user["role"] != "terapeuta":
+        raise HTTPException(403, "Solo i terapeuti possono vedere gli incassi")
+    terapista = await db.terapisti.find_one({"user_id": user["_id"]})
+    if not terapista:
+        # Fallback in case some legacy rows have ObjectId user_id
+        try:
+            terapista = await db.terapisti.find_one({"user_id": ObjectId(user["_id"])})
+        except Exception:
+            terapista = None
+    if not terapista:
+        raise HTTPException(404, "Profilo terapeuta non trovato")
+    tid = str(terapista["_id"])
+    pipeline = [
+        {"$match": {"terapeuta_id": tid, "payment_status": "paid"}},
+        {"$group": {
+            "_id": "$payout_status",
+            "total_therapist_amount": {"$sum": "$therapist_amount"},
+            "total_platform_fee": {"$sum": "$platform_fee_amount"},
+            "count": {"$sum": 1},
+        }},
+    ]
+    result = {"paid_out": 0, "pending_payout": 0, "sessions_count": 0, "platform_fee_total": 0}
+    async for row in db.payment_transactions.aggregate(pipeline):
+        if row["_id"] == "paid":
+            result["paid_out"] = row["total_therapist_amount"]
+        else:
+            result["pending_payout"] += row["total_therapist_amount"]
+        result["sessions_count"] += row["count"]
+        result["platform_fee_total"] += row["total_platform_fee"]
+    return result
 
 
 app.include_router(api_router)
