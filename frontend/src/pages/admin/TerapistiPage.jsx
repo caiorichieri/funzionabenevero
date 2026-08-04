@@ -7,7 +7,8 @@ const EMPTY_FORM = {
   nome: "", cognome: "", telefono: "", bio: "", anni_esperienza: "",
   genere: "", albo_numero: "", albo_ordine: "", albo_iscrizione_data: "",
   assicurazione_compagnia: "", assicurazione_numero_polizza: "", assicurazione_scadenza: "",
-  prezzo_sessione: "", approccio_terapeutico: "", specializzazioni: "", lingue: ""
+  prezzo_sessione: "", approccio_terapeutico: "", specializzazioni: "", lingue: "",
+  iban: ""
 };
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -67,7 +68,8 @@ export default function TerapistiPage() {
       prezzo_sessione: t.prezzo_sessione || "",
       approccio_terapeutico: t.approccio_terapeutico || "",
       specializzazioni: (t.specializzazioni || []).join(", "),
-      lingue: (t.lingue || []).join(", ")
+      lingue: (t.lingue || []).join(", "),
+      iban: t.iban || ""
     });
     setError("");
     setShowForm(true);
@@ -419,6 +421,19 @@ export default function TerapistiPage() {
                     <input data-testid="form-assicurazione_scadenza" type="date" value={form.assicurazione_scadenza} onChange={e => setForm({...form, assicurazione_scadenza:e.target.value})}
                       className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
                   </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-[#0A0A0A] mb-1">IBAN (per il bonifico mensile del 70%)</label>
+                  <input
+                    data-testid="form-iban"
+                    type="text"
+                    value={form.iban}
+                    onChange={e => setForm({...form, iban: e.target.value.toUpperCase().replace(/\s/g, "")})}
+                    placeholder="IT60 X054 2811 1010 0000 0123 456"
+                    maxLength={34}
+                    className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]"
+                  />
+                  <p className="text-[10px] text-[#0A0A0A]/50 mt-1">IBAN italiano: 27 caratteri (IT + 2 cifre di controllo + 23 alfanumerici). Verrà mostrato in Pagamenti al momento del bonifico.</p>
                 </div>
               </div>
 

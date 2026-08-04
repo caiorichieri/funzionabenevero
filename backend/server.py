@@ -157,6 +157,7 @@ class TerapistaProfileInput(BaseModel):
     prezzo_sessione: Optional[float] = None
     lingue: Optional[List[str]] = []
     disponibilita: Optional[List[DisponibilitaItem]] = []
+    iban: Optional[str] = None
 
 class PazienteProfileInput(BaseModel):
     nome: Optional[str] = None
