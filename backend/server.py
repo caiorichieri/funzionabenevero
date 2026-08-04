@@ -1442,11 +1442,14 @@ async def seed_data():
 
     # ── Seed demo pending payout (for Cruscotto KPI "Payout Pendenti" demo) ──
     try:
-        has_pending = await db.payment_transactions.find_one({
+        # Track by _seed:true marker so if a previous seeded row was marked paid
+        # during testing, we re-create a fresh pending one on next boot.
+        has_pending_seed = await db.payment_transactions.find_one({
+            "_seed": True,
             "payment_status": "paid",
             "payout_status": {"$ne": "paid"},
         })
-        if not has_pending:
+        if not has_pending_seed:
             demo_terapista = await db.terapisti.find_one({"email": "giulia.marchetti@funzionabene.it"})
             demo_paz_doc = await db.pazienti.find_one({}) if not demo_terapista else await db.pazienti.find_one({})
             demo_paz_user = await db.users.find_one({"email": demo_paz_email})

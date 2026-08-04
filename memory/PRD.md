@@ -612,3 +612,36 @@ Migrado para **Twilio Verify** (serviço dedicado de OTP):
 - **P3** Refactoring `OnboardingSection.jsx`, `ChatPanel.jsx`, `matching()`.
 - **P3** Invio SDI (fatture elettroniche) — in attesa del commercialista.
 
+
+---
+
+## ✅ FASE 7 — Refactoring Modulare Backend (Feb 2026)
+
+### Obiettivo
+Estrarre da `server.py` (monolite ~2500 righe) le 3 domini più corposi mantenendo comportamento identico. **Test regression 27/27 ✅**.
+
+### Nuovi moduli
+- **`/app/backend/deps.py`** (122 righe) — single source of truth per: `db`, `client`, JWT/Stripe/PLATFORM_FEE constants, `hash_password` / `verify_password` / `create_access_token` / `create_refresh_token` / `PyObjectId` / `validate_codice_fiscale`, `get_current_user` / `require_auth` / `require_admin`.
+- **`/app/backend/models.py`** (152 righe) — tutti i Pydantic models (Register/Login/OTP, TerapistaProfileInput con `@field_validator` IBAN regex, PazienteProfileInput, AppuntamentoInput, ArticoloInput, ConsentPrefs, ContractInput, CheckoutBookingRequest, MarkPayoutPaidRequest, ecc.).
+- **`/app/backend/routers/appuntamenti.py`** (152 righe) — 7 endpoint `/appuntamenti/*` + Daily.co video-token + presenze.
+- **`/app/backend/routers/terapisti.py`** (332 righe) — 16 endpoint `/terapisti/*` + `/admin/terapisti/*` incluso slot calculator (GIORNI_IT), upload documenti, autocertificazione DPR 445/2000, admin verifica.
+- **`/app/backend/routers/payments.py`** (402 righe) — 8 endpoint: Stripe checkout, webhook, therapist earnings, admin payouts+mark-paid, fattura sanitaria/commissione PDFs. Include `_mark_payment_paid` helper. Usa **lazy import** di `_finalize_confirmed_booking` da `server.py` per evitare dipendenze circolari.
+
+### server.py — Dimagrito
+- Da **~2500 → 1492 righe** (-40%).
+- Contiene ancora: auth/utenti/blog/chat/contratti/SMS/public prenota/media/dashboard/seed_data/`_finalize_confirmed_booking`/scheduler.
+
+### Bugfix bonus applicato
+- `seed_data()` — guard per pending payout ora filtra su `{_seed: True, payment_status: paid, payout_status: !=paid}` invece di qualsiasi pending tx. Al riavvio del backend, se il pending seeded è stato marcato paid durante i test, viene ricreato automaticamente (idempotente e resiliente ai cicli di test).
+
+### Test agent (iteration_10)
+- **Backend 27/27 tests ✅** in `/app/backend/tests/test_iteration10_refactor.py`
+- **Frontend 100% ✅** (admin dashboard + terapisti page invariati)
+- Nessuna regressione. Comportamento identico a iteration_9 su tutti gli endpoint.
+
+### Backlog residuo
+- **P3** Migrare `_finalize_confirmed_booking` + `schedule_reminders` + `scheduler` in `booking_service.py` per eliminare la lazy-import.
+- **P3** Restituire `id` invece di `_id` dagli endpoint GET (guideline MongoDB) — richiede aggiornamento coordinato frontend.
+- **P3** Split ulteriore: `routers/auth.py`, `routers/blog.py`, `routers/chat.py`, `routers/contracts.py`, `routers/public.py`.
+- **P3** Separare `AppuntamentoUpdateInput` (tutti Optional) da `AppuntamentoInput` per PUT parziali.
+
