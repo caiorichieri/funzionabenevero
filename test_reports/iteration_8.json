@@ -1,0 +1,55 @@
+{
+  "summary": "End-to-end validation of the new /api/admin/cruscotto executive dashboard endpoint and the IBAN field on TerapistaProfileInput. Backend pytest: 8/8 passed (auth guard, full schema shape with 6-month revenue array, int types, IBAN persistence via PUT/GET, iban_missing exclusion after saving IBAN). Frontend Playwright: admin login OK, /admin renders Cruscotto with all 6 requested data-testids (cruscotto-kpis, kpi-fatturato-mese, kpi-payout-pendenti, kpi-sessioni-mese, kpi-terapisti-attivi, chart-ricavi-6m, top-terapisti) plus alert-iban-mancante block; bar-chart <svg> is present. /admin/terapisti edit modal exposes data-testid=form-iban, input uppercases + strips spaces on typing (verified with 'it60 x054 2811 ...' → 'IT60X0542811101000000123456'), value persists after save + reopen. Live cruscotto JSON confirms: current_month 9000c, revenue_6m Aug bucket = 9000c/1, top_therapists[Maria Rossi 9000c], iban_missing=0 after IBAN set.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/cruscotto",
+        "issue": "pending_payouts totals therapist_amount only for payment_status=paid AND payout_status!='paid'. Seeded demo tx now has payout_status='paid' (from iter7 mark-paid test), so pending_payouts.count=0 even though the spec expects to demo the 'da bonificare' flow. Consider adding a second unpaid seed tx so the KPI is non-zero for demo purposes."
+      },
+      {
+        "endpoint": "GET /api/admin/cruscotto",
+        "issue": "iban_missing pipeline groups ALL paid tx (not just those without a payout). If a therapist without IBAN has only already-paid-out tx, they still show up — arguably correct for auditing but could be filtered to payout_status!='paid' to be actionable."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/admin — Cruscotto bar chart (chart-ricavi-6m)",
+        "issues": [
+          "Backend returns 9000c for Aug 2026 and the SVG renders, but the Aug bar is visually barely (or not) visible on the screenshot. Y-axis maxes at 100 (€) and the 90€ bar should be nearly full-height; check that recharts Bar dataKey 'ricavi' is being rendered as expected on the last category — could be a category-padding/barCategoryGap issue when only one non-zero bucket exists. Verify in browser during main-agent QA."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration8_cruscotto.py",
+    "/app/test_reports/pytest/iter8_cruscotto.xml",
+    "/app/test_reports/iter8_cruscotto.png",
+    "/app/test_reports/iter8_iban_modal.png"
+  ],
+  "action_items": [
+    "Optional: seed at least one unpaid paid_transaction so pending_payouts KPI and iban_missing show non-zero demo values.",
+    "Optional: verify BarChart displays the Aug column at ~90% height. If not, set explicit barCategoryGap or minPointSize on <Bar />.",
+    "Optional: filter iban_missing to only therapists with pending_cents>0 to make the alert actionable."
+  ],
+  "critical_code_review_comments": [
+    "server.py now ~2660 lines. The cruscotto endpoint is 170+ lines with 5 aggregation pipelines inline — extract into a dedicated router module (routers/admin_analytics.py) and split the aggregations into small helpers.",
+    "admin_cruscotto uses `now + timedelta(days=1)` as the upper bound for current-month gross which technically includes 'tomorrow'. Fine for a snapshot dashboard but not for month-close accounting; use next_month_start for correctness.",
+    "delta_percent returns None when previous month is 0. UI must handle None (currently shows 'n/d') — good.",
+    "iban_missing does an N+1 find_one per group. With many therapists this scales poorly; use $lookup or a single $in query on terapisti after aggregate.",
+    "top_therapists likewise N+1. Same fix applies.",
+    "update_terapista PUT: `update = {k:v for k,v in data.model_dump().items() if v is not None}` — an empty-string IBAN will overwrite the stored value (which is what we want to clear it), but there's no IBAN format validation on the backend. Consider a light regex check (IT + 25 alnum) to prevent typos silently persisting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100%"},
+  "test_credentials": "admin@funzionabene.it / admin2026 (from /app/memory/test_credentials.md). Also used demo.paziente@funzionabene.it / paziente2026 for the 403 negative test.",
+  "seed_data_creation": "None. The IBAN persistence test wrote 'IT60X0542811101000000123456' to Dr. Maria Rossi's therapist record and restored the original at the end. Note the earlier iter7 mark-paid state on tx 6a70adcc133bd008dba636ef (payout_status=paid, therefore pending_payouts=0) is still in effect.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Cruscotto endpoint and IBAN feature are complete and pass all acceptance criteria. Backend test file /app/backend/tests/test_iteration8_cruscotto.py can be reused for regression. Two design points remain worth eyeballing: (1) Aug bar visibility on chart-ricavi-6m when only one non-zero bucket; (2) seed a second unpaid tx so pending_payouts KPI ≠ 0 for demo screenshots.",
+  "rca of the issue": "No blocking issue. Notable observation: the Aug bar in the 6-month chart appeared visually flat in the Playwright screenshot even though backend data confirms Aug gross_cents=9000 (=90€) and the chart svg is rendered. Root cause is likely ResponsiveContainer + recharts barCategoryGap when only one bucket has data; not a blocker but worth a quick manual visual check."
+}

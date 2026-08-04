@@ -2080,6 +2080,178 @@ async def mark_payouts_paid(body: MarkPayoutPaidRequest, user: dict = Depends(re
     return {"marked": result.modified_count}
 
 
+# ─── Cruscotto (Executive Admin Dashboard) ──────────────────────────────────
+@api_router.get("/admin/cruscotto")
+async def admin_cruscotto(user: dict = Depends(require_admin)):
+    """Executive KPIs for BIDOC admin: revenue, payouts, sessions, top therapists, IBAN alerts."""
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 1:
+        prev_month_start = month_start.replace(year=month_start.year - 1, month=12)
+    else:
+        prev_month_start = month_start.replace(month=month_start.month - 1)
+
+    # a) Revenue current month vs previous month (from paid tx)
+    async def _sum_revenue(gte, lt):
+        pipeline = [
+            {"$match": {"payment_status": "paid", "paid_at": {"$gte": gte, "$lt": lt}}},
+            {"$group": {
+                "_id": None,
+                "gross": {"$sum": "$amount"},
+                "platform_fee": {"$sum": "$platform_fee_amount"},
+                "therapist": {"$sum": "$therapist_amount"},
+                "count": {"$sum": 1},
+            }},
+        ]
+        async for row in db.payment_transactions.aggregate(pipeline):
+            return {
+                "gross_cents": row.get("gross", 0) or 0,
+                "platform_fee_cents": row.get("platform_fee", 0) or 0,
+                "therapist_cents": row.get("therapist", 0) or 0,
+                "count": row.get("count", 0) or 0,
+            }
+        return {"gross_cents": 0, "platform_fee_cents": 0, "therapist_cents": 0, "count": 0}
+
+    rev_current = await _sum_revenue(month_start, now + timedelta(days=1))
+    rev_previous = await _sum_revenue(prev_month_start, month_start)
+
+    # b) Pending payouts total (paid tx not yet bonificate)
+    pending_agg = [
+        {"$match": {"payment_status": "paid", "payout_status": {"$ne": "paid"}}},
+        {"$group": {
+            "_id": None,
+            "total": {"$sum": "$therapist_amount"},
+            "count": {"$sum": 1},
+        }},
+    ]
+    pending_payouts = {"total_cents": 0, "count": 0}
+    async for row in db.payment_transactions.aggregate(pending_agg):
+        pending_payouts = {"total_cents": row.get("total", 0) or 0, "count": row.get("count", 0) or 0}
+
+    # c) Sessions this month: completed vs booked (confermato+completato)
+    month_start_iso = month_start.isoformat()
+    next_month_iso = (now + timedelta(days=1)).isoformat()
+    sessions_completed_month = await db.appuntamenti.count_documents({
+        "stato": "completato",
+        "data_ora": {"$gte": month_start_iso, "$lt": next_month_iso},
+    })
+    sessions_booked_month = await db.appuntamenti.count_documents({
+        "stato": {"$in": ["confermato", "completato"]},
+        "data_ora": {"$gte": month_start_iso, "$lt": next_month_iso},
+    })
+    completion_rate = (
+        round((sessions_completed_month / sessions_booked_month) * 100, 1)
+        if sessions_booked_month > 0 else 0
+    )
+
+    # d) Revenue last 6 months (bar chart) — buckets by paid_at month
+    six_months_ago = month_start
+    for _ in range(5):
+        if six_months_ago.month == 1:
+            six_months_ago = six_months_ago.replace(year=six_months_ago.year - 1, month=12)
+        else:
+            six_months_ago = six_months_ago.replace(month=six_months_ago.month - 1)
+
+    monthly_pipeline = [
+        {"$match": {"payment_status": "paid", "paid_at": {"$gte": six_months_ago}}},
+        {"$group": {
+            "_id": {"y": {"$year": "$paid_at"}, "m": {"$month": "$paid_at"}},
+            "gross": {"$sum": "$amount"},
+            "count": {"$sum": 1},
+        }},
+    ]
+    buckets = {}
+    async for row in db.payment_transactions.aggregate(monthly_pipeline):
+        key = f"{row['_id']['y']}-{row['_id']['m']:02d}"
+        buckets[key] = {"gross_cents": row.get("gross", 0) or 0, "count": row.get("count", 0) or 0}
+
+    revenue_6m = []
+    cursor = six_months_ago
+    for _ in range(6):
+        key = f"{cursor.year}-{cursor.month:02d}"
+        b = buckets.get(key, {"gross_cents": 0, "count": 0})
+        revenue_6m.append({
+            "month": key,
+            "label": cursor.strftime("%b").capitalize(),
+            "gross_cents": b["gross_cents"],
+            "count": b["count"],
+        })
+        if cursor.month == 12:
+            cursor = cursor.replace(year=cursor.year + 1, month=1)
+        else:
+            cursor = cursor.replace(month=cursor.month + 1)
+
+    # e) Top 5 therapists by revenue (all-time, paid)
+    top_pipeline = [
+        {"$match": {"payment_status": "paid"}},
+        {"$group": {
+            "_id": "$terapeuta_id",
+            "gross": {"$sum": "$amount"},
+            "sessions": {"$sum": 1},
+        }},
+        {"$sort": {"gross": -1}},
+        {"$limit": 5},
+    ]
+    top_therapists = []
+    async for row in db.payment_transactions.aggregate(top_pipeline):
+        tid = row["_id"]
+        try:
+            t = await db.terapisti.find_one({"_id": ObjectId(tid)})
+        except Exception:
+            t = None
+        top_therapists.append({
+            "terapeuta_id": tid,
+            "nome": f"{t.get('nome','')} {t.get('cognome','')}".strip() if t else "Sconosciuto",
+            "gross_cents": row.get("gross", 0) or 0,
+            "sessions": row.get("sessions", 0) or 0,
+        })
+
+    # f) Alert: therapists with paid sessions but missing IBAN
+    iban_pipeline = [
+        {"$match": {"payment_status": "paid"}},
+        {"$group": {"_id": "$terapeuta_id", "sessions": {"$sum": 1},
+                    "pending": {"$sum": {"$cond": [{"$ne": ["$payout_status", "paid"]}, "$therapist_amount", 0]}}}},
+    ]
+    iban_missing = []
+    async for row in db.payment_transactions.aggregate(iban_pipeline):
+        tid = row["_id"]
+        try:
+            t = await db.terapisti.find_one({"_id": ObjectId(tid)})
+        except Exception:
+            t = None
+        if not t:
+            continue
+        iban = (t.get("iban") or "").strip()
+        if not iban:
+            iban_missing.append({
+                "terapeuta_id": tid,
+                "nome": f"{t.get('nome','')} {t.get('cognome','')}".strip(),
+                "sessions": row.get("sessions", 0) or 0,
+                "pending_cents": row.get("pending", 0) or 0,
+            })
+
+    return {
+        "generated_at": now.isoformat(),
+        "revenue": {
+            "current_month": rev_current,
+            "previous_month": rev_previous,
+            "delta_percent": (
+                round(((rev_current["gross_cents"] - rev_previous["gross_cents"]) / rev_previous["gross_cents"]) * 100, 1)
+                if rev_previous["gross_cents"] > 0 else None
+            ),
+        },
+        "pending_payouts": pending_payouts,
+        "sessions_month": {
+            "completed": sessions_completed_month,
+            "booked": sessions_booked_month,
+            "completion_rate": completion_rate,
+        },
+        "revenue_6m": revenue_6m,
+        "top_therapists": top_therapists,
+        "iban_missing": iban_missing,
+    }
+
+
 @api_router.get("/admin/fattura-sanitaria/{transaction_id}")
 async def download_fattura_sanitaria(transaction_id: str, user: dict = Depends(require_admin)):
     """Generate a PDF fattura sanitaria for a paid transaction."""
