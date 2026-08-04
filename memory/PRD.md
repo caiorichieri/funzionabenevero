@@ -645,3 +645,41 @@ Estrarre da `server.py` (monolite ~2500 righe) le 3 domini più corposi mantenen
 - **P3** Split ulteriore: `routers/auth.py`, `routers/blog.py`, `routers/chat.py`, `routers/contracts.py`, `routers/public.py`.
 - **P3** Separare `AppuntamentoUpdateInput` (tutti Optional) da `AppuntamentoInput` per PUT parziali.
 
+
+---
+
+## ✅ FASE 8 — Modularizzazione Finale (Feb 2026)
+
+### Nuovi moduli
+- **`/app/backend/booking_service.py`** (103 righe) — proprietario esclusivo di `scheduler = AsyncIOScheduler()`, `start_scheduler()`, `stop_scheduler()`, `schedule_reminders()`, `finalize_confirmed_booking()`. Zero dipendenze circolari.
+- **`/app/backend/routers/auth.py`** (227 righe) — 8 endpoint auth: register, verify-otp, resend-otp, login, logout, me, forgot-password, reset-password. Internals OWASP-compliant (token digest SHA-256, timing equalization con bcrypt dummy, single-use via `find_one_and_update` atomico, `hmac.compare_digest`).
+- **`/app/backend/routers/blog.py`** (87 righe) — 7 endpoint blog: CRUD + admin approva/rifiuta + `/public/blog`.
+
+### server.py — Dimagrimento finale
+- Da **2500 (v0) → 1492 (fase 7) → 1136 (fase 8)** — **–55% totale**.
+- Rimossa la **lazy import** in `payments.py._mark_payment_paid`: ora `from booking_service import finalize_confirmed_booking` a livello modulo.
+
+### Import graph pulito
+```
+server.py  →  routers/{auth, blog, payments, appuntamenti, terapisti, admin_analytics}
+routers/payments  →  booking_service
+booking_service   →  deps + daily_service + email_service
+```
+**Nessuna dipendenza circolare.**
+
+### Test agent (iteration_11)
+- **Backend 58/58 tests ✅** (27 regressione iter10 + 31 nuovi iter11) in ~14s.
+- Log `[SCHEDULER] started` verificato ad ogni startup.
+- Nessuna regressione. Comportamento identico a iter10.
+
+### Note dal code review
+- ✅ RBAC blog corretto (terapeuta→bozza, admin→pubblicato/approva).
+- ✅ Cookie httponly/samesite=none/secure/path=/ conservati sui flussi login/verify/logout.
+- 💡 `_get_frontend_origin` fallback su `REACT_APP_BACKEND_URL` — funziona in prod (stesso origin) ma in locale punterebbe al backend. Considerare env `FRONTEND_URL` esplicita in dev.
+
+### Backlog residuo
+- **P3** `routers/pazienti.py`, `routers/chat.py` (conversazioni/messaggi), `routers/contracts.py`, `routers/public.py` (prenota + matching + terapisti).
+- **P3** `AppuntamentoUpdateInput` / `ArticoloUpdateInput` con tutti i campi Optional per PUT parziali.
+- **P3** Restituire `id` invece di `_id` dagli endpoint GET (guideline MongoDB) — richiede aggiornamento coordinato frontend.
+- **P2** Email report automatico mensile del Cruscotto PDF via Resend.
+
