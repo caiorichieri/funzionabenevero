@@ -742,3 +742,44 @@ booking_service   →  deps + daily_service + email_service
 - **P3** Vista `/admin/calendario`: aggiungere link diretto al profilo di ogni terapista dal drill-down
 - **P3** Vista terapista: pulsante "Copia settimana" per replicare le disponibilità di una settimana su quella successiva
 
+
+---
+
+## ✅ FASE 10 — Rifiniture Calendario + Rimborso Automatico (Feb 2026)
+
+### 1. Migrazione Slots → Calendario
+- `GET /api/terapisti/{id}/slots` ora legge **`disponibilita_calendario`** (nuovo modello data-specifico) quando è pubblicato.
+- Fallback automatico su `disponibilita` legacy (settimanale ricorrente) per terapisti che non hanno ancora migrato.
+- Response include `"source": "calendar" | "legacy_weekly"` per debug/monitoring.
+- Test verificato: Maria Rossi con calendar published 2026-08-10/11/17 → 6 slot corretti, filtri booked+past attivi.
+
+### 2. Notifica Terapista Riprogrammazione
+- Nuova funzione `send_reschedule_notification_email` in `email_service.py` con template dark-mode.
+- Chiamata da `confirm_reschedule` in `routers/calendario.py` (best-effort, try/except).
+- Include: nome paziente, vecchio orario (barrato), nuovo orario (evidenziato), branding.
+- **Bugfix testing agent**: `db.users.find_one({_id: terapista.user_id})` ora casta `user_id` (string) in `ObjectId` prima del lookup.
+
+### 3. Replica Settimana
+- Bottone **"Replica questa settimana su quella successiva"** in `/terapeuta/calendario` (drill-down del giorno).
+- Logica: calcola la settimana Lun-Dom contenente il giorno selezionato, copia gli slot sui 7 giorni successivi.
+- **Merge (union)** con slot esistenti: se il giorno target ha già delle disponibilità, unifica senza sovrascrivere. Toast informativo se non c'è nulla da aggiungere.
+
+### 4. Rimborso Automatico Stripe
+- Nuovo endpoint `POST /api/admin/refunds`:
+  - Valida transazione (paid + payout_status != paid + presenza `stripe_payment_intent_id`)
+  - Chiama `stripe.Refund.create(payment_intent=..., idempotency_key=f"refund-{tx_id}")` — **safe contro double-click**
+  - Aggiorna DB: `status=refunded, payment_status=refunded, payout_status=cancelled, refunded_at, refund_reason, refund_admin_note, refund_admin_id, stripe_refund_id`
+  - Cancella l'appuntamento con `cancellato_motivo=rimborsato`
+- UI in `/admin/pagamenti`: pulsante **"Rimborsa"** rosso accanto a "Sanitaria" solo per righe con `payout_status=pending`. Prompt+confirm+toast. **Non appare** dopo bonifico (payout_status=paid) — se serve rimborso post-bonifico, admin deve concordare con il terapista.
+
+### Test agent (iteration_13)
+- Backend: **29/29 ✅** (13 nuovi + 16 regressione iter12) + iter10/11 regression 58/58 ancora verdi.
+- Frontend: **100% ✅** su tutte le nuove interazioni (replica, rimborso, error toast).
+- 2 review action items applicati post-test: merge unions in replicaSettimana, `idempotency_key` in Stripe refund.
+
+### Backlog residuo
+- **P3** Audit generale delle `db.users.find_one({_id: <string>})`: alcuni caller passano string invece di ObjectId — creare un helper `find_user_by_id(uid)` che casta automaticamente.
+- **P3** Sostituire `window.prompt/confirm` nel pulsante Rimborsa con shadcn Dialog per consistenza UI.
+- **P3** `refund` policy: aggiungere warning se la sessione è già completata (data futura vs passata).
+- **P3** `durata_minuti` per terapista: leggere da campo custom invece di hardcode 50.
+

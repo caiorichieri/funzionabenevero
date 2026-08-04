@@ -395,6 +395,7 @@ async def create_refund(body: RefundRequest, user: dict = Depends(require_admin)
                 "admin_note": (body.admin_note or "")[:400],
                 "transaction_id": body.transaction_id,
             },
+            idempotency_key=f"refund-{body.transaction_id}",
         )
     except _stripe.error.StripeError as e:
         logging.error(f"[REFUND] Stripe error tx={body.transaction_id}: {e}")

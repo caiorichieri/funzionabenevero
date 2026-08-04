@@ -77,7 +77,7 @@ export default function TerapistaCalendarioPage() {
       toast.warning("Questa settimana è vuota — aggiungi almeno uno slot prima di replicare");
       return;
     }
-    // Target: next 7 days (Monday+7)
+    // Target: next 7 days (Monday+7). Merge (union) with existing slots on target days.
     setCalendario(prev => {
       const out = { ...prev };
       let addedDays = 0;
@@ -87,13 +87,20 @@ export default function TerapistaCalendarioPage() {
         const key = isoDate(target);
         const src2 = sourceWeek[i];
         if (src2.length > 0) {
-          out[key] = [...src2];
-          addedDays++;
-          addedSlots += src2.length;
+          const existing = new Set(out[key] || []);
+          const before = existing.size;
+          src2.forEach(s => existing.add(s));
+          if (existing.size > before) {
+            out[key] = Array.from(existing).sort();
+            addedDays++;
+            addedSlots += (existing.size - before);
+          }
         }
       }
-      if (addedDays > 0) {
-        toast.success(`Replicati ${addedSlots} slot su ${addedDays} giorni della settimana successiva`);
+      if (addedSlots > 0) {
+        toast.success(`Aggiunti ${addedSlots} nuovi slot su ${addedDays} giorni della settimana successiva`);
+      } else {
+        toast.info("La settimana successiva ha già tutti gli slot — nulla da aggiungere");
       }
       return out;
     });
