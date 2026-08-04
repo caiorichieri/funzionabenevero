@@ -1,13 +1,12 @@
 """Calendario router: date-specific availability per therapist + admin aggregated view + reschedule flow."""
 import hashlib
 import logging
-import secrets as _secrets
 from datetime import datetime, timezone, timedelta
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from deps import db, require_auth, require_admin
 
@@ -179,7 +178,10 @@ async def public_terapista_calendario(terapista_id: str, anno: int, mese: int):
     """Public: return published availability for a therapist in a given month, with booked slots excluded."""
     if not (1 <= mese <= 12):
         raise HTTPException(400, "Mese invalido")
-    t = await db.terapisti.find_one({"_id": ObjectId(terapista_id)})
+    try:
+        t = await db.terapisti.find_one({"_id": ObjectId(terapista_id)})
+    except Exception:
+        raise HTTPException(404, "Terapeuta non disponibile")
     if not t or t.get("calendario_bozza") or not t.get("documenti_verificati"):
         raise HTTPException(404, "Terapeuta non disponibile")
 
@@ -347,10 +349,3 @@ async def confirm_reschedule(appuntamento_id: str, body: RiprogrammaConfirm):
         "new_appuntamento_id": new_id,
         "nuova_data_ora": nuova_dt.isoformat(),
     }
-
-
-def generate_reschedule_token_for_appt(appuntamento_id: str) -> str:
-    """Utility (called from booking_service): generate a raw token, store hash on the appuntamento.
-    Returns the RAW token to embed in email."""
-    # This function is sync-oriented — the actual DB write happens inside the async caller.
-    return _secrets.token_urlsafe(32)

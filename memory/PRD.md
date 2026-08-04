@@ -683,3 +683,62 @@ booking_service   →  deps + daily_service + email_service
 - **P3** Restituire `id` invece di `_id` dagli endpoint GET (guideline MongoDB) — richiede aggiornamento coordinato frontend.
 - **P2** Email report automatico mensile del Cruscotto PDF via Resend.
 
+
+---
+
+## ✅ FASE 9 — Calendario Disponibilità + Riprogrammazione (Feb 2026)
+
+### Nuove funzionalità
+
+**1. Calendario terapista (date-specifiche)**
+- Nuovo campo `terapisti.disponibilita_calendario`: `{ "YYYY-MM-DD": ["HH:MM", ...] }`
+- Pagina `/terapeuta/calendario`: griglia mensile + drill-down per giorno (slot 8:00-20:00, sessioni da 50 minuti)
+- Verde = disponibile, rosso = non disponibile, badge conteggio slot
+- Salva come **bozza** o **conferma e pubblica** (visibilità pubblica)
+
+**2. Calendario admin aggregato**
+- Pagina `/admin/calendario`: vista mensile con conteggio terapisti disponibili per giorno
+- Codice colore: 1-2 chiaro / 3-5 medio / 6+ scuro / 0 rosso
+- Drill-down cliccabile → lista terapisti attivi + slot orari specifici
+
+**3. Riprogrammazione paziente via link email**
+- Al pagamento, generato token single-use SHA-256 con scadenza = 1h prima appuntamento
+- Link `/riprogramma/{id}?token=xxx` in email di conferma + reminder (piccolo, nel footer)
+- Pagina pubblica token-authenticated: mostra appuntamento corrente + slot calendario terapista → conferma sposta l'appuntamento (senza rimborso)
+- Per rimborso: `mailto:assistenza@funzionabene.it` (istruzione in footer email + pagina errore)
+
+**4. Email semplificate**
+- Rimosso reminder 1 ora prima (per richiesta utente)
+- Attivi: **email conferma immediata + reminder 1 giorno prima**
+- Entrambe con link "Riprogramma qui" piccolo nel footer
+
+### Endpoint nuovi (`/app/backend/routers/calendario.py`)
+- `GET /api/terapisti/me/calendario` — legge calendario proprio + status bozza/pubblicato
+- `PUT /api/terapisti/me/calendario` — batch update slots + flag `pubblica`
+- `POST /api/terapisti/me/calendario/pubblica` — pubblica bozza
+- `GET /api/admin/calendario?anno=YYYY&mese=MM` — vista aggregata direzionale
+- `GET /api/public/terapisti/{tid}/calendario?anno=YYYY&mese=MM` — public per pagina riprogramma
+- `GET /api/riprogramma/{id}/validate?token=xxx` — valida token
+- `POST /api/riprogramma/{id}/confirm` — cancella vecchio + crea nuovo appuntamento
+
+### File modificati/creati
+- ✨ NEW `/app/backend/routers/calendario.py` (302 righe)
+- 📝 MOD `/app/backend/booking_service.py` — gen token + rimosso reminder 1h
+- 📝 MOD `/app/backend/email_service.py` — link riprogramma in footer + template reminder aggiornato
+- ✨ NEW `/app/frontend/src/pages/therapist/TerapistaCalendarioPage.jsx` (232 righe)
+- ✨ NEW `/app/frontend/src/pages/admin/AdminCalendarioPage.jsx` (155 righe)
+- ✨ NEW `/app/frontend/src/pages/RiprogrammaPage.jsx` (215 righe)
+- 📝 MOD `/app/frontend/src/App.js` — 3 route nuove
+- 📝 MOD `/app/frontend/src/components/shared/Sidebar.jsx` — voci menu
+
+### Test agent (iteration_12)
+- Backend: **16/16 ✅** (pytest completo su CRUD calendar + admin aggregate + reschedule flow + booking service)
+- Frontend: **100% ✅** (tutte le 3 pagine renderizzano, save/publish/error card funzionano)
+- Correzioni post-review applicate: try/except per ObjectId non valido su endpoint pubblico, rimosso codice morto in calendario.py.
+
+### Backlog residuo
+- **P2** Migrare `/api/terapisti/{id}/slots` a leggere da `disponibilita_calendario` (attualmente ancora su `disponibilita` legacy settimanale)
+- **P2** Notifica email al terapista quando un paziente riprogramma (attualmente solo evento silenzioso)
+- **P3** Vista `/admin/calendario`: aggiungere link diretto al profilo di ogni terapista dal drill-down
+- **P3** Vista terapista: pulsante "Copia settimana" per replicare le disponibilità di una settimana su quella successiva
+
