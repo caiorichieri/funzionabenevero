@@ -578,3 +578,37 @@ Migrado para **Twilio Verify** (serviço dedicado de OTP):
 - **P2** Seed di una tx unpaid per demo del flow "da bonificare".
 - **P3** Refactoring `OnboardingSection.jsx`, `ChatPanel.jsx`, `matching()`.
 - **P3** Invio SDI (fatture elettroniche) — in attesa del commercialista.
+
+---
+
+## ✅ FASE 6 — Consolidamento Cruscotto (Feb 2026)
+
+### Refactoring backend
+- **`/app/backend/routers/admin_analytics.py`** (NUOVO) — factory `build_router(db, require_admin)`, mount in `server.py` via `app.include_router(..., prefix="/api")`.
+- Rimossa la funzione inline `admin_cruscotto` da `server.py` (–176 righe).
+- Eliminati gli N+1 su `db.terapisti` con helper `_batch_lookup_therapists({"_id":{"$in":[...]}})` — un solo round-trip per top_therapists e iban_missing.
+
+### Validazione IBAN
+- `TerapistaProfileInput.iban` → `@field_validator("iban", mode="before")` con regex `^IT\d{2}[A-Z0-9]{23}$`. Comportamenti:
+  - IBAN invalido → HTTP 422 con messaggio italiano chiaro
+  - Stringa vuota → consentita (permette di cancellare il campo)
+  - IBAN con spazi/minuscole → normalizzato automaticamente
+
+### Seed Payout Demo
+- `seed_data()` estesa: se `db.payment_transactions` non contiene alcuna tx `payment_status=paid, payout_status!=paid`, crea una transazione demo per **Giulia Marchetti** (€65 lordo → €45,50 al terapeuta, €19,50 commissione), datata 3 giorni fa, con IBAN mancante — così KPI "Payout Pendenti" e alert "IBAN Mancante" mostrano dati reali. Idempotente.
+
+### Report PDF Mensile
+- **`/app/backend/cruscotto_pdf.py`** (NUOVO) — `build_cruscotto_pdf(data) → bytes` con reportlab: KPI grid, bar chart 6 mesi, tabella ricavi mensili, Top 5 terapisti, alert IBAN mancante.
+- **`GET /api/admin/cruscotto/report.pdf`** — export PDF con `Content-Disposition: attachment; filename="cruscotto-YYYY-MM.pdf"`.
+- Bottone **"Esporta PDF"** (`data-testid="btn-export-pdf"`) in header di `/admin`.
+
+### Test agent (iteration_9)
+- Backend: 10/10 ✅ · Frontend: 100% ✅
+- Verificate: idempotenza seed, refactoring identico allo schema originale, PDF valido (%PDF-1.4), regex IBAN in tutti gli edge case, auth guard su entrambi gli endpoint.
+
+### Backlog residuo
+- **P2** Continuare refactoring `server.py` (>2500 righe): estrarre `routers/payments.py`, `routers/terapisti.py`, `routers/appuntamenti.py`.
+- **P2** Restituire `id` (non `_id`) dagli endpoint GET (pre-esistente, non introdotto in questa fase).
+- **P3** Refactoring `OnboardingSection.jsx`, `ChatPanel.jsx`, `matching()`.
+- **P3** Invio SDI (fatture elettroniche) — in attesa del commercialista.
+

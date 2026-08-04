@@ -226,7 +226,7 @@ def build_router(db, require_admin) -> APIRouter:
         return _FastResponse(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     return router

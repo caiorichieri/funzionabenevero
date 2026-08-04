@@ -54,8 +54,8 @@ def _kpi_cell(styles, label: str, value: str, sub: str = ""):
 def _build_bar_chart(revenue_6m):
     """Bar chart of gross revenue (in €) over the last 6 months."""
     d = Drawing(16 * cm, 6 * cm)
-    values = [round((m.get("gross_cents", 0) or 0) / 100) for m in revenue_6m]
-    labels = [m.get("label", "") for m in revenue_6m]
+    values = [round((m.get("gross_cents", 0) or 0) / 100) for m in revenue_6m] or [0]
+    labels = [m.get("label", "") for m in revenue_6m] or [""]
 
     chart = VerticalBarChart()
     chart.x = 40
