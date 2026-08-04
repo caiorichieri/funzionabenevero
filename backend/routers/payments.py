@@ -17,6 +17,13 @@ from deps import (
 from models import CheckoutBookingRequest, MarkPayoutPaidRequest
 from invoice_pdf import build_fattura_sanitaria_pdf, build_fattura_commissione_pdf
 from booking_service import finalize_confirmed_booking
+from pydantic import BaseModel
+
+
+class RefundRequest(BaseModel):
+    transaction_id: str
+    reason: str = "requested_by_customer"  # Stripe reason
+    admin_note: str = ""
 
 _stripe.api_key = STRIPE_SECRET_KEY
 
@@ -349,6 +356,88 @@ async def mark_payouts_paid(body: MarkPayoutPaidRequest, user: dict = Depends(re
         }},
     )
     return {"marked": result.modified_count}
+
+
+@router.post("/admin/refunds")
+async def create_refund(body: RefundRequest, user: dict = Depends(require_admin)):
+    """Refund a paid transaction via Stripe. Cancels associated appointment.
+
+    Only allowed on transactions where payment_status='paid' AND payout_status != 'paid'
+    (once BIDOC has paid the therapist, refund must be manual/agreed with the pro).
+    """
+    try:
+        tx = await db.payment_transactions.find_one({"_id": ObjectId(body.transaction_id)})
+    except Exception:
+        raise HTTPException(400, "ID transazione non valido")
+    if not tx:
+        raise HTTPException(404, "Transazione non trovata")
+    if tx.get("payment_status") != "paid":
+        raise HTTPException(400, "Solo le transazioni pagate possono essere rimborsate")
+    if tx.get("payout_status") == "paid":
+        raise HTTPException(400, "Rimborso non consentito: il payout al terapista è già stato eseguito. Contatta il terapista per il recupero.")
+    if tx.get("status") == "refunded":
+        raise HTTPException(400, "Già rimborsata")
+
+    pi = tx.get("stripe_payment_intent_id")
+    if not pi:
+        raise HTTPException(400, "Manca payment_intent_id — impossibile procedere via Stripe")
+
+    valid_reasons = {"requested_by_customer", "duplicate", "fraudulent"}
+    reason = body.reason if body.reason in valid_reasons else "requested_by_customer"
+
+    now = datetime.now(timezone.utc)
+    try:
+        refund = _stripe.Refund.create(
+            payment_intent=pi,
+            reason=reason,
+            metadata={
+                "admin_user_id": user["_id"],
+                "admin_note": (body.admin_note or "")[:400],
+                "transaction_id": body.transaction_id,
+            },
+        )
+    except _stripe.error.StripeError as e:
+        logging.error(f"[REFUND] Stripe error tx={body.transaction_id}: {e}")
+        raise HTTPException(502, f"Stripe: {e.user_message or str(e)}")
+
+    # Persist refund locally
+    await db.payment_transactions.update_one(
+        {"_id": ObjectId(body.transaction_id)},
+        {"$set": {
+            "status": "refunded",
+            "payment_status": "refunded",
+            "payout_status": "cancelled",
+            "refunded_at": now,
+            "refund_reason": reason,
+            "refund_admin_note": (body.admin_note or "")[:400],
+            "refund_admin_id": user["_id"],
+            "stripe_refund_id": refund.id,
+            "updated_at": now,
+        }},
+    )
+
+    # Cancel appointment
+    appt_id = tx.get("appointment_id")
+    if appt_id:
+        try:
+            await db.appuntamenti.update_one(
+                {"_id": ObjectId(appt_id), "stato": {"$nin": ["cancellato", "annullato"]}},
+                {"$set": {
+                    "stato": "cancellato",
+                    "cancellato_at": now,
+                    "cancellato_motivo": "rimborsato",
+                }},
+            )
+        except Exception as e:
+            logging.warning(f"[REFUND] appointment cancel failed: {e}")
+
+    logging.info(f"[REFUND] tx={body.transaction_id} refund_id={refund.id} amount={tx.get('amount')}")
+    return {
+        "message": "Rimborso eseguito",
+        "refund_id": refund.id,
+        "amount": tx.get("amount"),
+        "status": "refunded",
+    }
 
 
 @router.get("/admin/fattura-sanitaria/{transaction_id}")

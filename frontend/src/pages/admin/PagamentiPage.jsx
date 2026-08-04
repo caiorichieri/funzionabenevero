@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Wallet, Download, Check, Euro, Users, FileText, Loader2 } from "lucide-react";
+import { Wallet, Download, Check, Euro, Users, FileText, Loader2, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 const eur = (cents) => `€ ${((cents || 0) / 100).toFixed(2).replace(".", ",")}`;
 
 const STATUS_BADGE = {
   pending: "bg-amber-100 text-amber-800",
   paid: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
 };
 
 export default function PagamentiPage() {
@@ -72,6 +74,28 @@ export default function PagamentiPage() {
   const downloadPdf = (url, filename) => {
     // open in new tab; backend returns Content-Disposition: inline
     window.open(`${apiBase}${url}`, "_blank");
+  };
+
+  const refund = async (transactionId) => {
+    const nota = window.prompt(
+      "Motivo del rimborso (visibile solo internamente):",
+      "",
+    );
+    if (nota === null) return; // cancelled
+    if (!window.confirm(
+      "⚠️ Confermi il rimborso? L'importo verrà restituito sulla carta del paziente e l'appuntamento sarà cancellato. Operazione irreversibile."
+    )) return;
+    try {
+      await axios.post(`${apiBase}/admin/refunds`, {
+        transaction_id: transactionId,
+        reason: "requested_by_customer",
+        admin_note: nota || "",
+      }, { withCredentials: true });
+      toast.success("Rimborso eseguito con successo");
+      load();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Errore durante il rimborso");
+    }
   };
 
   const now = new Date();
@@ -207,14 +231,26 @@ export default function PagamentiPage() {
                     </span>
                   </td>
                   <td className="p-3 text-right">
-                    <button
-                      data-testid={`fs-btn-${it.id}`}
-                      onClick={() => downloadPdf(`/admin/fattura-sanitaria/${it.id}`, `fattura-sanitaria-${it.id.slice(0,8)}.pdf`)}
-                      className="inline-flex items-center gap-1 text-xs text-[#F58A1F] hover:underline"
-                      title="Fattura sanitaria (paziente)"
-                    >
-                      <FileText className="w-3.5 h-3.5" /> Sanitaria
-                    </button>
+                    <div className="flex items-center gap-2 justify-end">
+                      <button
+                        data-testid={`fs-btn-${it.id}`}
+                        onClick={() => downloadPdf(`/admin/fattura-sanitaria/${it.id}`, `fattura-sanitaria-${it.id.slice(0,8)}.pdf`)}
+                        className="inline-flex items-center gap-1 text-xs text-[#F58A1F] hover:underline"
+                        title="Fattura sanitaria (paziente)"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Sanitaria
+                      </button>
+                      {it.payout_status === "pending" && (
+                        <button
+                          data-testid={`refund-btn-${it.id}`}
+                          onClick={() => refund(it.id)}
+                          className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
+                          title="Rimborsa (annulla la sessione e restituisce al paziente)"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" /> Rimborsa
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

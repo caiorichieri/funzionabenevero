@@ -343,6 +343,25 @@ async def confirm_reschedule(appuntamento_id: str, body: RiprogrammaConfirm):
     )
 
     logging.info(f"[RESCHEDULE] {appt['_id']} → {new_id} for terapista {appt['terapeuta_id']}")
+
+    # Notify therapist by email (best-effort)
+    try:
+        tuid = terapista.get("user_id")
+        terapista_user = await db.users.find_one({"_id": ObjectId(tuid) if isinstance(tuid, str) else tuid}) if tuid else None
+        paziente = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])})
+        if terapista_user and paziente:
+            from email_service import send_reschedule_notification_email
+            await send_reschedule_notification_email(
+                to_email=terapista_user["email"],
+                to_nome=f"{terapista.get('nome','')}",
+                paziente_nome=f"{paziente.get('nome','')} {paziente.get('cognome','')}".strip(),
+                old_datetime_iso=appt["data_ora"],
+                new_datetime_iso=nuova_dt.isoformat(),
+                role="terapista",
+            )
+    except Exception as e:
+        logging.warning(f"[RESCHEDULE] therapist notification failed: {e}")
+
     return {
         "message": "Appuntamento riprogrammato con successo",
         "old_appuntamento_id": str(appt["_id"]),

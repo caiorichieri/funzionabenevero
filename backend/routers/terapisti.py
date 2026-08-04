@@ -216,9 +216,7 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
     if not terapista:
         raise HTTPException(status_code=404, detail="Terapeuta non trovato")
 
-    disponibilita = terapista.get("disponibilita", [])
     durata = 50
-
     now = datetime.now(timezone.utc)
     if data_inizio:
         try:
@@ -232,37 +230,69 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
 
     existing = await db.appuntamenti.find({
         "terapeuta_id": terapista_id,
-        "stato": {"$nin": ["cancellato"]},
+        "stato": {"$nin": ["cancellato", "annullato"]},
         "data_ora": {"$gte": start.isoformat(), "$lt": end.isoformat()},
     }).to_list(500)
     booked = {a["data_ora"][:16] for a in existing}
 
     slots = []
-    current_day = start
-    while current_day < end:
-        wd = current_day.weekday()
-        for disp in disponibilita:
-            if GIORNI_IT.get(disp.get("giorno", ""), -1) != wd:
-                continue
-            try:
-                h0, m0 = map(int, disp["ora_inizio"].split(":"))
-                h1, m1 = map(int, disp["ora_fine"].split(":"))
-            except Exception:
-                continue
-            slot_t = current_day.replace(hour=h0, minute=m0, second=0, microsecond=0)
-            end_t = current_day.replace(hour=h1, minute=m1, second=0, microsecond=0)
-            while slot_t + timedelta(minutes=durata) <= end_t:
-                if slot_t > now:
-                    key = slot_t.isoformat()[:16]
-                    slots.append({
-                        "data_ora": slot_t.isoformat(),
-                        "data_ora_fmt": fmt_slot_it(slot_t),
-                        "disponibile": key not in booked,
-                    })
-                slot_t += timedelta(minutes=durata)
-        current_day += timedelta(days=1)
 
-    return {"slots": slots, "terapeuta_id": terapista_id, "durata_minuti": durata}
+    # PRIMARY: date-specific calendar (disponibilita_calendario)
+    cal = terapista.get("disponibilita_calendario") or {}
+    use_calendar = bool(cal) and not terapista.get("calendario_bozza")
+
+    if use_calendar:
+        current_day = start
+        while current_day < end:
+            date_key = current_day.strftime("%Y-%m-%d")
+            for hhmm in cal.get(date_key, []):
+                try:
+                    h, m = int(hhmm[:2]), int(hhmm[3:5])
+                except (ValueError, IndexError):
+                    continue
+                slot_t = current_day.replace(hour=h, minute=m, second=0, microsecond=0)
+                if slot_t <= now:
+                    continue
+                key = slot_t.isoformat()[:16]
+                slots.append({
+                    "data_ora": slot_t.isoformat(),
+                    "data_ora_fmt": fmt_slot_it(slot_t),
+                    "disponibile": key not in booked,
+                })
+            current_day += timedelta(days=1)
+    else:
+        # FALLBACK: legacy weekly recurring availability
+        disponibilita = terapista.get("disponibilita", [])
+        current_day = start
+        while current_day < end:
+            wd = current_day.weekday()
+            for disp in disponibilita:
+                if GIORNI_IT.get(disp.get("giorno", ""), -1) != wd:
+                    continue
+                try:
+                    h0, m0 = map(int, disp["ora_inizio"].split(":"))
+                    h1, m1 = map(int, disp["ora_fine"].split(":"))
+                except Exception:
+                    continue
+                slot_t = current_day.replace(hour=h0, minute=m0, second=0, microsecond=0)
+                end_t = current_day.replace(hour=h1, minute=m1, second=0, microsecond=0)
+                while slot_t + timedelta(minutes=durata) <= end_t:
+                    if slot_t > now:
+                        key = slot_t.isoformat()[:16]
+                        slots.append({
+                            "data_ora": slot_t.isoformat(),
+                            "data_ora_fmt": fmt_slot_it(slot_t),
+                            "disponibile": key not in booked,
+                        })
+                    slot_t += timedelta(minutes=durata)
+            current_day += timedelta(days=1)
+
+    return {
+        "slots": slots,
+        "terapeuta_id": terapista_id,
+        "durata_minuti": durata,
+        "source": "calendar" if use_calendar else "legacy_weekly",
+    }
 
 
 # ─── Admin: therapist approval + documents review & verification ─────────────

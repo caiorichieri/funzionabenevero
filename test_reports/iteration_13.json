@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 13: Slots-migration + Reschedule email + Refund endpoint + Replica-settimana + Admin Pagamenti refund UI. Backend: 29/29 pass on new suite (test_iteration13_slots_refund_replica.py 13 tests + test_iteration12_calendario.py 16 regression). Broader regression: iteration 10 + 11 suites still pass (58/58). Frontend: /terapeuta/calendario shows Aug 10/11/17 as green (2 slots each), replica-settimana-btn works, replicated Aug 10→17 and Aug 11→18 (source Wed-Sun empty → skipped), 'Modifiche non salvate' dirty badge appears, totalSlots 6→8. /admin/pagamenti shows both Sanitaria + Rimborsa buttons on pending payout row, data-testid='refund-btn-{id}' present, prompt+confirm dialogs fire, POST /api/admin/refunds correctly returns 400 for the seeded tx that lacks stripe_payment_intent_id.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/riprogramma/{id}/confirm", "issue": "Reschedule notification email was silently skipped: db.users.find_one({'_id': terapista.get('user_id')}) passed a string against ObjectId _id, always returning None. Fixed in this iteration by wrapping in ObjectId(...) when the value is a str. Email is now correctly attempted (still wrapped in try/except best-effort). Please verify by RCA in backend log for '[EMAIL SENT] reschedule notify' after a real reschedule."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/terapeuta/calendario time-grid", "issues": ["Replica overwrites target day even if it already has slots (Aug 17 kept 2 because source Mon also had 2 identical slots — pure luck). If source Mon had different slots, target would be silently overwritten. Consider merging (union) instead of replacing, or warn the user."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration13_slots_refund_replica.py",
+    "/app/backend/tests/test_iteration12_calendario.py",
+    "/app/test_reports/pytest/iter13_full.xml"
+  ],
+  "action_items": [
+    "Consider extending refund endpoint to accept partial-amount refunds (currently full amount only).",
+    "Consider showing a confirmation toast on frontend for refund success (currently no visible feedback path unless via sonner)."
+  ],
+  "critical_code_review_comments": [
+    "routers/calendario.py send_reschedule_notification_email: user_id lookup now correctly uses ObjectId() but same pattern exists in many places — audit db.users.find_one usages where the source is 'terapisti.user_id' (a string).",
+    "routers/payments.py create_refund: no idempotency key sent to Stripe. If admin double-clicks the button and dialog is dismissed twice, could create two refunds. Add idempotency_key=transaction_id.",
+    "routers/payments.py create_refund: doesn't check that appointment date is in the future or already happened — refunding a completed session may be undesirable business-wise; consider adding a policy check.",
+    "TerapistaCalendarioPage.replicaSettimana overwrites destination days unconditionally — should merge or prompt when target has existing slots.",
+    "PagamentiPage.refund uses window.prompt/window.confirm (native dialogs) — inconsistent with the rest of the app which uses shadcn dialogs. UX-only.",
+    "GET /api/terapisti/{id}/slots: durata_minuti is hardcoded to 50 — future feature: read from terapista.durata_sessione_minuti."
+  ],
+  "updated_files": [
+    "/app/backend/routers/calendario.py (ObjectId wrap for reschedule email user lookup)",
+    "/app/backend/tests/test_iteration13_slots_refund_replica.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Per /app/memory/test_credentials.md (admin/terapeuta/paziente 2026 passwords).",
+  "seed_data_creation": "During fixture maria_with_aug_calendar we (re)set Maria's disponibilita_calendario to {2026-08-10: [09:00,14:00], 2026-08-11: [10:00,15:00], 2026-08-17: [09:00,14:00]} with calendario_bozza=False + documenti_verificati=True. The fixture restores previous state on teardown, but frontend testing left Aug 10/11/17 seeded in DB for main-agent smoke.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The reschedule email path now runs but only produces a [EMAIL SENT]/[EMAIL ERROR] log when Resend accepts the mail. Look for '[RESCHEDULE] {old} → {new}' at INFO to prove the confirm handler ran. Backend tests use MongoClient directly for seeding — always cleanup with _TEST or _TEST13 markers. Frontend testids: replica-settimana-btn, refund-btn-{tx_id}, day-{iso}, day-timegrid, save-draft-btn, publish-btn.",
+  "rca of the issue": "REschedule-email silent skip: terapista.user_id is stored as a plain string ObjectId (e.g. '69e5c83ca585e313092bd592') in the terapisti collection, but users._id is a BSON ObjectId. db.users.find_one({'_id': '<str>'}) always returns None → the notification code branched to skip. Reproduction: POST /api/riprogramma/{id}/confirm with valid token → 200 OK, DB updated, but no [EMAIL SENT] reschedule notify log. Fix: ObjectId(tuid) when isinstance(tuid, str)."
+}

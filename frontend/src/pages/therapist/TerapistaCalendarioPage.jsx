@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { ChevronLeft, ChevronRight, Check, AlertCircle, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, AlertCircle, Loader2, X, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 8:00 → 20:00
@@ -58,6 +58,46 @@ export default function TerapistaCalendarioPage() {
     setMonth(m);
     setYear(y);
     setSelectedDate(null);
+  };
+
+  const replicaSettimana = () => {
+    if (!selectedDate) return;
+    const src = new Date(selectedDate);
+    // Compute Monday of the week containing selectedDate
+    const dow = (src.getDay() + 6) % 7; // 0=Mon
+    const monday = new Date(src.getFullYear(), src.getMonth(), src.getDate() - dow);
+    // Read the 7-day source week starting from Monday
+    const sourceWeek = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      sourceWeek[i] = calendario[isoDate(d)] || [];
+    }
+    const hasAny = Object.values(sourceWeek).some(s => s.length > 0);
+    if (!hasAny) {
+      toast.warning("Questa settimana è vuota — aggiungi almeno uno slot prima di replicare");
+      return;
+    }
+    // Target: next 7 days (Monday+7)
+    setCalendario(prev => {
+      const out = { ...prev };
+      let addedDays = 0;
+      let addedSlots = 0;
+      for (let i = 0; i < 7; i++) {
+        const target = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7 + i);
+        const key = isoDate(target);
+        const src2 = sourceWeek[i];
+        if (src2.length > 0) {
+          out[key] = [...src2];
+          addedDays++;
+          addedSlots += src2.length;
+        }
+      }
+      if (addedDays > 0) {
+        toast.success(`Replicati ${addedSlots} slot su ${addedDays} giorni della settimana successiva`);
+      }
+      return out;
+    });
+    setDirty(true);
   };
 
   const toggleSlot = (dateKey, hour) => {
@@ -215,6 +255,14 @@ export default function TerapistaCalendarioPage() {
           <p className="text-xs text-[#0A0A0A]/55 mt-4">
             {(calendario[selectedDate] || []).length} slot selezionati · Ogni slot = 1 sessione di 50 minuti
           </p>
+          <button
+            data-testid="replica-settimana-btn"
+            onClick={replicaSettimana}
+            className="mt-3 inline-flex items-center gap-2 text-sm text-[#6B8FA3] hover:text-[#0A0A0A] font-medium px-3 py-1.5 rounded-lg hover:bg-[#6B8FA3]/10"
+          >
+            <Copy className="w-4 h-4" />
+            Replica questa settimana su quella successiva
+          </button>
         </div>
       )}
 

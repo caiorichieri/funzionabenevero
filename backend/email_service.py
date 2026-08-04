@@ -290,3 +290,68 @@ async def send_password_reset_email(email: str, reset_url: str, nome: str = "") 
     except Exception as e:
         logger.error(f"[EMAIL ERROR] password reset send failed: {e}")
         return False
+
+
+
+async def send_reschedule_notification_email(
+    to_email: str,
+    to_nome: str,
+    paziente_nome: str,
+    old_datetime_iso: str,
+    new_datetime_iso: str,
+    role: str = "terapista",
+) -> bool:
+    """Notify a therapist (or patient) that an appointment has been rescheduled by the counterpart."""
+    if not RESEND_API_KEY or RESEND_API_KEY == "placeholder_resend_key":
+        logger.warning("[EMAIL] No Resend API key configured, skipping reschedule notification")
+        return False
+
+    old_fmt = _format_data_ora_it(old_datetime_iso)
+    new_fmt = _format_data_ora_it(new_datetime_iso)
+    ciao = f"Ciao {to_nome}," if to_nome else "Ciao,"
+    subject_prefix = "Il paziente ha riprogrammato" if role == "terapista" else "Appuntamento riprogrammato"
+
+    html = f"""<!DOCTYPE html>
+<html lang="it"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#0A0A0A;font-family:'Helvetica Neue',Arial,sans-serif;color:#F4F1ED;">
+<table width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0A0A0A;padding:40px 20px;">
+<tr><td align="center">
+<table width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:20px;overflow:hidden;">
+  <tr><td style="padding:40px 40px 20px;text-align:center;">
+    <div style="font-family:Georgia,serif;font-size:26px;color:#F4F1ED;">funzionabene</div>
+    <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#6B8FA3;margin-top:4px;">appuntamento riprogrammato</div>
+  </td></tr>
+  <tr><td style="padding:10px 40px 24px;">
+    <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:500;margin:0 0 12px;color:#D4A017;">{subject_prefix}</h1>
+    <p style="color:rgba(230,226,216,0.75);font-size:14px;line-height:1.6;margin:0 0 20px;">{ciao} il paziente <strong>{paziente_nome}</strong> ha riprogrammato la seduta.</p>
+    <table width="100%" style="background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.25);border-radius:14px;padding:16px;margin-bottom:12px;">
+      <tr><td style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(230,226,216,0.5);padding-bottom:6px;">Vecchio orario (cancellato)</td></tr>
+      <tr><td style="font-size:15px;color:rgba(230,226,216,0.6);text-decoration:line-through;padding-bottom:4px;">{old_fmt}</td></tr>
+    </table>
+    <table width="100%" style="background:rgba(107,143,163,0.14);border:1px solid rgba(107,143,163,0.5);border-radius:14px;padding:16px;">
+      <tr><td style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#6B8FA3;padding-bottom:6px;">Nuovo orario</td></tr>
+      <tr><td style="font-family:Georgia,serif;font-size:20px;color:#D4A017;padding-bottom:4px;">{new_fmt}</td></tr>
+    </table>
+    <p style="color:rgba(230,226,216,0.55);font-size:12px;line-height:1.6;margin:20px 0 0;">
+      Riceverai un nuovo link per la videocall nella stanza rigenerata automaticamente. Nessuna azione richiesta.
+    </p>
+  </td></tr>
+  <tr><td style="padding:20px 40px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+    <p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · BIDOC SRL · funzionabene.it</p>
+  </td></tr>
+</table>
+</td></tr></table></body></html>"""
+
+    params = {
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [to_email],
+        "subject": f"{subject_prefix} — {new_fmt}",
+        "html": html,
+    }
+    try:
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"[EMAIL SENT] reschedule notify to {to_email} (id={result.get('id') if isinstance(result, dict) else result})")
+        return True
+    except Exception as e:
+        logger.error(f"[EMAIL ERROR] reschedule notify failed: {e}")
+        return False
