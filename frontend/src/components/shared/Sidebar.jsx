@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard, Users, UserCheck, Calendar,
-  FileText, X, Heart, ScrollText
+  FileText, X, Heart, ScrollText, Wallet
 } from "lucide-react";
 
 const ADMIN_MENU = [
@@ -10,6 +10,7 @@ const ADMIN_MENU = [
   { to: "/admin/terapisti", icon: UserCheck, label: "Terapisti" },
   { to: "/admin/pazienti", icon: Users, label: "Pazienti" },
   { to: "/admin/appuntamenti", icon: Calendar, label: "Appuntamenti" },
+  { to: "/admin/pagamenti", icon: Wallet, label: "Pagamenti" },
   { to: "/admin/blog", icon: FileText, label: "Blog" },
   { to: "/admin/contratti", icon: ScrollText, label: "Contratti" },
 ];

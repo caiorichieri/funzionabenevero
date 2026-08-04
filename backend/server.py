@@ -1989,8 +1989,146 @@ async def therapist_earnings(user: dict = Depends(require_auth)):
     return result
 
 
-app.include_router(api_router)
+# ─── Admin Payouts & Fatture ─────────────────────────────────────────────────
+from fastapi.responses import Response as _FastResponse
+from invoice_pdf import build_fattura_sanitaria_pdf, build_fattura_commissione_pdf
 
+
+class MarkPayoutPaidRequest(BaseModel):
+    transaction_ids: List[str]
+    payout_reference: Optional[str] = None  # e.g., IBAN bonifico ref
+
+
+@api_router.get("/admin/payouts")
+async def list_admin_payouts(
+    payout_status: Optional[str] = None,  # 'pending' | 'paid'
+    terapeuta_id: Optional[str] = None,
+    user: dict = Depends(require_admin),
+):
+    """List paid payment_transactions to help admin plan bonifici to therapists."""
+    q = {"payment_status": "paid"}
+    if payout_status in ("pending", "paid"):
+        q["payout_status"] = payout_status
+    if terapeuta_id:
+        q["terapeuta_id"] = terapeuta_id
+
+    items = []
+    async for tx in db.payment_transactions.find(q).sort("paid_at", -1).limit(500):
+        t = await db.terapisti.find_one({"_id": ObjectId(tx["terapeuta_id"])})
+        p = await db.pazienti.find_one({"_id": ObjectId(tx["paziente_id"])})
+        items.append({
+            "id": str(tx["_id"]),
+            "session_id": tx.get("session_id"),
+            "appointment_id": tx.get("appointment_id"),
+            "amount": tx.get("amount"),
+            "platform_fee_amount": tx.get("platform_fee_amount"),
+            "therapist_amount": tx.get("therapist_amount"),
+            "marca_da_bollo_amount": tx.get("marca_da_bollo_amount", 0),
+            "opposizione_ts": tx.get("opposizione_ts", False),
+            "payout_status": tx.get("payout_status"),
+            "payout_date": (tx.get("payout_date").isoformat() if tx.get("payout_date") else None),
+            "payout_reference": tx.get("payout_reference"),
+            "paid_at": (tx.get("paid_at").isoformat() if tx.get("paid_at") else None),
+            "terapeuta": {
+                "id": tx.get("terapeuta_id"),
+                "nome": t.get("nome") if t else "—",
+                "cognome": t.get("cognome") if t else "",
+                "iban": t.get("iban") if t else None,
+            },
+            "paziente_initials": (
+                (p.get("nome", "?")[0] + "." + p.get("cognome", "?")[0] + ".") if p else "—"
+            ),
+        })
+
+    # Aggregate summary by therapist
+    summary = {}
+    for it in items:
+        tid = it["terapeuta"]["id"]
+        s = summary.setdefault(tid, {
+            "terapeuta": it["terapeuta"],
+            "pending_amount": 0,
+            "paid_amount": 0,
+            "sessions_count": 0,
+        })
+        if it["payout_status"] == "paid":
+            s["paid_amount"] += it["therapist_amount"] or 0
+        else:
+            s["pending_amount"] += it["therapist_amount"] or 0
+        s["sessions_count"] += 1
+
+    return {"items": items, "summary": list(summary.values())}
+
+
+@api_router.post("/admin/payouts/mark-paid")
+async def mark_payouts_paid(body: MarkPayoutPaidRequest, user: dict = Depends(require_admin)):
+    """Mark a batch of transactions as payout=paid."""
+    ids = [ObjectId(x) for x in body.transaction_ids if x]
+    if not ids:
+        raise HTTPException(400, "Nessuna transazione selezionata")
+    now = datetime.now(timezone.utc)
+    result = await db.payment_transactions.update_many(
+        {"_id": {"$in": ids}, "payment_status": "paid", "payout_status": {"$ne": "paid"}},
+        {"$set": {
+            "payout_status": "paid",
+            "payout_date": now,
+            "payout_reference": (body.payout_reference or "").strip()[:120],
+            "payout_marked_by": user["_id"],
+        }},
+    )
+    return {"marked": result.modified_count}
+
+
+@api_router.get("/admin/fattura-sanitaria/{transaction_id}")
+async def download_fattura_sanitaria(transaction_id: str, user: dict = Depends(require_admin)):
+    """Generate a PDF fattura sanitaria for a paid transaction."""
+    tx = await db.payment_transactions.find_one({"_id": ObjectId(transaction_id), "payment_status": "paid"})
+    if not tx:
+        raise HTTPException(404, "Transazione non trovata o non pagata")
+    appt = await db.appuntamenti.find_one({"_id": ObjectId(tx["appointment_id"])})
+    terapista = await db.terapisti.find_one({"_id": ObjectId(tx["terapeuta_id"])})
+    paziente = await db.pazienti.find_one({"_id": ObjectId(tx["paziente_id"])})
+    paziente_user = await db.users.find_one({"_id": ObjectId(tx["paziente_user_id"])})
+    if not (appt and terapista and paziente and paziente_user):
+        raise HTTPException(404, "Dati incompleti per generare la fattura")
+    pdf = build_fattura_sanitaria_pdf(
+        tx=tx, appt=appt, terapista=terapista, paziente=paziente, paziente_user=paziente_user,
+    )
+    filename = f"fattura-sanitaria-{transaction_id[:8]}.pdf"
+    return _FastResponse(content=pdf, media_type="application/pdf",
+                         headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
+
+@api_router.get("/admin/fattura-commissione/{terapeuta_id}/{year}/{month}")
+async def download_fattura_commissione(terapeuta_id: str, year: int, month: int, user: dict = Depends(require_admin)):
+    """Generate a monthly commission invoice PDF (BIDOC → therapist)."""
+    if not (2020 <= year <= 2100 and 1 <= month <= 12):
+        raise HTTPException(400, "Periodo invalido")
+    start = datetime(year, month, 1, tzinfo=timezone.utc)
+    if month == 12:
+        end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        end = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+    terapista = await db.terapisti.find_one({"_id": ObjectId(terapeuta_id)})
+    if not terapista:
+        raise HTTPException(404, "Terapista non trovato")
+    txs = []
+    async for tx in db.payment_transactions.find({
+        "terapeuta_id": terapeuta_id,
+        "payment_status": "paid",
+        "paid_at": {"$gte": start, "$lt": end},
+    }).sort("paid_at", 1):
+        p = await db.pazienti.find_one({"_id": ObjectId(tx["paziente_id"])})
+        tx["paziente_initials"] = (p.get("nome", "?")[0] + "." + p.get("cognome", "?")[0] + ".") if p else "—"
+        txs.append(tx)
+    if not txs:
+        raise HTTPException(404, "Nessuna sessione pagata nel periodo indicato")
+    pdf = build_fattura_commissione_pdf(terapista=terapista, transactions=txs, year=year, month=month)
+    filename = f"fattura-commissione-{year}-{month:02d}-{terapeuta_id[:6]}.pdf"
+    return _FastResponse(content=pdf, media_type="application/pdf",
+                         headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
+
+app.include_router(api_router)
 # CORS — supports multiple frontend origins (preview, production, custom domains) via ALLOWED_ORIGINS env var
 _extra_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 _cors_origins = list({

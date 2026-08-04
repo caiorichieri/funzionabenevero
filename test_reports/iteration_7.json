@@ -1,0 +1,56 @@
+{
+  "summary": "Tested Fase 2 fatturazione + admin payouts dashboard + Twilio SMS migration. Backend: 14/15 pytest passed. Frontend admin/pagamenti UI works end-to-end: summary cards, filter tabs (pending/paid/all), mark-paid workflow, and Sanitaria/Commissione PDF buttons all render and behave correctly. Twilio Verify sms_service loads with client initialized and all 3 env vars present (no real SMS sent). One backend bug found: /api/admin/fattura-commissione/{terapeuta_id}/{year}/{month} returns 404 because the seeded paid transaction has paid_at=None while the endpoint filters strictly by paid_at.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/fattura-commissione/{terapeuta_id}/2026/8",
+        "issue": "Returns 404 'Nessuna sessione pagata nel periodo indicato' because the seeded transaction (payment_transactions._id=6a70adcc133bd008dba636ef, terapeuta 69e5c83ca585e313092bd593, amount=9000) has paid_at=None despite payment_status='paid'. Query uses {'paid_at': {'$gte': start, '$lt': end}} which excludes null. The record does have created_at=2026-08-03 and payout_date=2026-08-04 available. Fix options: (a) fall back to created_at/payout_date when paid_at missing, or (b) backfill paid_at in seed_data() to match created_at/payout_date for paid transactions."
+      },
+      {
+        "endpoint": "GET /api/admin/payouts",
+        "issue": "Same root cause: item.paid_at is null in the response for the seed paid transaction, so the frontend column 'Data pagamento' shows '—'. Cosmetic but confusing for admin. Backfill paid_at in seed."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/admin/pagamenti — summary cards",
+        "issues": [
+          "When 'Da pagare' or 'Pagati' tab is active, the summary cards + monthly commission block only render if items.length>0 for that filter. In 'Da pagare' with zero pending items the whole 'Già pagato €63,00 / Terapeuti 1' summary disappears. Consider fetching summary independently of the filtered items list so aggregates stay visible.",
+          "Terapeuti card shows the digit '1' in a font-serif style (Outfit fallback) that renders as an 'I'-like glyph. Consider using tabular numerals or a system font for numbers."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7_payouts.py",
+    "/app/test_reports/pytest/iter7_payouts.xml",
+    "/app/test_reports/iter7_pagamenti.png",
+    "/app/test_reports/iter7_tutti.png"
+  ],
+  "action_items": [
+    "Fix fattura-commissione lookup: either backfill paid_at in seed_data() (recommended) or make the endpoint fall back to created_at when paid_at is null.",
+    "Same seed fix will also populate the 'Data pagamento' column in the admin table.",
+    "(Optional) Keep summary/commissione section visible regardless of the active filter tab."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now ~2486 lines. Split payouts/fatture endpoints into a dedicated router module (e.g., routers/admin_payouts.py) — file size hygiene.",
+    "invoice_pdf.py: `tx.get('paid_at') or datetime.now()` correctly guards against None, so PDF generation works even with the seed bug — good defensive code.",
+    "sms_service.py: Client init is done at import time and swallows exceptions with only a log. Good enough for hot-reload safety.",
+    "PagamentiPage.jsx: downloadPdf uses window.open which will lose credentials on cross-origin cookies in some browsers. Since same origin via /api proxy, currently OK, but consider fetch → blob → object URL to guarantee cookie-authenticated download.",
+    "list_admin_payouts issues N+1 queries (per-item find_one for terapisti and pazienti). At 500 items × 2 = 1000 mongo round-trips. Batch with $in.",
+    "MarkPayoutPaidRequest lacks pydantic validation for ObjectId format — invalid strings would raise bson.errors.InvalidId at ObjectId(x); should try/except and return 400."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "93% (14/15)", "frontend": "100%"},
+  "test_credentials": "admin@funzionabene.it / admin2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None — used existing seed. Note: the mark-paid test mutated the seed tx (6a70adcc133bd008dba636ef) from pending → paid with payout_reference='TEST-BONIFICO-001'. This is now the permanent state until backend restart triggers seed_data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The only paid transaction (Dr. Maria Rossi, €90, id 6a70adcc133bd008dba636ef) has paid_at=None in DB. After main agent fixes seed_data to set paid_at, re-run test_iteration7_payouts.py — the test_fattura_commissione_pdf case should then pass. The frontend admin/pagamenti page is fully functional; no UI retest needed unless the fix changes JSON schema. Backend pytest suite lives at /app/backend/tests/test_iteration7_payouts.py and is reusable.",
+  "rca of the issue": "Seed data in server.py creates the demo paid transaction with payment_status='paid' and payout_status='paid' but never sets the paid_at timestamp. The new /api/admin/fattura-commissione endpoint filters payment_transactions by paid_at within a month window, so the transaction is invisible to it. Reproduction: login as admin, hit GET /api/admin/fattura-commissione/69e5c83ca585e313092bd593/2026/8 → 404. Mitigation: in seed_data() where the demo transaction is upserted, set paid_at = created_at (or payout_date if paid). This preserves the fiscal-month semantics and keeps the PDF generator's totals correct."
+}
