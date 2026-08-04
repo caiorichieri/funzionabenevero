@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 9 validation: seed pending payout, IBAN regex, refactored /admin/cruscotto router, and PDF export. Backend pytest: 10/10 passed. Frontend Playwright: /admin renders all 7 legacy data-testids + alert-iban-mancante + btn-export-pdf (href correct). Seed idempotency confirmed by restart: pending count stays at 1 (€45.50 for Giulia Marchetti). Refactored endpoint returns identical schema. IBAN regex: BADIBAN→422, mixed-case+spaces normalizes to uppercase-stripped, empty string clears field, valid 27-char IT99… accepted. PDF returns 200 with Content-Type application/pdf, body starts with %PDF-, and Content-Disposition contains cruscotto-YYYY-MM.pdf. Non-admin (patient) and unauth requests return 401/403 on both /cruscotto and /cruscotto/report.pdf. iter8 chart-visibility concern resolved: Aug bar renders full-height in the screenshot.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/terapisti",
+        "issue": "Response items still expose MongoDB '_id' field (should be renamed/removed per guidelines). Pre-existing across iterations; not introduced by this change."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration9.py",
+    "/app/test_reports/pytest/iter9.xml",
+    "/app/test_reports/iter9_admin.png"
+  ],
+  "action_items": [
+    "Nit: review request example IBAN 'IT99999999999999999999999999' has 28 chars (2 extra). Correct 27-char test data used in the pytest suite; either fix the review-request wording or accept 28-char IBANs — current behaviour (reject 28-char) is correct per Italian IBAN spec."
+  ],
+  "critical_code_review_comments": [
+    "Good: cruscotto endpoint successfully extracted to routers/admin_analytics.py with build_router factory; N+1 lookups replaced with $in via _batch_lookup_therapists — solid refactor.",
+    "cruscotto_pdf.py: max(values) called without values-empty guard; if revenue_6m is [] this raises. Guard already exists via `if max(values)>0` but max([]) itself throws — pass an initial `default=0` or check `values` first.",
+    "server.py still >2500 lines. Continue extracting domain routers (payments, terapisti, appuntamenti) to keep files <700 lines.",
+    "Seed pending-payout uses `demo_terapista.get('prezzo_sessione', 65.0)` — Giulia's therapist doc uses field 'prezzo_sessione' correctly in the seed loop; fine, but hard-coded fallback should log a warning if key missing.",
+    "IBAN validator runs on `mode='before'` and mutates input; combined with Optional[str]=None it means partial PUTs with unrelated fields bypass validation (only if 'iban' key present is it checked). Confirmed OK.",
+    "PDF endpoint uses `inline` Content-Disposition — browser will open the PDF instead of downloading. Consider `attachment;` if the 'Esporta PDF' UX is intended as download."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration9.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100%"},
+  "test_credentials": "admin@funzionabene.it / admin2026 and demo.paziente@funzionabene.it / paziente2026 (from /app/memory/test_credentials.md). Auth is cookie/session-based — requests.Session works.",
+  "seed_data_creation": "None new. Boot-time seed_data() inserts one demo pending payment_transaction (Giulia Marchetti, €65 gross / €45.50 therapist_amount, payout_status=pending, _seed=true). Idempotent: only inserted when no existing payment_transaction has payment_status=paid AND payout_status!=paid. Confirmed by restarting backend twice — count stays at 1.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 9 fully validated. Regression suite: /app/backend/tests/test_iteration9.py (10 tests, ~2s). For future iterations, note that Italian IBAN is 27 chars total (IT + 25 alnum), regex ^IT\\d{2}[A-Z0-9]{23}$ correctly enforces this. Boot-time seed idempotency is critical — do not accidentally delete the `has_pending` guard.",
+  "rca of the issue": "N/A — no blocking issues. One minor spec typo in the review request (IBAN example had 28 chars); test suite uses correct 27-char valid IBAN."
+}

@@ -15,7 +15,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depend
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, Field, BeforeValidator, EmailStr
+from pydantic import BaseModel, Field, BeforeValidator, EmailStr, field_validator
 
 from email_service import send_otp_email, send_booking_confirmation_email, send_reminder_email, send_password_reset_email
 from daily_service import create_room_for_appointment, create_meeting_token, get_room_presenza
@@ -158,6 +158,19 @@ class TerapistaProfileInput(BaseModel):
     lingue: Optional[List[str]] = []
     disponibilita: Optional[List[DisponibilitaItem]] = []
     iban: Optional[str] = None
+
+    @field_validator("iban", mode="before")
+    @classmethod
+    def _validate_iban(cls, v):
+        if v is None:
+            return None
+        s = str(v).upper().replace(" ", "").strip()
+        if s == "":
+            return ""  # allow clearing
+        import re as _re
+        if not _re.match(r"^IT\d{2}[A-Z0-9]{23}$", s):
+            raise ValueError("IBAN italiano non valido: deve iniziare con IT + 2 cifre + 23 caratteri alfanumerici (27 in totale, no spazi).")
+        return s
 
 class PazienteProfileInput(BaseModel):
     nome: Optional[str] = None
@@ -2080,182 +2093,6 @@ async def mark_payouts_paid(body: MarkPayoutPaidRequest, user: dict = Depends(re
     return {"marked": result.modified_count}
 
 
-# ─── Cruscotto (Executive Admin Dashboard) ──────────────────────────────────
-@api_router.get("/admin/cruscotto")
-async def admin_cruscotto(user: dict = Depends(require_admin)):
-    """Executive KPIs for BIDOC admin: revenue, payouts, sessions, top therapists, IBAN alerts."""
-    now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    if month_start.month == 12:
-        next_month_start = month_start.replace(year=month_start.year + 1, month=1)
-    else:
-        next_month_start = month_start.replace(month=month_start.month + 1)
-    if month_start.month == 1:
-        prev_month_start = month_start.replace(year=month_start.year - 1, month=12)
-    else:
-        prev_month_start = month_start.replace(month=month_start.month - 1)
-
-    # a) Revenue current month vs previous month (from paid tx)
-    async def _sum_revenue(gte, lt):
-        pipeline = [
-            {"$match": {"payment_status": "paid", "paid_at": {"$gte": gte, "$lt": lt}}},
-            {"$group": {
-                "_id": None,
-                "gross": {"$sum": "$amount"},
-                "platform_fee": {"$sum": "$platform_fee_amount"},
-                "therapist": {"$sum": "$therapist_amount"},
-                "count": {"$sum": 1},
-            }},
-        ]
-        async for row in db.payment_transactions.aggregate(pipeline):
-            return {
-                "gross_cents": row.get("gross", 0) or 0,
-                "platform_fee_cents": row.get("platform_fee", 0) or 0,
-                "therapist_cents": row.get("therapist", 0) or 0,
-                "count": row.get("count", 0) or 0,
-            }
-        return {"gross_cents": 0, "platform_fee_cents": 0, "therapist_cents": 0, "count": 0}
-
-    rev_current = await _sum_revenue(month_start, next_month_start)
-    rev_previous = await _sum_revenue(prev_month_start, month_start)
-
-    # b) Pending payouts total (paid tx not yet bonificate)
-    pending_agg = [
-        {"$match": {"payment_status": "paid", "payout_status": {"$ne": "paid"}}},
-        {"$group": {
-            "_id": None,
-            "total": {"$sum": "$therapist_amount"},
-            "count": {"$sum": 1},
-        }},
-    ]
-    pending_payouts = {"total_cents": 0, "count": 0}
-    async for row in db.payment_transactions.aggregate(pending_agg):
-        pending_payouts = {"total_cents": row.get("total", 0) or 0, "count": row.get("count", 0) or 0}
-
-    # c) Sessions this month: completed vs booked (confermato+completato)
-    month_start_iso = month_start.isoformat()
-    next_month_iso = next_month_start.isoformat()
-    sessions_completed_month = await db.appuntamenti.count_documents({
-        "stato": "completato",
-        "data_ora": {"$gte": month_start_iso, "$lt": next_month_iso},
-    })
-    sessions_booked_month = await db.appuntamenti.count_documents({
-        "stato": {"$in": ["confermato", "completato"]},
-        "data_ora": {"$gte": month_start_iso, "$lt": next_month_iso},
-    })
-    completion_rate = (
-        round((sessions_completed_month / sessions_booked_month) * 100, 1)
-        if sessions_booked_month > 0 else 0
-    )
-
-    # d) Revenue last 6 months (bar chart) — buckets by paid_at month
-    six_months_ago = month_start
-    for _ in range(5):
-        if six_months_ago.month == 1:
-            six_months_ago = six_months_ago.replace(year=six_months_ago.year - 1, month=12)
-        else:
-            six_months_ago = six_months_ago.replace(month=six_months_ago.month - 1)
-
-    monthly_pipeline = [
-        {"$match": {"payment_status": "paid", "paid_at": {"$gte": six_months_ago}}},
-        {"$group": {
-            "_id": {"y": {"$year": "$paid_at"}, "m": {"$month": "$paid_at"}},
-            "gross": {"$sum": "$amount"},
-            "count": {"$sum": 1},
-        }},
-    ]
-    buckets = {}
-    async for row in db.payment_transactions.aggregate(monthly_pipeline):
-        key = f"{row['_id']['y']}-{row['_id']['m']:02d}"
-        buckets[key] = {"gross_cents": row.get("gross", 0) or 0, "count": row.get("count", 0) or 0}
-
-    revenue_6m = []
-    cursor = six_months_ago
-    for _ in range(6):
-        key = f"{cursor.year}-{cursor.month:02d}"
-        b = buckets.get(key, {"gross_cents": 0, "count": 0})
-        revenue_6m.append({
-            "month": key,
-            "label": cursor.strftime("%b").capitalize(),
-            "gross_cents": b["gross_cents"],
-            "count": b["count"],
-        })
-        if cursor.month == 12:
-            cursor = cursor.replace(year=cursor.year + 1, month=1)
-        else:
-            cursor = cursor.replace(month=cursor.month + 1)
-
-    # e) Top 5 therapists by revenue (all-time, paid)
-    top_pipeline = [
-        {"$match": {"payment_status": "paid"}},
-        {"$group": {
-            "_id": "$terapeuta_id",
-            "gross": {"$sum": "$amount"},
-            "sessions": {"$sum": 1},
-        }},
-        {"$sort": {"gross": -1}},
-        {"$limit": 5},
-    ]
-    top_therapists = []
-    async for row in db.payment_transactions.aggregate(top_pipeline):
-        tid = row["_id"]
-        try:
-            t = await db.terapisti.find_one({"_id": ObjectId(tid)})
-        except Exception:
-            t = None
-        top_therapists.append({
-            "terapeuta_id": tid,
-            "nome": f"{t.get('nome','')} {t.get('cognome','')}".strip() if t else "Sconosciuto",
-            "gross_cents": row.get("gross", 0) or 0,
-            "sessions": row.get("sessions", 0) or 0,
-        })
-
-    # f) Alert: therapists with paid sessions but missing IBAN
-    iban_pipeline = [
-        {"$match": {"payment_status": "paid"}},
-        {"$group": {"_id": "$terapeuta_id", "sessions": {"$sum": 1},
-                    "pending": {"$sum": {"$cond": [{"$ne": ["$payout_status", "paid"]}, "$therapist_amount", 0]}}}},
-    ]
-    iban_missing = []
-    async for row in db.payment_transactions.aggregate(iban_pipeline):
-        tid = row["_id"]
-        try:
-            t = await db.terapisti.find_one({"_id": ObjectId(tid)})
-        except Exception:
-            t = None
-        if not t:
-            continue
-        iban = (t.get("iban") or "").strip()
-        pending_cents = row.get("pending", 0) or 0
-        if not iban and pending_cents > 0:
-            iban_missing.append({
-                "terapeuta_id": tid,
-                "nome": f"{t.get('nome','')} {t.get('cognome','')}".strip(),
-                "sessions": row.get("sessions", 0) or 0,
-                "pending_cents": pending_cents,
-            })
-
-    return {
-        "generated_at": now.isoformat(),
-        "revenue": {
-            "current_month": rev_current,
-            "previous_month": rev_previous,
-            "delta_percent": (
-                round(((rev_current["gross_cents"] - rev_previous["gross_cents"]) / rev_previous["gross_cents"]) * 100, 1)
-                if rev_previous["gross_cents"] > 0 else None
-            ),
-        },
-        "pending_payouts": pending_payouts,
-        "sessions_month": {
-            "completed": sessions_completed_month,
-            "booked": sessions_booked_month,
-            "completion_rate": completion_rate,
-        },
-        "revenue_6m": revenue_6m,
-        "top_therapists": top_therapists,
-        "iban_missing": iban_missing,
-    }
-
 
 @api_router.get("/admin/fattura-sanitaria/{transaction_id}")
 async def download_fattura_sanitaria(transaction_id: str, user: dict = Depends(require_admin)):
@@ -2308,6 +2145,10 @@ async def download_fattura_commissione(terapeuta_id: str, year: int, month: int,
 
 
 app.include_router(api_router)
+
+# Mount modular routers under /api
+from routers.admin_analytics import build_router as _build_admin_analytics_router
+app.include_router(_build_admin_analytics_router(db, require_admin), prefix="/api")
 # CORS — supports multiple frontend origins (preview, production, custom domains) via ALLOWED_ORIGINS env var
 _extra_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 _cors_origins = list({
@@ -2653,6 +2494,48 @@ async def seed_data():
                 {"$set": {"password_hash": hash_password(demo_paz_pwd), "is_verified": True, "is_active": True}},
             )
             logging.info(f"[SEED] Demo paziente password resynced: {demo_paz_email}")
+
+    # ── Seed demo pending payout (for Cruscotto KPI "Payout Pendenti" demo) ──
+    try:
+        has_pending = await db.payment_transactions.find_one({
+            "payment_status": "paid",
+            "payout_status": {"$ne": "paid"},
+        })
+        if not has_pending:
+            demo_terapista = await db.terapisti.find_one({"email": "giulia.marchetti@funzionabene.it"})
+            demo_paz_doc = await db.pazienti.find_one({}) if not demo_terapista else await db.pazienti.find_one({})
+            demo_paz_user = await db.users.find_one({"email": demo_paz_email})
+            if demo_terapista and demo_paz_doc and demo_paz_user:
+                paid_at = datetime.now(timezone.utc) - timedelta(days=3)
+                amount_cents = int((demo_terapista.get("prezzo_sessione", 65.0)) * 100)
+                platform_fee_cents = int(round(amount_cents * 0.30))
+                therapist_amount_cents = amount_cents - platform_fee_cents
+                await db.payment_transactions.insert_one({
+                    "session_id": f"demo_seed_pending_{int(paid_at.timestamp())}",
+                    "appointment_id": None,
+                    "terapeuta_id": str(demo_terapista["_id"]),
+                    "paziente_id": str(demo_paz_doc["_id"]),
+                    "paziente_user_id": str(demo_paz_user["_id"]),
+                    "amount": amount_cents,
+                    "currency": "eur",
+                    "platform_fee_amount": platform_fee_cents,
+                    "platform_fee_percent": 30,
+                    "therapist_amount": therapist_amount_cents,
+                    "opposizione_ts": False,
+                    "marca_da_bollo_required": False,
+                    "marca_da_bollo_amount": 0,
+                    "fattura_sanitaria_status": "da_emettere",
+                    "status": "completed",
+                    "payment_status": "paid",
+                    "payout_status": "pending",
+                    "paid_at": paid_at,
+                    "created_at": paid_at,
+                    "updated_at": paid_at,
+                    "_seed": True,
+                })
+                logging.info(f"[SEED] Demo pending payout creato per {demo_terapista.get('nome')} {demo_terapista.get('cognome')} (€{therapist_amount_cents/100:.2f})")
+    except Exception as e:
+        logging.warning(f"[SEED] pending payout seed skipped: {e}")
 
 @app.on_event("shutdown")
 async def shutdown():

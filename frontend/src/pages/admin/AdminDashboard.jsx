@@ -3,7 +3,7 @@ import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import {
   Users, UserCheck, Calendar, AlertTriangle, FileText, ShieldX,
-  Euro, Wallet, TrendingUp, TrendingDown, Award, CreditCard
+  Euro, Wallet, TrendingUp, TrendingDown, Award, CreditCard, Download
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
@@ -75,9 +75,21 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-[#0A0A0A] font-[Outfit]">Cruscotto</h1>
-        <p className="text-[#0A0A0A]/65 mt-1">Panoramica esecutiva — FunzionaBene</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#0A0A0A] font-[Outfit]">Cruscotto</h1>
+          <p className="text-[#0A0A0A]/65 mt-1">Panoramica esecutiva — FunzionaBene</p>
+        </div>
+        <a
+          href={`${API}/admin/cruscotto/report.pdf`}
+          target="_blank"
+          rel="noreferrer"
+          data-testid="btn-export-pdf"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0A0A0A] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          <Download className="w-4 h-4" />
+          Esporta PDF
+        </a>
       </div>
 
       {/* Executive KPIs */}
