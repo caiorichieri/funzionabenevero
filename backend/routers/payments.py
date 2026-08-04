@@ -453,6 +453,16 @@ async def download_fattura_sanitaria(transaction_id: str, user: dict = Depends(r
     paziente_user = await find_user_by_id(tx["paziente_user_id"])
     if not (appt and terapista and paziente and paziente_user):
         raise HTTPException(404, "Dati incompleti per generare la fattura")
+    # Fiscal completeness check — required by law
+    missing = []
+    if not (terapista.get("partita_iva") or "").strip():
+        missing.append("Partita IVA del terapista")
+    if not (terapista.get("codice_fiscale") or "").strip():
+        missing.append("Codice Fiscale del terapista")
+    if not (paziente.get("codice_fiscale") or "").strip():
+        missing.append("Codice Fiscale del paziente")
+    if missing:
+        raise HTTPException(422, f"Impossibile emettere la fattura: manca {', '.join(missing)}. Aggiorna il profilo prima di procedere.")
     pdf = build_fattura_sanitaria_pdf(
         tx=tx, appt=appt, terapista=terapista, paziente=paziente, paziente_user=paziente_user,
     )
@@ -474,6 +484,8 @@ async def download_fattura_commissione(terapeuta_id: str, year: int, month: int,
     terapista = await db.terapisti.find_one({"_id": ObjectId(terapeuta_id)})
     if not terapista:
         raise HTTPException(404, "Terapista non trovato")
+    if not (terapista.get("partita_iva") or "").strip():
+        raise HTTPException(422, "Impossibile emettere la fattura di commissione: manca la Partita IVA del terapista.")
     txs = []
     async for tx in db.payment_transactions.find({
         "terapeuta_id": terapeuta_id,

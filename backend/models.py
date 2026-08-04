@@ -45,6 +45,7 @@ class TerapistaProfileInput(BaseModel):
     approccio_terapeutico: Optional[str] = None
     genere: Optional[str] = None
     # Dati fiscali (per fatturazione sanitaria + payout)
+    partita_iva: Optional[str] = None
     codice_fiscale: Optional[str] = None
     data_nascita: Optional[str] = None
     nato_all_estero: Optional[bool] = False
@@ -67,6 +68,32 @@ class TerapistaProfileInput(BaseModel):
     lingue: Optional[List[str]] = []
     disponibilita: Optional[List[DisponibilitaItem]] = []
     iban: Optional[str] = None
+
+    @field_validator("partita_iva", mode="before")
+    @classmethod
+    def _validate_partita_iva(cls, v):
+        if v is None:
+            return None
+        s = str(v).replace(" ", "").strip()
+        if s == "":
+            return ""
+        # Italian P.IVA: exactly 11 digits (optional IT prefix accepted then stripped)
+        if s.upper().startswith("IT"):
+            s = s[2:]
+        if not s.isdigit() or len(s) != 11:
+            raise ValueError("Partita IVA italiana non valida: deve avere esattamente 11 cifre (opzionale prefisso IT).")
+        # Luhn-like checksum for Italian P.IVA
+        total = 0
+        for i, ch in enumerate(s):
+            n = int(ch)
+            if i % 2 == 1:
+                n *= 2
+                if n > 9:
+                    n -= 9
+            total += n
+        if total % 10 != 0:
+            raise ValueError("Partita IVA italiana non valida: checksum errato.")
+        return s
 
     @field_validator("iban", mode="before")
     @classmethod

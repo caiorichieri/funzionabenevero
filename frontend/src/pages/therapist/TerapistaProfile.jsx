@@ -23,7 +23,7 @@ export default function TerapistaProfile() {
     prezzo_sessione:"", approccio_terapeutico:"",
     specializzazioni:"", lingue:"", disponibilita:[],
     // Dati fiscali + residenza + IBAN
-    codice_fiscale:"", data_nascita:"", nato_all_estero:false,
+    partita_iva:"", codice_fiscale:"", data_nascita:"", nato_all_estero:false,
     luogo_nascita_comune:"", luogo_nascita_provincia:"", paese_nascita:"",
     indirizzo:"", citta:"", cap:"", provincia_residenza:"",
     iban:"",
@@ -47,6 +47,7 @@ export default function TerapistaProfile() {
           specializzazioni: (p.specializzazioni||[]).join(", "),
           lingue: (p.lingue||[]).join(", "),
           disponibilita: p.disponibilita||[],
+          partita_iva: p.partita_iva||"",
           codice_fiscale: p.codice_fiscale||"",
           data_nascita: p.data_nascita||"",
           nato_all_estero: !!p.nato_all_estero,
@@ -138,11 +139,19 @@ export default function TerapistaProfile() {
           <h3 className="font-semibold text-[#0A0A0A] font-[Outfit] mb-1">Dati Fiscali</h3>
           <p className="text-xs text-[#0A0A0A]/60 mb-4">Necessari per emettere fatture sanitarie e ricevere i bonifici del 70%.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Codice Fiscale</label>
+            <div>
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Partita IVA <span className="text-red-600">*</span></label>
+              <input data-testid="profilo-piva" type="text" value={form.partita_iva}
+                onChange={e => setForm({...form, partita_iva: e.target.value.replace(/[^0-9]/g,"").slice(0,11)})}
+                maxLength={11} placeholder="12345678903" required
+                className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] font-mono tracking-wider" />
+              <p className="text-xs text-[#0A0A0A]/55 mt-1">Obbligatoria per emettere fattura sanitaria al paziente.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Codice Fiscale <span className="text-red-600">*</span></label>
               <input data-testid="profilo-cf" type="text" value={form.codice_fiscale}
                 onChange={e => setForm({...form, codice_fiscale: e.target.value.toUpperCase().replace(/\s/g,"")})}
-                maxLength={16} placeholder="RSSMRA80A01H501U"
+                maxLength={16} placeholder="RSSMRA80A01H501U" required
                 className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase" />
             </div>
             <div>

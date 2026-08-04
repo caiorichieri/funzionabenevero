@@ -9,6 +9,7 @@ const EMPTY_FORM = {
   assicurazione_compagnia: "", assicurazione_numero_polizza: "", assicurazione_scadenza: "",
   prezzo_sessione: "", approccio_terapeutico: "", specializzazioni: "", lingue: "",
   iban: "",
+  partita_iva: "",
   codice_fiscale: "", data_nascita: "", nato_all_estero: false,
   luogo_nascita_comune: "", luogo_nascita_provincia: "", paese_nascita: "",
   indirizzo: "", citta: "", cap: "", provincia_residenza: "",
@@ -73,6 +74,7 @@ export default function TerapistiPage() {
       specializzazioni: (t.specializzazioni || []).join(", "),
       lingue: (t.lingue || []).join(", "),
       iban: t.iban || "",
+      partita_iva: t.partita_iva || "",
       codice_fiscale: t.codice_fiscale || "",
       data_nascita: t.data_nascita || "",
       nato_all_estero: !!t.nato_all_estero,
@@ -422,6 +424,13 @@ export default function TerapistiPage() {
               <div className="border-t border-[#0A0A0A]/10 pt-4">
                 <div className="text-xs font-semibold text-[#0A0A0A]/55 uppercase tracking-wider mb-3">Dati Fiscali &amp; Residenza</div>
                 <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">P. IVA</label>
+                    <input type="text" value={form.partita_iva}
+                      onChange={e => setForm({...form, partita_iva: e.target.value.replace(/[^0-9]/g,"").slice(0,11)})}
+                      maxLength={11} placeholder="12345678903"
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] font-mono" />
+                  </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Codice Fiscale</label>
                     <input type="text" value={form.codice_fiscale}
