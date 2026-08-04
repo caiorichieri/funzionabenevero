@@ -516,3 +516,29 @@ Migrado para **Twilio Verify** (serviço dedicado de OTP):
 1. Adicionar as 3 vars `TWILIO_*` no dashboard Emergent (Environment Variables)
 2. Fazer upgrade da conta Twilio (adicionar cartão de crédito) — trial só permite SMS a números pré-verificados
 3. Redeploy do funzionabene.it
+
+---
+
+## 💰 FASE 2 — Payouts & Fatture (Feb 18, 2026)
+
+### Backend endpoints
+- `GET /api/admin/payouts?payout_status=pending|paid` — lista transações pagas com summary por terapeuta (pending_amount, paid_amount, sessions_count)
+- `POST /api/admin/payouts/mark-paid` — batch mark de bonifici como pagos (payout_reference opcional)
+- `GET /api/admin/fattura-sanitaria/{tx_id}` — PDF (esente IVA art.10 DPR 633/72 + marca da bollo €2 se ≥ €77,47)
+- `GET /api/admin/fattura-commissione/{terapeuta_id}/{year}/{month}` — PDF consolidado mensal (30% + IVA 22%)
+- `_mark_payment_paid` corrigido: agora seta `paid_at` também em payment_transactions
+
+### PDFs (reportlab)
+- **Fattura sanitaria**: Prestatore/Paziente, sessione, tot, marca da bollo, disclaimer opposizione TS + mandato all'incasso
+- **Fattura commissione**: Emittente BIDOC, Destinatario terapeuta, tabela sessões, imponibile + IVA 22% + tot dovuto
+
+### Frontend
+- Nova pagina `/admin/pagamenti` com sidebar item "Pagamenti":
+  - Summary cards (Da pagare, Già pagato, Terapeuti)
+  - Filter tabs (Da pagare / Pagati / Tutti)
+  - Tabela com seleção múltipla + bulk "Segna pagati" com riferimento bonifico
+  - Download PDF sanitaria per riga + PDF commissione mensal per terapeuta
+
+### Test agent (iteration_7)
+- Backend: 15/15 ✅ (após fix do bug menor de paid_at)
+- Frontend: 100% ✅

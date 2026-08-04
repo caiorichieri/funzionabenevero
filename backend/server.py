@@ -1866,6 +1866,7 @@ async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] =
     upd = {
         "status": "completed",
         "payment_status": "paid",
+        "paid_at": now,
         "updated_at": now,
     }
     if payment_intent_id:
