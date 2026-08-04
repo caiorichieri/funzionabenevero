@@ -218,6 +218,7 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
 
     durata = 50
     now = datetime.now(timezone.utc)
+    min_slot_time = now + timedelta(hours=2)
     if data_inizio:
         try:
             start = datetime.fromisoformat(data_inizio).replace(tzinfo=timezone.utc, hour=0, minute=0, second=0, microsecond=0)
@@ -251,7 +252,7 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                 except (ValueError, IndexError):
                     continue
                 slot_t = current_day.replace(hour=h, minute=m, second=0, microsecond=0)
-                if slot_t <= now:
+                if slot_t < min_slot_time:
                     continue
                 key = slot_t.isoformat()[:16]
                 slots.append({
@@ -277,7 +278,7 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                 slot_t = current_day.replace(hour=h0, minute=m0, second=0, microsecond=0)
                 end_t = current_day.replace(hour=h1, minute=m1, second=0, microsecond=0)
                 while slot_t + timedelta(minutes=durata) <= end_t:
-                    if slot_t > now:
+                    if slot_t >= min_slot_time:
                         key = slot_t.isoformat()[:16]
                         slots.append({
                             "data_ora": slot_t.isoformat(),

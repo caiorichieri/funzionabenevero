@@ -123,8 +123,12 @@ export default function TerapistaCalendarioPage() {
         { calendario, pubblica },
         { withCredentials: true },
       );
+      setCalendario(data.calendario || {});
       setPubStatus({ pubblicato_at: data.calendario_pubblicato_at, bozza: data.calendario_bozza });
       setDirty(false);
+      if (data.dropped_past_slots > 0) {
+        toast.warning(`${data.dropped_past_slots} slot troppo vicini (min 2 ore) sono stati rimossi.`);
+      }
       toast.success(pubblica ? "Calendario pubblicato — ora sei visibile ai pazienti" : "Bozza salvata");
     } catch (e) {
       toast.error(e.response?.data?.detail || "Errore nel salvare");
@@ -302,20 +306,31 @@ export default function TerapistaCalendarioPage() {
                 const hhmm = `${String(h).padStart(2, "0")}:00`;
                 const on = (calendario[selectedDate] || []).includes(hhmm);
                 const booked = (appuntamenti[selectedDate] || []).some(a => a.ora === hhmm);
+                // Compute the actual datetime of this slot to compare against now+2h
+                const [yy, mm, dd] = selectedDate.split("-").map(Number);
+                const slotDt = new Date(yy, mm - 1, dd, h, 0, 0);
+                const minSlot = new Date(Date.now() + 2 * 60 * 60 * 1000);
+                const tooSoon = slotDt < minSlot;
+                const disabled = booked || tooSoon;
+                let cls = "bg-red-50 text-[#0A0A0A]/70 border-red-200 hover:bg-red-100";
+                let title = "";
+                if (booked) {
+                  cls = "bg-[#D4A017]/20 text-[#D4A017] border-[#D4A017]/40 cursor-not-allowed";
+                  title = "Slot già prenotato";
+                } else if (tooSoon) {
+                  cls = "bg-[#0A0A0A]/5 text-[#0A0A0A]/30 border-[#0A0A0A]/10 cursor-not-allowed line-through";
+                  title = "Troppo vicino (min 2 ore da adesso)";
+                } else if (on) {
+                  cls = "bg-green-500 text-white border-green-500 hover:bg-green-600";
+                }
                 return (
                   <button
                     key={h}
                     data-testid={`slot-${selectedDate}-${hhmm}`}
-                    onClick={() => !booked && toggleSlot(selectedDate, h)}
-                    disabled={booked}
-                    className={`py-2.5 px-2 rounded-lg border text-sm font-medium transition-all ${
-                      booked
-                        ? "bg-[#D4A017]/20 text-[#D4A017] border-[#D4A017]/40 cursor-not-allowed"
-                        : on
-                          ? "bg-green-500 text-white border-green-500 hover:bg-green-600"
-                          : "bg-red-50 text-[#0A0A0A]/70 border-red-200 hover:bg-red-100"
-                    }`}
-                    title={booked ? "Slot già prenotato" : ""}
+                    onClick={() => !disabled && toggleSlot(selectedDate, h)}
+                    disabled={disabled}
+                    className={`py-2.5 px-2 rounded-lg border text-sm font-medium transition-all ${cls}`}
+                    title={title}
                   >
                     {hhmm}
                   </button>

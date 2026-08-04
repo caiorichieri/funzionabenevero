@@ -104,11 +104,14 @@ async def get_my_calendario(user: dict = Depends(require_auth)):
 
 @router.put("/terapisti/me/calendario")
 async def update_my_calendario(body: CalendarioUpdate, user: dict = Depends(require_auth)):
-    """Update calendar (batch). If pubblica=True → status live; else bozza."""
+    """Update calendar (batch). If pubblica=True → status live; else bozza.
+    Filtra silenziosamente gli slot passati o entro 2 ore da adesso."""
     if user["role"] != "terapeuta":
         raise HTTPException(403, "Accesso negato")
-    # Validate input shape
+
+    min_slot_time = datetime.now(timezone.utc) + timedelta(hours=2)
     cleaned: Dict[str, List[str]] = {}
+    dropped = 0
     for date_key, slots in (body.calendario or {}).items():
         if not _valid_iso_date(date_key):
             raise HTTPException(400, f"Formato data invalido: {date_key}")
@@ -118,9 +121,18 @@ async def update_my_calendario(body: CalendarioUpdate, user: dict = Depends(requ
         for s in slots:
             if not _valid_hhmm(s):
                 raise HTTPException(400, f"Orario invalido: {s} (usa HH:MM)")
+            try:
+                y, m, d = date_key.split("-")
+                h, mn = s.split(":")
+                slot_dt = datetime(int(y), int(m), int(d), int(h), int(mn), tzinfo=timezone.utc)
+            except Exception:
+                raise HTTPException(400, f"Data/ora invalida: {date_key} {s}")
+            if slot_dt < min_slot_time:
+                dropped += 1
+                continue  # silently drop
             valid_slots.append(s)
-        # deduplicate + sort
-        cleaned[date_key] = sorted(set(valid_slots))
+        if valid_slots:
+            cleaned[date_key] = sorted(set(valid_slots))
 
     now = datetime.now(timezone.utc)
     update = {
@@ -135,6 +147,7 @@ async def update_my_calendario(body: CalendarioUpdate, user: dict = Depends(requ
         "calendario": cleaned,
         "calendario_bozza": not body.pubblica,
         "calendario_pubblicato_at": now.isoformat() if body.pubblica else None,
+        "dropped_past_slots": dropped,
     }
 
 
@@ -228,7 +241,7 @@ async def public_terapista_calendario(terapista_id: str, anno: int, mese: int):
     }).to_list(500)
     booked = {a["data_ora"][:16] for a in existing}
 
-    now = datetime.now(timezone.utc)
+    min_slot_time = datetime.now(timezone.utc) + timedelta(hours=2)
     cal = t.get("disponibilita_calendario") or {}
     days_out = []
     d = start
@@ -238,7 +251,7 @@ async def public_terapista_calendario(terapista_id: str, anno: int, mese: int):
         slots_out = []
         for hhmm in raw_slots:
             slot_dt = datetime(d.year, d.month, d.day, int(hhmm[:2]), int(hhmm[3:5]), tzinfo=timezone.utc)
-            if slot_dt <= now:
+            if slot_dt < min_slot_time:
                 continue
             key = slot_dt.isoformat()[:16]
             slots_out.append({
@@ -314,8 +327,8 @@ async def confirm_reschedule(appuntamento_id: str, body: RiprogrammaConfirm):
         raise HTTPException(400, "Data non valida")
     if nuova_dt.tzinfo is None:
         nuova_dt = nuova_dt.replace(tzinfo=timezone.utc)
-    if nuova_dt <= now + timedelta(hours=1):
-        raise HTTPException(400, "Scegli uno slot almeno 1 ora nel futuro")
+    if nuova_dt <= now + timedelta(hours=2):
+        raise HTTPException(400, "Scegli uno slot almeno 2 ore nel futuro")
 
     # Check the new slot is in therapist's published calendar
     terapista = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
