@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 11 refactor regression. Verified the extraction of (a) routers/auth.py — all 8 endpoints (register, verify-otp, resend-otp, login, logout, me, forgot-password, reset-password), (b) routers/blog.py — all 7 endpoints (list, create, update, approva, rifiuta, delete, public/blog), (c) booking_service.py — scheduler singleton + start/stop + finalize_confirmed_booking + schedule_reminders, (d) routers/payments.py — direct top-level `from booking_service import finalize_confirmed_booking` (no more lazy `from server import ...`). Created /app/backend/tests/test_iteration11_refactor.py with 31 new tests. Also re-ran iter10 27-test regression. ALL 58 tests pass (27 iter10 + 31 iter11) in ~14s. Backend log confirms `[SCHEDULER] started` at each startup. server.py: 1136 lines (down from 1492).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/reset-password",
+        "issue": "Pydantic model ResetPasswordRequest enforces token min_length=40 → tokens <40 chars return 422 (validation) instead of 400 (generic). Behaviour is safer than iter10 baseline (prevents enumeration of token length) but note the split status codes for API consumers. Not a refactor regression."
+      },
+      {
+        "endpoint": "Blog `_id` field",
+        "issue": "Pre-existing: articoli responses expose MongoDB `_id` as string rather than renaming to `id`. Consistent across iterations 7-10."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration11_refactor.py",
+    "/app/backend/tests/test_iteration10_refactor.py",
+    "/app/test_reports/pytest/iter11.xml",
+    "/app/test_reports/pytest/iter11_regression.xml",
+    "/app/test_reports/pytest/iter11_full.xml"
+  ],
+  "action_items": [
+    "NONE required — refactor is invisible from the outside. All previously-200 endpoints still return 200; all previously-4xx return the same 4xx.",
+    "OPTIONAL NIT: Consider unifying reset-password error responses to always return 400 (currently splits into 422 for <40 char tokens vs 400 for well-formed but invalid tokens). Trade-off: current form leaks *nothing* about token existence, only about token *shape*."
+  ],
+  "critical_code_review_comments": [
+    "GOOD: routers/auth.py (227 lines) is a clean self-contained module. Password-reset internals (`_token_digest`, `_DUMMY_HASH_FOR_TIMING`, `_get_frontend_origin`, `RESET_TOKEN_MINUTES`) are private-scoped to the module. OWASP-compliant: generic responses on forgot-password, timing-equalization via bcrypt.checkpw dummy hash, one-time-use tokens via find_one_and_update atomic consume, hmac.compare_digest for constant-time hash compare.",
+    "GOOD: routers/blog.py (87 lines) — smallest router, RBAC rules crisp: terapeuta creates as `bozza`, admin creates as `pubblicato`, admin-only approva/rifiuta.",
+    "GOOD: booking_service.py (103 lines) fully owns the scheduler singleton. server.py startup handler now calls start_scheduler(); shutdown handler calls stop_scheduler(). routers/payments.py imports `finalize_confirmed_booking` at MODULE scope — eliminated the last lazy circular import as promised.",
+    "GOOD: server.py trimmed 1492 → 1136 lines (-24%). Import graph now cleanly: server → routers/{auth, blog, payments, appuntamenti, terapisti, admin_analytics}; routers/payments → booking_service; booking_service → deps + daily_service + email_service. No circular deps.",
+    "GOOD: Cookie flags on login/verify-otp: httponly=True, samesite='none', secure=True, path='/' — consistent with iter10 baseline. logout uses delete_cookie(path='/') to hit same cookie scope.",
+    "IMPROVEMENT: routers/payments.py 401 lines — largest router, still under 700-line threshold but a candidate for future split (e.g. checkout vs webhook vs earnings).",
+    "MINOR: routers/blog.py `update_articolo` uses `data.model_dump(exclude_none=True)` on an `ArticoloInput` whose required fields would fail Pydantic validation if a partial PUT omits them. Not exercised by current UI (frontend sends full payload). Consider `ArticoloUpdateInput` with all-Optional fields for consistency with the same NIT flagged for appuntamenti in iter10.",
+    "MINOR (pre-existing): blog + terapisti endpoints still return raw `_id` string. Per code guidelines, prefer renaming to `id` — not introduced by this refactor.",
+    "NIT: routers/auth.py `_get_frontend_origin` falls back to REACT_APP_BACKEND_URL — for password-reset links that URL is the backend, not the frontend. In prod both are the same origin, but locally this would point users at :8001 instead of :3000. Consider requiring an explicit FRONTEND_URL env var."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration11_refactor.py (NEW, 31 tests)"
+  ],
+  "success_rate": {"backend": "100% (58/58 across iter10 27 + iter11 31)", "frontend": "not tested (per request)"},
+  "test_credentials": "admin@funzionabene.it/admin2026, demo.terapeuta@funzionabene.it/terapeuta2026, demo.paziente@funzionabene.it/paziente2026 — session-cookie auth via requests.Session().",
+  "seed_data_creation": "Test creates ephemeral TEST_ users via /api/auth/register (patient role) and TEST_ blog articles which are deleted after each test class run. No seed drift.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter11 = pure refactor (server.py -> booking_service.py + routers/auth.py + routers/blog.py). All 8 auth endpoints, all 7 blog endpoints, both scheduler lifecycle hooks, and the direct import of finalize_confirmed_booking are covered by /app/backend/tests/test_iteration11_refactor.py (31 tests). Combined regression across iter10+11 = 58 tests, all green in ~14s. server.py is now 1136 lines; largest router is payments.py at 401 lines. No behavioural drift vs iter10 baseline. Booking finalize_confirmed_booking direct-import is asserted via importlib introspection (test_finalize_confirmed_booking_is_directly_imported).",
+  "rca of the issue": "N/A — no refactor-introduced bugs. Two test-authoring mistakes were caught and fixed before final run: (1) reset-password test used a 19-char bogus token which fails Pydantic min_length=40 (422 not 400) — fixed to send 64-char bogus token; (2) faq endpoint is /api/public/faq not /api/faq — fixed path."
+}

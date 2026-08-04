@@ -1,6 +1,6 @@
 """Pydantic models — shared across server.py and router modules."""
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class RegisterInput(BaseModel):
@@ -150,3 +150,18 @@ class CheckoutBookingRequest(BaseModel):
 class MarkPayoutPaidRequest(BaseModel):
     transaction_ids: List[str]
     payout_reference: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=40, max_length=512)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class FAQInput(BaseModel):
+    domanda: str
+    risposta: str
+    ordine: Optional[int] = 0

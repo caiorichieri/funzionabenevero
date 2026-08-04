@@ -16,6 +16,7 @@ from deps import (
 )
 from models import CheckoutBookingRequest, MarkPayoutPaidRequest
 from invoice_pdf import build_fattura_sanitaria_pdf, build_fattura_commissione_pdf
+from booking_service import finalize_confirmed_booking
 
 _stripe.api_key = STRIPE_SECRET_KEY
 
@@ -54,9 +55,7 @@ async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] =
         paziente_user = await db.users.find_one({"_id": ObjectId(tx["paziente_user_id"])})
         if paziente_user:
             paziente_user["_id"] = str(paziente_user["_id"])
-            # Lazy import to avoid circular dependency with server.py
-            from server import _finalize_confirmed_booking
-            await _finalize_confirmed_booking(appt_id, paziente_user)
+            await finalize_confirmed_booking(appt_id, paziente_user)
     return True
 
 
