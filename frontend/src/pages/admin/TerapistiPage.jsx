@@ -8,7 +8,10 @@ const EMPTY_FORM = {
   genere: "", albo_numero: "", albo_ordine: "", albo_iscrizione_data: "",
   assicurazione_compagnia: "", assicurazione_numero_polizza: "", assicurazione_scadenza: "",
   prezzo_sessione: "", approccio_terapeutico: "", specializzazioni: "", lingue: "",
-  iban: ""
+  iban: "",
+  codice_fiscale: "", data_nascita: "", nato_all_estero: false,
+  luogo_nascita_comune: "", luogo_nascita_provincia: "", paese_nascita: "",
+  indirizzo: "", citta: "", cap: "", provincia_residenza: "",
 };
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -69,7 +72,17 @@ export default function TerapistiPage() {
       approccio_terapeutico: t.approccio_terapeutico || "",
       specializzazioni: (t.specializzazioni || []).join(", "),
       lingue: (t.lingue || []).join(", "),
-      iban: t.iban || ""
+      iban: t.iban || "",
+      codice_fiscale: t.codice_fiscale || "",
+      data_nascita: t.data_nascita || "",
+      nato_all_estero: !!t.nato_all_estero,
+      luogo_nascita_comune: t.luogo_nascita_comune || "",
+      luogo_nascita_provincia: t.luogo_nascita_provincia || "",
+      paese_nascita: t.paese_nascita || "",
+      indirizzo: t.indirizzo || "",
+      citta: t.citta || "",
+      cap: t.cap || "",
+      provincia_residenza: t.provincia_residenza || "",
     });
     setError("");
     setShowForm(true);
@@ -403,6 +416,59 @@ export default function TerapistiPage() {
                   <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Ordine di appartenenza</label>
                   <input type="text" value={form.albo_ordine} onChange={e => setForm({...form, albo_ordine:e.target.value})} placeholder="Es. Ordine degli Psicologi della Lombardia"
                     className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                </div>
+              </div>
+
+              <div className="border-t border-[#0A0A0A]/10 pt-4">
+                <div className="text-xs font-semibold text-[#0A0A0A]/55 uppercase tracking-wider mb-3">Dati Fiscali &amp; Residenza</div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Codice Fiscale</label>
+                    <input type="text" value={form.codice_fiscale}
+                      onChange={e => setForm({...form, codice_fiscale: e.target.value.toUpperCase().replace(/\s/g,"")})}
+                      maxLength={16} placeholder="RSSMRA80A01H501U"
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Data Nascita</label>
+                    <input type="date" value={form.data_nascita} onChange={e => setForm({...form, data_nascita:e.target.value})}
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Comune Nascita</label>
+                    <input type="text" value={form.luogo_nascita_comune} onChange={e => setForm({...form, luogo_nascita_comune:e.target.value})}
+                      placeholder="Roma"
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Prov.</label>
+                    <input type="text" value={form.luogo_nascita_provincia} onChange={e => setForm({...form, luogo_nascita_provincia: e.target.value.toUpperCase().slice(0,2)})}
+                      maxLength={2} placeholder="RM"
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Indirizzo</label>
+                    <input type="text" value={form.indirizzo} onChange={e => setForm({...form, indirizzo:e.target.value})}
+                      placeholder="Via / Numero civico"
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">CAP</label>
+                    <input type="text" value={form.cap} onChange={e => setForm({...form, cap: e.target.value.replace(/\D/g,"").slice(0,5)})}
+                      maxLength={5} placeholder="00100"
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Città</label>
+                    <input type="text" value={form.citta} onChange={e => setForm({...form, citta:e.target.value})}
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Prov. Residenza</label>
+                    <input type="text" value={form.provincia_residenza} onChange={e => setForm({...form, provincia_residenza: e.target.value.toUpperCase().slice(0,2)})}
+                      maxLength={2} placeholder="RM"
+                      className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase" />
+                  </div>
                 </div>
               </div>
 

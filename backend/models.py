@@ -44,6 +44,19 @@ class TerapistaProfileInput(BaseModel):
     formazione: Optional[List[FormazioneItem]] = []
     approccio_terapeutico: Optional[str] = None
     genere: Optional[str] = None
+    # Dati fiscali (per fatturazione sanitaria + payout)
+    codice_fiscale: Optional[str] = None
+    data_nascita: Optional[str] = None
+    nato_all_estero: Optional[bool] = False
+    luogo_nascita_provincia: Optional[str] = None
+    luogo_nascita_comune: Optional[str] = None
+    paese_nascita: Optional[str] = None
+    # Residenza
+    indirizzo: Optional[str] = None
+    citta: Optional[str] = None
+    cap: Optional[str] = None
+    provincia_residenza: Optional[str] = None
+    # Albo / Assicurazione
     albo_numero: Optional[str] = None
     albo_ordine: Optional[str] = None
     albo_iscrizione_data: Optional[str] = None

@@ -21,7 +21,12 @@ export default function TerapistaProfile() {
     genere:"", albo_numero:"", albo_ordine:"", albo_iscrizione_data:"",
     assicurazione_compagnia:"", assicurazione_numero_polizza:"", assicurazione_scadenza:"",
     prezzo_sessione:"", approccio_terapeutico:"",
-    specializzazioni:"", lingue:"", disponibilita:[]
+    specializzazioni:"", lingue:"", disponibilita:[],
+    // Dati fiscali + residenza + IBAN
+    codice_fiscale:"", data_nascita:"", nato_all_estero:false,
+    luogo_nascita_comune:"", luogo_nascita_provincia:"", paese_nascita:"",
+    indirizzo:"", citta:"", cap:"", provincia_residenza:"",
+    iban:"",
   });
 
   const fetchProfilo = useCallback(() => {
@@ -41,7 +46,16 @@ export default function TerapistaProfile() {
           approccio_terapeutico: p.approccio_terapeutico||"",
           specializzazioni: (p.specializzazioni||[]).join(", "),
           lingue: (p.lingue||[]).join(", "),
-          disponibilita: p.disponibilita||[]
+          disponibilita: p.disponibilita||[],
+          codice_fiscale: p.codice_fiscale||"",
+          data_nascita: p.data_nascita||"",
+          nato_all_estero: !!p.nato_all_estero,
+          luogo_nascita_comune: p.luogo_nascita_comune||"",
+          luogo_nascita_provincia: p.luogo_nascita_provincia||"",
+          paese_nascita: p.paese_nascita||"",
+          indirizzo: p.indirizzo||"", citta: p.citta||"", cap: p.cap||"",
+          provincia_residenza: p.provincia_residenza||"",
+          iban: p.iban||"",
         });
       }).catch(console.error).finally(() => setLoading(false));
   }, []);
@@ -116,6 +130,93 @@ export default function TerapistaProfile() {
             <textarea data-testid="profilo-bio" value={form.bio} onChange={e => setForm({...form,bio:e.target.value})} rows={4}
               placeholder="Presenta te stesso ai pazienti: esperienza, approccio, valori..."
               className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] resize-none" />
+          </div>
+        </div>
+
+        {/* Dati Fiscali (per fatturazione sanitaria + bonifici) */}
+        <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-6 shadow-sm">
+          <h3 className="font-semibold text-[#0A0A0A] font-[Outfit] mb-1">Dati Fiscali</h3>
+          <p className="text-xs text-[#0A0A0A]/60 mb-4">Necessari per emettere fatture sanitarie e ricevere i bonifici del 70%.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Codice Fiscale</label>
+              <input data-testid="profilo-cf" type="text" value={form.codice_fiscale}
+                onChange={e => setForm({...form, codice_fiscale: e.target.value.toUpperCase().replace(/\s/g,"")})}
+                maxLength={16} placeholder="RSSMRA80A01H501U"
+                className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Data di Nascita</label>
+              <input type="date" value={form.data_nascita} onChange={e => setForm({...form, data_nascita: e.target.value})}
+                className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+            </div>
+            <div className="flex items-center pt-6">
+              <label className="inline-flex items-center gap-2 text-sm text-[#0A0A0A]">
+                <input type="checkbox" checked={form.nato_all_estero} onChange={e => setForm({...form, nato_all_estero: e.target.checked})} />
+                Nato/a all&apos;estero
+              </label>
+            </div>
+            {form.nato_all_estero ? (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Paese di Nascita</label>
+                <input type="text" value={form.paese_nascita} onChange={e => setForm({...form, paese_nascita: e.target.value})}
+                  placeholder="Es. Francia"
+                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Comune di Nascita</label>
+                  <input type="text" value={form.luogo_nascita_comune} onChange={e => setForm({...form, luogo_nascita_comune: e.target.value})}
+                    placeholder="Roma"
+                    className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Provincia di Nascita</label>
+                  <input type="text" value={form.luogo_nascita_provincia} onChange={e => setForm({...form, luogo_nascita_provincia: e.target.value.toUpperCase()})}
+                    maxLength={2} placeholder="RM"
+                    className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase" />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="mt-6 pt-4 border-t border-[#0A0A0A]/10">
+            <label className="block text-sm font-medium text-[#0A0A0A] mb-1">IBAN <span className="text-xs text-[#0A0A0A]/50">(per ricevere i bonifici 70%)</span></label>
+            <input data-testid="profilo-iban" type="text" value={form.iban}
+              onChange={e => setForm({...form, iban: e.target.value.toUpperCase().replace(/\s/g,"")})}
+              maxLength={34} placeholder="IT60 X054 2811 1010 0000 0123 456"
+              className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase font-mono tracking-wider" />
+            <p className="text-xs text-[#0A0A0A]/55 mt-1">Formato italiano: IT + 2 cifre + 23 caratteri. Verifica la correttezza — usiamo questo IBAN per accreditarti il 70% dei pagamenti dei tuoi pazienti.</p>
+          </div>
+        </div>
+
+        {/* Residenza */}
+        <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-6 shadow-sm">
+          <h3 className="font-semibold text-[#0A0A0A] font-[Outfit] mb-4">Residenza</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-4">
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Indirizzo</label>
+              <input type="text" value={form.indirizzo} onChange={e => setForm({...form, indirizzo: e.target.value})}
+                placeholder="Via / Piazza / Numero civico"
+                className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Città</label>
+              <input type="text" value={form.citta} onChange={e => setForm({...form, citta: e.target.value})}
+                className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">CAP</label>
+              <input type="text" value={form.cap} onChange={e => setForm({...form, cap: e.target.value.replace(/\D/g,"").slice(0,5)})}
+                maxLength={5} placeholder="00100"
+                className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Provincia</label>
+              <input type="text" value={form.provincia_residenza} onChange={e => setForm({...form, provincia_residenza: e.target.value.toUpperCase().slice(0,2)})}
+                maxLength={2} placeholder="RM"
+                className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase" />
+            </div>
           </div>
         </div>
 
