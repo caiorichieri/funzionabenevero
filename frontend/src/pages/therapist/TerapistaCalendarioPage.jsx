@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { ChevronLeft, ChevronRight, Check, AlertCircle, Loader2, X, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Info, Loader2, X, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 8:00 → 20:00
@@ -11,9 +11,8 @@ const WEEKDAYS_IT = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function buildMonthGrid(year, month) {
-  // month is 0-based
   const firstOfMonth = new Date(year, month, 1);
-  const dayOfWeek = (firstOfMonth.getDay() + 6) % 7; // Monday-first (0=Mon)
+  const dayOfWeek = (firstOfMonth.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells = [];
   for (let i = 0; i < dayOfWeek; i++) cells.push(null);
@@ -26,7 +25,8 @@ export default function TerapistaCalendarioPage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [calendario, setCalendario] = useState({}); // { "YYYY-MM-DD": ["09:00", ...] }
+  const [calendario, setCalendario] = useState({});
+  const [appuntamenti, setAppuntamenti] = useState({}); // { "YYYY-MM-DD": [{ora, paziente_nome, stato}] }
   const [selectedDate, setSelectedDate] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -37,6 +37,7 @@ export default function TerapistaCalendarioPage() {
     try {
       const { data } = await axios.get(`${API}/terapisti/me/calendario`, { withCredentials: true });
       setCalendario(data.calendario || {});
+      setAppuntamenti(data.appuntamenti || {});
       setPubStatus({ pubblicato_at: data.calendario_pubblicato_at, bozza: data.calendario_bozza });
       setDirty(false);
     } catch (e) {
@@ -55,18 +56,14 @@ export default function TerapistaCalendarioPage() {
     let y = year;
     if (m < 0) { m = 11; y--; }
     else if (m > 11) { m = 0; y++; }
-    setMonth(m);
-    setYear(y);
-    setSelectedDate(null);
+    setMonth(m); setYear(y); setSelectedDate(null);
   };
 
   const replicaSettimana = () => {
     if (!selectedDate) return;
     const src = new Date(selectedDate);
-    // Compute Monday of the week containing selectedDate
-    const dow = (src.getDay() + 6) % 7; // 0=Mon
+    const dow = (src.getDay() + 6) % 7;
     const monday = new Date(src.getFullYear(), src.getMonth(), src.getDate() - dow);
-    // Read the 7-day source week starting from Monday
     const sourceWeek = {};
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
@@ -77,11 +74,9 @@ export default function TerapistaCalendarioPage() {
       toast.warning("Questa settimana è vuota — aggiungi almeno uno slot prima di replicare");
       return;
     }
-    // Target: next 7 days (Monday+7). Merge (union) with existing slots on target days.
     setCalendario(prev => {
       const out = { ...prev };
-      let addedDays = 0;
-      let addedSlots = 0;
+      let addedDays = 0, addedSlots = 0;
       for (let i = 0; i < 7; i++) {
         const target = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7 + i);
         const key = isoDate(target);
@@ -144,163 +139,205 @@ export default function TerapistaCalendarioPage() {
     </div>
   );
 
-  const totalSlots = Object.values(calendario).reduce((sum, arr) => sum + arr.length, 0);
+  const totalSlots = Object.values(calendario).reduce((s, a) => s + a.length, 0);
 
   return (
-    <div className="space-y-6" data-testid="terapista-calendario-page">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-[#0A0A0A] font-[Outfit]">Calendario Disponibilità</h1>
-          <p className="text-[#0A0A0A]/65 mt-1">Clicca su un giorno per aprire la griglia oraria. Verde = disponibile · Grigio = non disponibile.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {dirty && (
-            <span className="text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 font-medium">Modifiche non salvate</span>
-          )}
-          {pubStatus.bozza && !dirty && (
-            <span className="text-xs px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 font-medium">In bozza</span>
-          )}
-          {!pubStatus.bozza && pubStatus.pubblicato_at && !dirty && (
-            <span className="text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-800 font-medium flex items-center gap-1">
+    <div className="space-y-3 flex flex-col h-full min-h-0" data-testid="terapista-calendario-page">
+      {/* Compact header: title + status + month nav in one row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-[#0A0A0A] font-[Outfit]">Calendario Disponibilità</h1>
+          {dirty ? (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">Non salvato</span>
+          ) : pubStatus.bozza ? (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 font-medium">Bozza</span>
+          ) : pubStatus.pubblicato_at ? (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-green-100 text-green-800 font-medium inline-flex items-center gap-1">
               <Check className="w-3 h-3" /> Pubblicato
             </span>
-          )}
+          ) : null}
         </div>
-      </div>
-
-      {/* Info banner */}
-      <div className="bg-[#6B8FA3]/10 border border-[#6B8FA3]/30 rounded-2xl p-4 flex gap-3 items-start">
-        <AlertCircle className="w-5 h-5 text-[#6B8FA3] flex-shrink-0 mt-0.5" />
-        <div className="text-sm text-[#0A0A0A]/80">
-          <strong>Come funziona</strong>: seleziona i giorni e le fasce orarie in cui vuoi ricevere pazienti. Salva come bozza per modificare, poi clicca <strong>Conferma e pubblica</strong> per rendere le disponibilità visibili. Le sessioni durano 50 minuti.
-        </div>
-      </div>
-
-      {/* Calendar */}
-      <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <button data-testid="prev-month" onClick={() => gotoMonth(-1)} className="p-2 rounded-lg hover:bg-[#0A0A0A]/5">
-            <ChevronLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2">
+          <button data-testid="prev-month" onClick={() => gotoMonth(-1)} className="p-1.5 rounded-lg hover:bg-[#0A0A0A]/5">
+            <ChevronLeft className="w-4 h-4" />
           </button>
-          <h2 className="text-xl font-semibold text-[#0A0A0A] font-[Outfit]">
+          <span className="text-sm font-semibold text-[#0A0A0A] min-w-[130px] text-center">
             {MONTHS_IT[month]} {year}
-          </h2>
-          <button data-testid="next-month" onClick={() => gotoMonth(1)} className="p-2 rounded-lg hover:bg-[#0A0A0A]/5">
-            <ChevronRight className="w-5 h-5" />
+          </span>
+          <button data-testid="next-month" onClick={() => gotoMonth(1)} className="p-1.5 rounded-lg hover:bg-[#0A0A0A]/5">
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-[#0A0A0A]/60 hidden sm:inline">{totalSlots} slot totali</span>
+          <button
+            data-testid="save-draft-btn"
+            disabled={saving || !dirty}
+            onClick={() => save(false)}
+            className="px-3 py-1.5 rounded-lg border border-[#0A0A0A]/20 text-[#0A0A0A] text-xs font-medium disabled:opacity-40 hover:bg-[#0A0A0A]/5"
+          >
+            Salva bozza
+          </button>
+          <button
+            data-testid="publish-btn"
+            disabled={saving}
+            onClick={() => {
+              if (window.confirm("Confermi la pubblicazione? Le tue disponibilità saranno visibili ai pazienti.")) save(true);
+            }}
+            className="px-3 py-1.5 rounded-lg bg-[#0A0A0A] text-white text-xs font-medium disabled:opacity-40 hover:opacity-90 inline-flex items-center gap-1"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Check className="w-3.5 h-3.5" />Pubblica</>}
+          </button>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-7 gap-1 mb-2">
+      {/* Info banner — compact single line */}
+      <div className="bg-[#6B8FA3]/8 border border-[#6B8FA3]/25 rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#0A0A0A]/75">
+        <Info className="w-3.5 h-3.5 text-[#6B8FA3] flex-shrink-0" />
+        <span>Clicca un giorno per gestire gli orari · <strong className="text-green-700">Verde</strong> = disponibile · <strong className="text-[#D4A017]">Oro</strong> = paziente prenotato · Sessione = 50 min</span>
+      </div>
+
+      {/* Calendar grid — height fills remaining viewport */}
+      <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-3 shadow-sm flex-1 flex flex-col min-h-0">
+        <div className="grid grid-cols-7 gap-1 mb-1 flex-shrink-0">
           {WEEKDAYS_IT.map(w => (
-            <div key={w} className="text-center text-xs font-medium text-[#0A0A0A]/60 py-2">{w}</div>
+            <div key={w} className="text-center text-[10px] uppercase tracking-wide font-semibold text-[#0A0A0A]/55 py-1">{w}</div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1 flex-1 min-h-0">
           {cells.map((d, i) => {
-            if (!d) return <div key={i} className="aspect-square" />;
+            if (!d) return <div key={i} className="bg-[#0A0A0A]/[0.02] rounded-lg" />;
             const key = isoDate(d);
             const slots = calendario[key] || [];
-            const count = slots.length;
+            const appts = appuntamenti[key] || [];
+            const bookedTimes = new Set(appts.map(a => a.ora));
+            const freeSlots = slots.filter(s => !bookedTimes.has(s));
             const isToday = key === isoDate(today);
             const isPast = d < new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const isSelected = selectedDate === key;
-            const bg = isPast
-              ? "bg-[#0A0A0A]/5 text-[#0A0A0A]/40 cursor-not-allowed"
-              : count > 0
-                ? "bg-green-100 hover:bg-green-200 text-green-900 border-green-300"
-                : "bg-red-50/60 hover:bg-red-100 text-[#0A0A0A]/60 border-red-100";
+            const hasContent = slots.length > 0 || appts.length > 0;
+
+            const cellBg = isPast
+              ? "bg-[#0A0A0A]/[0.03] text-[#0A0A0A]/40 cursor-not-allowed border-[#0A0A0A]/5"
+              : hasContent
+                ? "bg-white hover:bg-green-50/40 border-green-200 cursor-pointer"
+                : "bg-red-50/30 hover:bg-red-100/50 border-red-100 cursor-pointer";
+
             return (
               <button
                 key={key}
                 data-testid={`day-${key}`}
                 onClick={() => !isPast && setSelectedDate(key)}
                 disabled={isPast}
-                className={`aspect-square rounded-xl border ${bg} ${isSelected ? "ring-2 ring-[#0A0A0A]" : ""} ${isToday ? "font-bold" : ""} transition-all p-2 flex flex-col items-center justify-center text-sm relative`}
+                className={`text-left rounded-lg border ${cellBg} ${isSelected ? "ring-2 ring-[#0A0A0A]" : ""} transition-all p-1.5 flex flex-col overflow-hidden`}
+                style={{ minHeight: "70px" }}
               >
-                <span>{d.getDate()}</span>
-                {count > 0 && (
-                  <span className="absolute bottom-1 right-1 text-[10px] font-semibold bg-green-600 text-white rounded-full px-1.5 min-w-[18px] text-center">{count}</span>
-                )}
+                <div className="flex items-center justify-between mb-1 flex-shrink-0">
+                  <span className={`text-xs ${isToday ? "font-bold text-[#D4A017]" : "font-medium text-[#0A0A0A]/80"}`}>
+                    {d.getDate()}
+                  </span>
+                  {slots.length > 0 && (
+                    <span className="text-[9px] font-semibold text-green-700 bg-green-100 rounded-full px-1.5 leading-tight">
+                      {slots.length}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col gap-0.5 overflow-hidden">
+                  {/* Booked appointments (gold, with patient name) */}
+                  {appts.slice(0, 3).map((a) => (
+                    <div key={a.id} className="text-[9px] leading-tight bg-[#D4A017]/15 text-[#0A0A0A] border border-[#D4A017]/40 rounded px-1 py-0.5 truncate flex items-center gap-1">
+                      <span className="font-semibold">{a.ora}</span>
+                      <span className="truncate">{a.paziente_nome}</span>
+                    </div>
+                  ))}
+                  {/* Free slots (green) */}
+                  {freeSlots.slice(0, Math.max(0, 4 - Math.min(3, appts.length))).map(s => (
+                    <div key={s} className="text-[9px] leading-tight bg-green-100 text-green-800 rounded px-1 py-0.5">
+                      {s}
+                    </div>
+                  ))}
+                  {(appts.length + freeSlots.length) > 4 && (
+                    <div className="text-[9px] text-[#0A0A0A]/50 leading-tight">
+                      +{(appts.length + freeSlots.length) - 4} altri
+                    </div>
+                  )}
+                </div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Selected day time grid */}
+      {/* Day editor modal-ish inline (overlay slide-up) */}
       {selectedDate && (
-        <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-6 shadow-sm" data-testid="day-timegrid">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-lg text-[#0A0A0A] font-[Outfit]">
-              {new Date(selectedDate).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            </h3>
-            <button onClick={() => setSelectedDate(null)} className="p-1.5 rounded-lg hover:bg-[#0A0A0A]/5" data-testid="close-day">
-              <X className="w-4 h-4" />
-            </button>
+        <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setSelectedDate(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl" onClick={e => e.stopPropagation()} data-testid="day-timegrid">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg text-[#0A0A0A] font-[Outfit] capitalize">
+                {new Date(selectedDate).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              </h3>
+              <button onClick={() => setSelectedDate(null)} className="p-1.5 rounded-lg hover:bg-[#0A0A0A]/5" data-testid="close-day">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {(appuntamenti[selectedDate] || []).length > 0 && (
+              <div className="mb-4 p-3 bg-[#D4A017]/10 border border-[#D4A017]/30 rounded-xl">
+                <div className="text-xs font-semibold text-[#0A0A0A]/70 mb-2 uppercase tracking-wide">Pazienti prenotati</div>
+                <div className="space-y-1">
+                  {(appuntamenti[selectedDate] || []).map(a => (
+                    <div key={a.id} className="text-sm text-[#0A0A0A] flex items-center gap-2">
+                      <span className="font-bold">{a.ora}</span>
+                      <span>{a.paziente_nome}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="text-xs font-semibold text-[#0A0A0A]/70 mb-2 uppercase tracking-wide">Orari disponibili</div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 gap-2">
+              {HOURS.map(h => {
+                const hhmm = `${String(h).padStart(2, "0")}:00`;
+                const on = (calendario[selectedDate] || []).includes(hhmm);
+                const booked = (appuntamenti[selectedDate] || []).some(a => a.ora === hhmm);
+                return (
+                  <button
+                    key={h}
+                    data-testid={`slot-${selectedDate}-${hhmm}`}
+                    onClick={() => !booked && toggleSlot(selectedDate, h)}
+                    disabled={booked}
+                    className={`py-2.5 px-2 rounded-lg border text-sm font-medium transition-all ${
+                      booked
+                        ? "bg-[#D4A017]/20 text-[#D4A017] border-[#D4A017]/40 cursor-not-allowed"
+                        : on
+                          ? "bg-green-500 text-white border-green-500 hover:bg-green-600"
+                          : "bg-red-50 text-[#0A0A0A]/70 border-red-200 hover:bg-red-100"
+                    }`}
+                    title={booked ? "Slot già prenotato" : ""}
+                  >
+                    {hhmm}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-xs text-[#0A0A0A]/55">
+                {(calendario[selectedDate] || []).length} slot · Ogni sessione dura 50 min
+              </p>
+              <button
+                data-testid="replica-settimana-btn"
+                onClick={replicaSettimana}
+                className="inline-flex items-center gap-1.5 text-xs text-[#6B8FA3] hover:text-[#0A0A0A] font-medium px-3 py-1.5 rounded-lg hover:bg-[#6B8FA3]/10"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Replica su settimana successiva
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-            {HOURS.map(h => {
-              const hhmm = `${String(h).padStart(2, "0")}:00`;
-              const on = (calendario[selectedDate] || []).includes(hhmm);
-              return (
-                <button
-                  key={h}
-                  data-testid={`slot-${selectedDate}-${hhmm}`}
-                  onClick={() => toggleSlot(selectedDate, h)}
-                  className={`py-3 px-2 rounded-xl border text-sm font-medium transition-all ${
-                    on
-                      ? "bg-green-500 text-white border-green-500 hover:bg-green-600"
-                      : "bg-red-50 text-[#0A0A0A]/70 border-red-200 hover:bg-red-100"
-                  }`}
-                >
-                  {hhmm}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-[#0A0A0A]/55 mt-4">
-            {(calendario[selectedDate] || []).length} slot selezionati · Ogni slot = 1 sessione di 50 minuti
-          </p>
-          <button
-            data-testid="replica-settimana-btn"
-            onClick={replicaSettimana}
-            className="mt-3 inline-flex items-center gap-2 text-sm text-[#6B8FA3] hover:text-[#0A0A0A] font-medium px-3 py-1.5 rounded-lg hover:bg-[#6B8FA3]/10"
-          >
-            <Copy className="w-4 h-4" />
-            Replica questa settimana su quella successiva
-          </button>
         </div>
       )}
-
-      {/* Actions */}
-      <div className="sticky bottom-4 bg-white border border-[#0A0A0A]/10 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="text-sm text-[#0A0A0A]/70">
-          <strong>{totalSlots}</strong> slot totali disponibili nel calendario
-        </div>
-        <div className="flex gap-2">
-          <button
-            data-testid="save-draft-btn"
-            disabled={saving || !dirty}
-            onClick={() => save(false)}
-            className="px-4 py-2.5 rounded-xl border border-[#0A0A0A]/20 text-[#0A0A0A] font-medium text-sm disabled:opacity-40 hover:bg-[#0A0A0A]/5"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salva bozza"}
-          </button>
-          <button
-            data-testid="publish-btn"
-            disabled={saving}
-            onClick={() => {
-              if (window.confirm("Confermi la pubblicazione? Le tue disponibilità saranno visibili ai pazienti.")) {
-                save(true);
-              }
-            }}
-            className="px-4 py-2.5 rounded-xl bg-[#0A0A0A] text-white font-medium text-sm disabled:opacity-40 hover:opacity-90 inline-flex items-center gap-2"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" />Conferma e pubblica</>}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

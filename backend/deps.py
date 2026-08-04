@@ -88,6 +88,21 @@ def validate_codice_fiscale(cf: str) -> bool:
 
 
 # ─── Auth dependency ──────────────────────────────────────────────────────────
+async def find_user_by_id(uid) -> dict | None:
+    """Safe user lookup by _id. Casts str/ObjectId inputs to ObjectId automatically.
+    Returns None on invalid ID or missing user (never raises)."""
+    if uid is None:
+        return None
+    if isinstance(uid, ObjectId):
+        oid = uid
+    else:
+        try:
+            oid = ObjectId(str(uid))
+        except Exception:
+            return None
+    return await db.users.find_one({"_id": oid})
+
+
 async def get_current_user(request: Request):
     token = request.cookies.get("access_token")
     if not token:
@@ -100,7 +115,7 @@ async def get_current_user(request: Request):
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "access":
             raise HTTPException(status_code=401, detail="Token non valido")
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        user = await find_user_by_id(payload["sub"])
         if not user:
             raise HTTPException(status_code=401, detail="Utente non trovato")
         user["_id"] = str(user["_id"])

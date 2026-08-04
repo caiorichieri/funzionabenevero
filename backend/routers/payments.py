@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response as _FastResponse
 
 from deps import (
-    db, require_auth, require_admin,
+    db, require_auth, require_admin, find_user_by_id,
     STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, PLATFORM_FEE_PERCENT,
 )
 from models import CheckoutBookingRequest, MarkPayoutPaidRequest
@@ -59,7 +59,7 @@ async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] =
             {"_id": ObjectId(appt_id)},
             {"$set": {"stato": "confermato", "paid_at": now}},
         )
-        paziente_user = await db.users.find_one({"_id": ObjectId(tx["paziente_user_id"])})
+        paziente_user = await find_user_by_id(tx["paziente_user_id"])
         if paziente_user:
             paziente_user["_id"] = str(paziente_user["_id"])
             await finalize_confirmed_booking(appt_id, paziente_user)
@@ -72,7 +72,7 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
     if user["role"] != "paziente":
         raise HTTPException(403, "Solo i pazienti possono prenotare")
 
-    u_doc = await db.users.find_one({"_id": ObjectId(user["_id"])})
+    u_doc = await find_user_by_id(user["_id"])
     tv_at = (u_doc or {}).get("telefono_verificato_at")
     if isinstance(tv_at, str):
         try:
@@ -450,7 +450,7 @@ async def download_fattura_sanitaria(transaction_id: str, user: dict = Depends(r
     appt = await db.appuntamenti.find_one({"_id": ObjectId(tx["appointment_id"])})
     terapista = await db.terapisti.find_one({"_id": ObjectId(tx["terapeuta_id"])})
     paziente = await db.pazienti.find_one({"_id": ObjectId(tx["paziente_id"])})
-    paziente_user = await db.users.find_one({"_id": ObjectId(tx["paziente_user_id"])})
+    paziente_user = await find_user_by_id(tx["paziente_user_id"])
     if not (appt and terapista and paziente and paziente_user):
         raise HTTPException(404, "Dati incompleti per generare la fattura")
     pdf = build_fattura_sanitaria_pdf(

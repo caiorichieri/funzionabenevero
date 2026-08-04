@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from bson import ObjectId
 
-from deps import db
+from deps import db, find_user_by_id
 from daily_service import create_room_for_appointment
 from email_service import send_booking_confirmation_email, send_reminder_email
 
@@ -97,7 +97,7 @@ async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
         terapista = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
         paziente = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])})
         if terapista and paziente:
-            t_user = await db.users.find_one({"_id": terapista.get("user_id")})
+            t_user = await find_user_by_id(terapista.get("user_id"))
             frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
             reschedule_url = (
                 f"{frontend}/riprogramma/{appointment_id}?token={raw_token}" if raw_token else None

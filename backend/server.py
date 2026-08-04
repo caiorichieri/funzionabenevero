@@ -30,7 +30,7 @@ from deps import (
     PyObjectId, hash_password, verify_password,
     create_access_token, create_refresh_token,
     generate_otp, validate_codice_fiscale,
-    get_current_user, require_admin, require_auth,
+    get_current_user, require_admin, require_auth, find_user_by_id,
 )
 # ─── Shared Pydantic models ───────────────────────────────────────────────────
 from models import (
@@ -405,7 +405,7 @@ async def prenota_pubblico(data: AppuntamentoInput, user: dict = Depends(require
     if user["role"] != "paziente":
         raise HTTPException(403, "Solo i pazienti possono prenotare")
     # Require recent SMS phone verification (last 60 min) before confirming booking
-    u_doc = await db.users.find_one({"_id": ObjectId(user["_id"])})
+    u_doc = await find_user_by_id(user["_id"])
     tv_at = (u_doc or {}).get("telefono_verificato_at")
     if isinstance(tv_at, str):
         try:

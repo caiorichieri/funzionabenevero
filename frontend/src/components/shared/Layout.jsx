@@ -17,7 +17,7 @@ export default function Layout() {
   const initials = `${user?.nome?.[0] || ""}${user?.cognome?.[0] || ""}`.toUpperCase();
 
   return (
-    <div className="min-h-screen bg-transparent flex">
+    <div className="min-h-screen h-screen bg-transparent flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -33,7 +33,7 @@ export default function Layout() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen">
         {/* Topbar */}
         <header className="sticky top-0 z-10 bg-[#E3D266] border-b border-[#0A0A0A]/12 px-6 py-4 flex items-center justify-between">
           <button
@@ -71,7 +71,7 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-4 overflow-auto min-h-0">
           <Outlet />
         </main>
       </div>

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Dict, List
 
-from deps import db, require_auth, require_admin
+from deps import db, require_auth, require_admin, find_user_by_id
 
 router = APIRouter()
 
@@ -57,14 +57,43 @@ def _token_digest(raw: str) -> str:
 # ─── Therapist endpoints ──────────────────────────────────────────────────────
 @router.get("/terapisti/me/calendario")
 async def get_my_calendario(user: dict = Depends(require_auth)):
-    """Return therapist's date-specific availability + publish status."""
+    """Return therapist's date-specific availability + booked appointments + publish status."""
     if user["role"] != "terapeuta":
         raise HTTPException(403, "Accesso negato")
     t = await db.terapisti.find_one({"user_id": user["_id"]})
     if not t:
         raise HTTPException(404, "Profilo terapeuta non trovato")
+
+    tid = str(t["_id"])
+    # Fetch upcoming appointments (next 90 days) with patient names
+    now = datetime.now(timezone.utc)
+    horizon = now + timedelta(days=90)
+    appuntamenti_map: Dict[str, List[Dict]] = {}
+    cursor = db.appuntamenti.find({
+        "terapeuta_id": tid,
+        "stato": {"$nin": ["cancellato", "annullato"]},
+        "data_ora": {"$gte": now.isoformat()[:10], "$lt": horizon.isoformat()[:10]},
+    })
+    async for a in cursor:
+        date_key = a["data_ora"][:10]
+        ora = a["data_ora"][11:16]
+        pnome = "Paziente"
+        try:
+            p = await db.pazienti.find_one({"_id": ObjectId(a["paziente_id"])})
+            if p:
+                pnome = f"{p.get('nome','')} {p.get('cognome','')}".strip() or "Paziente"
+        except Exception:
+            pass
+        appuntamenti_map.setdefault(date_key, []).append({
+            "id": str(a["_id"]),
+            "ora": ora,
+            "paziente_nome": pnome,
+            "stato": a.get("stato", "confermato"),
+        })
+
     return {
         "calendario": t.get("disponibilita_calendario", {}),
+        "appuntamenti": appuntamenti_map,
         "calendario_pubblicato_at": (
             t["calendario_pubblicato_at"].isoformat() if isinstance(t.get("calendario_pubblicato_at"), datetime) else None
         ),
@@ -346,8 +375,7 @@ async def confirm_reschedule(appuntamento_id: str, body: RiprogrammaConfirm):
 
     # Notify therapist by email (best-effort)
     try:
-        tuid = terapista.get("user_id")
-        terapista_user = await db.users.find_one({"_id": ObjectId(tuid) if isinstance(tuid, str) else tuid}) if tuid else None
+        terapista_user = await find_user_by_id(terapista.get("user_id"))
         paziente = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])})
         if terapista_user and paziente:
             from email_service import send_reschedule_notification_email

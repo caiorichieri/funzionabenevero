@@ -7,7 +7,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 
-from deps import db, require_auth, require_admin
+from deps import db, require_auth, require_admin, find_user_by_id
 from models import TerapistaProfileInput
 
 router = APIRouter()
@@ -125,7 +125,7 @@ async def firma_autocert_dpr445(request: Request, user: dict = Depends(require_a
     """Therapist signs the DPR 445/2000 self-certification after uploading docs and verifying phone."""
     if user["role"] != "terapeuta":
         raise HTTPException(403, "Accesso negato")
-    u = await db.users.find_one({"_id": ObjectId(user["_id"])})
+    u = await find_user_by_id(user["_id"])
     if not u or not u.get("telefono_verificato"):
         raise HTTPException(400, "Verifica prima il numero di telefono via SMS")
     t = await db.terapisti.find_one({"user_id": user["_id"]})
@@ -310,7 +310,7 @@ async def admin_list_terapista_docs(terapista_id: str, user: dict = Depends(requ
     t = await db.terapisti.find_one({"_id": ObjectId(terapista_id)})
     if not t:
         raise HTTPException(404, "Terapeuta non trovato")
-    u = await db.users.find_one({"_id": ObjectId(t.get("user_id"))}) if t.get("user_id") else None
+    u = await find_user_by_id(t.get("user_id")) if t.get("user_id") else None
     return {
         "terapista_id": terapista_id,
         "user_id": t.get("user_id"),
