@@ -482,3 +482,37 @@ Vedi: /app/memory/test_credentials.md
 ### Deferred to backlog
 - server.py 2339 linhas → split in routers (Fase C refactor)
 - PLATFORM_FEE_PERCENT → env/DB config (P2)
+
+---
+
+## 📱 SMS OTP: Skebby → Twilio Verify (Feb 18, 2026)
+
+### Problema
+- Skebby `/login` e `/token` endpoints retornavam 404 (deprecated ou credenciais quebradas)
+- Suporte Skebby inacessível, sistema de crédito bloqueado
+- `funzionabene.it` produção estava com SMS OTP silenciosamente quebrado — pacientes **não conseguiam completar prenotazioni** (P0 bug)
+
+### Solução
+Migrado para **Twilio Verify** (serviço dedicado de OTP):
+- Twilio gerencia geração/expiração/rate-limiting do código server-side
+- Anti-fraude embutido (SMS pumping protection)
+- Sem IP whitelist necessária
+- Verify Service SID: `VA18ca7fc18bf49a7ba556ecf477f018cf`
+- Trial $15 grátis (~300 SMS antes de precisar de upgrade)
+
+### Mudanças
+- **`.env`**: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` adicionados; `SKEBBY_*` comentadas
+- **`sms_service.py`**: reescrito com `send_sms_otp(phone, otp='', context='')` (otp ignorado — Twilio gera) e nova função `verify_sms_otp(phone, code)`
+- **`server.py`**: endpoint `/sms/verify-otp` simplificado — delega verificação ao Twilio (sem armazenar código localmente)
+- **`db.sms_otp`**: mantida só para audit trail (provider, timestamps), sem mais armazenar codes
+- **`requirements.txt`**: `twilio==9.10.9`
+
+### E2E Test (real)
+- ✅ SMS enviado para +393518230667 → chegou em segundos
+- ✅ Código `602779` verificado com sucesso (Status: approved, Valid: True)
+- ✅ Second-use do mesmo código → 404 (single-use enforcement por Twilio)
+
+### PARA PRODUÇÃO
+1. Adicionar as 3 vars `TWILIO_*` no dashboard Emergent (Environment Variables)
+2. Fazer upgrade da conta Twilio (adicionar cartão de crédito) — trial só permite SMS a números pré-verificados
+3. Redeploy do funzionabene.it
