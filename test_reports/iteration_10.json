@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 10 refactor regression. Created /app/backend/tests/test_iteration10_refactor.py with 27 tests covering the 3 newly-extracted routers (terapisti, appuntamenti, payments) + the still-in-server.py surface (auth/dashboard/users/blog) + cruscotto (from admin_analytics). ALL 27 PASSED. Backend module structure: server.py 1492 lines, deps.py 122, models.py 152, routers/{admin_analytics 232, terapisti 332, appuntamenti 152, payments 402}. No circular-import issues (lazy import in payments._mark_payment_paid works). Frontend smoke: admin login → /admin (Cruscotto renders 285€ revenue, 45.50€ pending payout, chart, Top Therapists list, IBAN-missing alert for Giulia, Esporta PDF button) → /admin/terapisti (all 6 therapists listed with edit buttons). All 3 refactored routers behave identically to iteration_9 baseline.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/cruscotto (pending_payouts)",
+        "issue": "Seed idempotency drifts over test cycles: iter7 payouts tests mark the seeded pending payout as paid, but seed_data() only re-creates on backend restart. After multiple test runs without restart, pending_payouts.count = 0 and iban_missing = []. NOT a refactor regression — pre-existing environmental drift. Restart backend to re-seed. Long-term fix: guard should check for _seed:True + unpaid, not just any paid+unpaid tx."
+      },
+      {
+        "endpoint": "GET /api/terapisti",
+        "issue": "Response items still expose MongoDB '_id' field (pre-existing across iterations 7-9; not introduced by refactor)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration10_refactor.py",
+    "/app/test_reports/pytest/iter10.xml",
+    "/app/test_reports/iter10_admin.png",
+    "/app/test_reports/iter10_terapisti.png"
+  ],
+  "action_items": [
+    "OPTIONAL: Restart backend once to re-seed Giulia's pending payout (iter7/iter8/iter9 tests marked it as paid). Then iter9::test_pending_payout_present + test_iban_missing_contains_giulia will pass again. Not caused by refactor.",
+    "OPTIONAL: Harden seed guard to filter on {_seed:true} instead of {payment_status:paid, payout_status:{$ne:paid}} — current form silently no-ops when the seeded row has been marked paid.",
+    "NIT: models.py: TerapistaProfileInput.iban validator normalizes to uppercase/no-spaces — good. Consider surfacing normalization in OpenAPI docs.",
+    "NIT: payments.py:58 lazy `from server import _finalize_confirmed_booking` — acceptable but consider moving _finalize_confirmed_booking to a shared module (e.g. deps.py or a new bookings.py) to eliminate the circular-dep dance."
+  ],
+  "critical_code_review_comments": [
+    "GOOD: Refactor is clean — server.py trimmed from ~2500 → 1492 lines. Router modules use plain APIRouter with FastAPI-native `Depends(require_auth)` / `Depends(require_admin)`, consistent with admin_analytics.py factory-free style.",
+    "GOOD: All shared primitives (JWT, bcrypt, DB client, PLATFORM_FEE_PERCENT, Stripe keys, auth deps, PyObjectId, CF validator) collected in deps.py — single source of truth.",
+    "GOOD: Pydantic models fully migrated to models.py including field_validator normalization. IBAN regex `^IT\\d{2}[A-Z0-9]{23}$` correctly enforced (422 on bad, 200 on valid/empty).",
+    "GOOD: No behavioural drift — all previously-200 endpoints still return 200; all previously-4xx return same 4xx.",
+    "IMPROVEMENT: routers/payments.py is 402 lines — approaching but under 700-line threshold. terapisti.py 332, appuntamenti.py 152 — all healthy.",
+    "IMPROVEMENT: The lazy import `from server import _finalize_confirmed_booking` inside `_mark_payment_paid` is a code smell. It works, but the dependency arrow (payments → server) breaks the cleaner (server → routers) direction. Move _finalize_confirmed_booking to deps.py or a new module.",
+    "MINOR: routers/appuntamenti.py `update_appuntamento` uses `AppuntamentoInput` (all required fields via model_dump(exclude_none=True)). If AppuntamentoInput has required fields, a partial PUT payload could fail validation before the exclude_none is applied. Consider a separate AppuntamentoUpdateInput with Optional fields.",
+    "MINOR (pre-existing): _id ObjectId still returned as `_id` string in many endpoints — per guidelines should be renamed to `id`. Not introduced by this refactor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration10_refactor.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (27/27 new refactor regression) + iter7/8/9 core routes verified", "frontend": "100% (admin+terapisti pages render, no console errors)"},
+  "test_credentials": "admin@funzionabene.it / admin2026, demo.terapeuta@funzionabene.it / terapeuta2026, demo.paziente@funzionabene.it / paziente2026 — session-cookie auth via requests.Session().",
+  "seed_data_creation": "None new. Existing boot-time seed_data() creates Giulia's pending payout — see 'minor' item above about environmental drift.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 10 = pure refactor (server.py -> deps.py + models.py + routers/{payments,terapisti,appuntamenti}.py). Full regression suite: /app/backend/tests/test_iteration10_refactor.py (27 tests, ~4s). No behaviour change vs iter9. The 2 iter9 tests that appear to fail (test_pending_payout_present + test_iban_missing_contains_giulia) are pre-existing seed-idempotency drift, NOT refactor bugs — they pass immediately after backend restart. Focus next iter on: (a) moving _finalize_confirmed_booking out of server.py (eliminate lazy circular-import in payments), (b) hardening seed guard to filter on _seed:True.",
+  "rca of the issue": "N/A — no refactor-introduced bugs. Seed drift is environmental: iter7/iter8 tests call POST /api/admin/payouts/mark-paid on Giulia's seeded row, flipping payout_status:paid. seed_data() only runs on backend boot; its idempotency guard checks for ANY paid+unpaid tx (not specifically the _seed:True row), so once the seeded row is marked paid AND no new paid+unpaid tx exists, restart is required to re-seed. Reproduction: run iter7 tests → immediately run iter9 tests → fail. Mitigation: `sudo supervisorctl restart backend` OR change guard from `payout_status:{$ne:paid}` to `_seed:True, payout_status:{$ne:paid}`."
+}
