@@ -131,10 +131,10 @@ def _booking_template(ctx: dict, recipient: str) -> str:
 <tr><td style="padding:28px 40px 20px;">
   <p style="font-size:13px;color:rgba(230,226,216,0.6);line-height:1.6;margin:0 0 16px;">
     Il link per entrare nella stanza video sarà disponibile 15 minuti prima della seduta nella tua area personale.
-    Riceverai un promemoria 1 giorno prima e 1 ora prima.
+    Riceverai un promemoria 1 giorno prima.
   </p>
   <p style="font-size:12px;color:rgba(230,226,216,0.4);line-height:1.6;margin:0;">
-    Puoi cancellare o riprogrammare fino a 24 ore prima.
+    Non puoi partecipare? {"<a href='" + ctx['reschedule_url'] + "' style='color:#6B8FA3;text-decoration:underline;'>Riprogramma qui</a> · " if ctx.get('reschedule_url') and recipient == 'paziente' else ""}Per un rimborso scrivi a <a href="mailto:assistenza@funzionabene.it" style="color:#6B8FA3;text-decoration:underline;">assistenza@funzionabene.it</a>.
   </p>
 </td></tr>
 <tr><td style="padding:20px 40px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
@@ -144,14 +144,15 @@ def _booking_template(ctx: dict, recipient: str) -> str:
 
 
 def _reminder_template(ctx: dict, when: str) -> str:
-    """when = '1-giorno' or '1-ora'."""
+    """when = '1-giorno' (single reminder)."""
     dt_fmt = _format_data_ora_it(ctx["data_ora"])
-    titolo = "La tua seduta è domani" if when == "1-giorno" else "La tua seduta inizia tra un'ora"
-    sottotitolo = (
-        "Ricorda: puoi entrare nella stanza video 15 minuti prima dell'orario."
-        if when == "1-ora"
-        else "Ti aspettiamo. Controlla i dettagli qui sotto."
-    )
+    titolo = "La tua seduta è domani"
+    sottotitolo = "Ti aspettiamo. Controlla i dettagli qui sotto."
+    reschedule_html = ""
+    if ctx.get("reschedule_url"):
+        reschedule_html = f"""<p style="font-size:12px;color:rgba(230,226,216,0.5);line-height:1.6;margin:16px 0 0;text-align:center;">
+      Non puoi partecipare? <a href="{ctx['reschedule_url']}" style="color:#6B8FA3;text-decoration:underline;">Riprogramma qui</a> · Per un rimborso scrivi a <a href="mailto:assistenza@funzionabene.it" style="color:#6B8FA3;text-decoration:underline;">assistenza@funzionabene.it</a>
+    </p>"""
     return f"""<!DOCTYPE html>
 <html lang="it"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#0A0A0A;font-family:'Helvetica Neue',Arial,sans-serif;color:#F4F1ED;">
@@ -174,6 +175,7 @@ def _reminder_template(ctx: dict, when: str) -> str:
       Con Dr. {ctx['terapista_nome']} {ctx['terapista_cognome']}
     </td></tr>
   </table>
+  {reschedule_html}
 </td></tr>
 <tr><td style="padding:28px 40px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;margin-top:20px;">
   <p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Clinica di Psicologia e Sessuologia</p>

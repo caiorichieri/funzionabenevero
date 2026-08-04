@@ -749,12 +749,14 @@ from routers.terapisti import router as _terapisti_router
 from routers.payments import router as _payments_router
 from routers.auth import router as _auth_router
 from routers.blog import router as _blog_router
+from routers.calendario import router as _calendario_router
 app.include_router(_build_admin_analytics_router(db, require_admin), prefix="/api")
 app.include_router(_appuntamenti_router, prefix="/api")
 app.include_router(_terapisti_router, prefix="/api")
 app.include_router(_payments_router, prefix="/api")
 app.include_router(_auth_router, prefix="/api")
 app.include_router(_blog_router, prefix="/api")
+app.include_router(_calendario_router, prefix="/api")
 # CORS — supports multiple frontend origins (preview, production, custom domains) via ALLOWED_ORIGINS env var
 _extra_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 _cors_origins = list({

@@ -2,11 +2,12 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard, Users, UserCheck, Calendar,
-  FileText, X, Heart, ScrollText, Wallet
+  FileText, X, Heart, ScrollText, Wallet, CalendarDays
 } from "lucide-react";
 
 const ADMIN_MENU = [
   { to: "/admin", icon: LayoutDashboard, label: "Panoramica", exact: true },
+  { to: "/admin/calendario", icon: CalendarDays, label: "Calendario Terapisti" },
   { to: "/admin/terapisti", icon: UserCheck, label: "Terapisti" },
   { to: "/admin/pazienti", icon: Users, label: "Pazienti" },
   { to: "/admin/appuntamenti", icon: Calendar, label: "Appuntamenti" },
@@ -17,6 +18,7 @@ const ADMIN_MENU = [
 
 const THERAPIST_MENU = [
   { to: "/terapeuta", icon: LayoutDashboard, label: "Dashboard", exact: true },
+  { to: "/terapeuta/calendario", icon: CalendarDays, label: "Calendario Disponibilità" },
   { to: "/terapeuta/profilo", icon: UserCheck, label: "Il mio Profilo" },
   { to: "/terapeuta/blog", icon: FileText, label: "Blog" },
 ];

@@ -20,6 +20,9 @@ import PagamentiPage from "@/pages/admin/PagamentiPage";
 import TerapistaDashboard from "@/pages/therapist/TerapistaDashboard";
 import TerapistaProfile from "@/pages/therapist/TerapistaProfile";
 import TerapistaBlogPage from "@/pages/therapist/TerapistaBlogPage";
+import TerapistaCalendarioPage from "@/pages/therapist/TerapistaCalendarioPage";
+import AdminCalendarioPage from "@/pages/admin/AdminCalendarioPage";
+import RiprogrammaPage from "@/pages/RiprogrammaPage";
 import PazienteDashboard from "@/pages/patient/PazienteDashboard";
 import VideoCallPage from "@/pages/VideoCallPage";
 import Layout from "@/components/shared/Layout";
@@ -100,6 +103,7 @@ export default function App() {
           {/* Admin routes */}
           <Route path="/admin" element={<ProtectedRoute roles={ADMIN_ROLES}><Layout /></ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
+            <Route path="calendario" element={<AdminCalendarioPage />} />
             <Route path="terapisti" element={<TerapistiPage />} />
             <Route path="pazienti" element={<PazientiPage />} />
             <Route path="appuntamenti" element={<AppuntamentiPage />} />
@@ -111,6 +115,7 @@ export default function App() {
           {/* Therapist routes */}
           <Route path="/terapeuta" element={<ProtectedRoute roles={THERAPIST_ROLES}><Layout /></ProtectedRoute>}>
             <Route index element={<TerapistaDashboard />} />
+            <Route path="calendario" element={<TerapistaCalendarioPage />} />
             <Route path="profilo" element={<TerapistaProfile />} />
             <Route path="blog" element={<TerapistaBlogPage />} />
           </Route>
@@ -121,6 +126,9 @@ export default function App() {
           </Route>
 
           <Route path="/register" element={<Navigate to="/registrati" replace />} />
+
+          {/* Reschedule (public, token-authenticated) */}
+          <Route path="/riprogramma/:appuntamentoId" element={<RiprogrammaPage />} />
 
           {/* Video call (fullscreen, authenticated paziente/terapeuta/admin) */}
           <Route path="/seduta/:appuntamentoId" element={

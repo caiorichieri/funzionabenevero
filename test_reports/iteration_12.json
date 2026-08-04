@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 12: New Calendario + Reschedule bundle for funzionabene.it. Backend: 16/16 pytest cases PASS across therapist CRUD calendar, admin aggregated monthly view, public terapista calendar, reschedule validate/confirm and booking reminder verification. Frontend: All 3 new pages render and function - Terapista Calendario (grid + timegrid + save/publish), Admin Calendario (monthly density coloring + drill-down), Riprogramma page (error card for bad token + assistenza mailto).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration12_calendario.py",
+    "/app/test_reports/pytest/iter12.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "public/terapisti/{tid}/calendario uses ObjectId(terapista_id) with no try/except → invalid ID string will raise bson.errors.InvalidId (500 instead of 404). Consider wrapping.",
+    "reschedule confirm booked-slot check uses regex on data_ora string; safer to normalize with datetime comparison. Current works for ISO-8601 with same tz.",
+    "generate_reschedule_token_for_appt at bottom of calendario.py is unused (dead code) — the real token is generated inside booking_service.finalize_confirmed_booking. Consider removing.",
+    "AdminCalendario page default lands on current month (August 2026) which shows empty state; consider auto-jumping to the first month with data or showing a hint.",
+    "email_service.py line 137 puts inline conditional Python-style f-string logic inside HTML — hard to read; extract into a helper."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration12_calendario.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md (admin/terapeuta/paziente 2026 passwords).",
+  "seed_data_creation": "Test inserts a TEST_ tagged appuntamento with SHA-256 hash of 'TESTTOKEN12345' for reschedule flow validation, cleaned up in fixture teardown. Also temporarily overwrites Maria Rossi terapista disponibilita_calendario with 2026-02 + 2026-09 entries; last state left in place (Sep entries survive) — main agent may re-seed to clean if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "System clock is Aug 2026 (not Jan) — the reschedule endpoint requires nuova_data_ora > now+1h, so use ≥Sep 2026 dates. Backend fully covered by /app/backend/tests/test_iteration12_calendario.py (16 tests, ~4s). Frontend testids: terapista-calendario-page, admin-calendario-page, riprogramma-page/error/success, day-{key}, admin-day-{key}, slot-{data_ora}, save-draft-btn, publish-btn, confirm-reschedule-btn.",
+  "rca of the issue": "No bugs found. Initial admin-day cells count of 0 in first playwright pass was because default view is Aug 2026 which had no seeded published availability; navigating to Sep 2026 showed 31 cells with 2 covered (green) as expected."
+}
