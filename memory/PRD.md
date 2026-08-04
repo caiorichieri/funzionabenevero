@@ -542,3 +542,39 @@ Migrado para **Twilio Verify** (serviço dedicado de OTP):
 ### Test agent (iteration_7)
 - Backend: 15/15 ✅ (após fix do bug menor de paid_at)
 - Frontend: 100% ✅
+
+
+---
+
+## ✅ FASE 5 — Cruscotto Executive + IBAN (Feb 2026)
+
+### Backend (`server.py`)
+- **`TerapistaProfileInput.iban`** (Optional[str]) — accettato da `PUT /api/terapisti/{id}` e persistito su `db.terapisti`.
+- **`GET /api/admin/cruscotto`** — endpoint aggregato con KPI direzionali per Admin:
+  - `revenue.current_month` / `revenue.previous_month` / `revenue.delta_percent` (aggregate su `payment_transactions.paid_at`, `payment_status="paid"`, boundary da `month_start` a `next_month_start`).
+  - `pending_payouts.total_cents` / `count` (paid && payout_status ≠ paid).
+  - `sessions_month.completed` / `booked` / `completion_rate`.
+  - `revenue_6m` — array di 6 bucket mensili (label mese abbreviato, gross_cents, count).
+  - `top_therapists` — Top 5 per ricavi lordi (nome + gross + sessions).
+  - `iban_missing` — terapisti con sessioni pagate NON ancora bonificate e senza IBAN (attivabile: `pending_cents > 0`).
+
+### Frontend (`/admin`)
+- **`AdminDashboard.jsx` — "Cruscotto"** riscritto:
+  - 4 KPI card: Fatturato Mese (con delta % vs mese scorso), Payout Pendenti, Sessioni Mese (completate/prenotate + tasso), Terapisti Attivi.
+  - **BarChart 6 mesi** (recharts) con colore `#6B8FA3`.
+  - Pannello **Top 5 Terapisti** con ranking, sessioni, importo.
+  - **Alert IBAN mancante** rosso con lista + link a `/admin/terapisti`.
+  - Alert operativi esistenti (articoli in revisione, autocertificazioni, approvazioni).
+- **`TerapistiPage.jsx`** — campo IBAN nel form modal admin, uppercase + strip spaces on-type, placeholder `IT60 X054 2811 1010 0000 0123 456`, maxLength 34.
+
+### Test agent (iteration_8)
+- Backend: 8/8 ✅ (auth guard, schema, IBAN persistence, iban_missing dopo save).
+- Frontend: 100% ✅ (login admin, tutti i data-testid presenti, bar chart svg renderizzato, IBAN uppercases + persiste).
+- Correzioni minori applicate dopo review: boundary mese esatta con `next_month_start`, `iban_missing` filtrato a `pending_cents > 0` per essere azionabile.
+
+### Backlog residuo
+- **P2** Refactoring `server.py` (~2660 righe) — estrarre `admin_analytics.py` per Cruscotto + payouts, ridurre N+1 con `$lookup`.
+- **P2** Validazione formato IBAN (regex `IT\d{2}[A-Z0-9]{23}`) nel backend PUT.
+- **P2** Seed di una tx unpaid per demo del flow "da bonificare".
+- **P3** Refactoring `OnboardingSection.jsx`, `ChatPanel.jsx`, `matching()`.
+- **P3** Invio SDI (fatture elettroniche) — in attesa del commercialista.

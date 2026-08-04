@@ -2086,6 +2086,10 @@ async def admin_cruscotto(user: dict = Depends(require_admin)):
     """Executive KPIs for BIDOC admin: revenue, payouts, sessions, top therapists, IBAN alerts."""
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 12:
+        next_month_start = month_start.replace(year=month_start.year + 1, month=1)
+    else:
+        next_month_start = month_start.replace(month=month_start.month + 1)
     if month_start.month == 1:
         prev_month_start = month_start.replace(year=month_start.year - 1, month=12)
     else:
@@ -2112,7 +2116,7 @@ async def admin_cruscotto(user: dict = Depends(require_admin)):
             }
         return {"gross_cents": 0, "platform_fee_cents": 0, "therapist_cents": 0, "count": 0}
 
-    rev_current = await _sum_revenue(month_start, now + timedelta(days=1))
+    rev_current = await _sum_revenue(month_start, next_month_start)
     rev_previous = await _sum_revenue(prev_month_start, month_start)
 
     # b) Pending payouts total (paid tx not yet bonificate)
@@ -2130,7 +2134,7 @@ async def admin_cruscotto(user: dict = Depends(require_admin)):
 
     # c) Sessions this month: completed vs booked (confermato+completato)
     month_start_iso = month_start.isoformat()
-    next_month_iso = (now + timedelta(days=1)).isoformat()
+    next_month_iso = next_month_start.isoformat()
     sessions_completed_month = await db.appuntamenti.count_documents({
         "stato": "completato",
         "data_ora": {"$gte": month_start_iso, "$lt": next_month_iso},
@@ -2222,12 +2226,13 @@ async def admin_cruscotto(user: dict = Depends(require_admin)):
         if not t:
             continue
         iban = (t.get("iban") or "").strip()
-        if not iban:
+        pending_cents = row.get("pending", 0) or 0
+        if not iban and pending_cents > 0:
             iban_missing.append({
                 "terapeuta_id": tid,
                 "nome": f"{t.get('nome','')} {t.get('cognome','')}".strip(),
                 "sessions": row.get("sessions", 0) or 0,
-                "pending_cents": row.get("pending", 0) or 0,
+                "pending_cents": pending_cents,
             })
 
     return {
