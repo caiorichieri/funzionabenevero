@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, BeforeValidator, EmailStr
 
 from email_service import send_otp_email, send_booking_confirmation_email, send_reminder_email, send_password_reset_email
 from daily_service import create_room_for_appointment, create_meeting_token, get_room_presenza
-from sms_service import send_sms_otp
+from sms_service import send_sms_otp, verify_sms_otp
 from codicefiscale import codicefiscale
 
 # ─── Config ───────────────────────────────────────────────────────────────────
@@ -1139,63 +1139,54 @@ async def prenota_pubblico(data: AppuntamentoInput, user: dict = Depends(require
         doc["daily_room_name"] = finalized.get("daily_room_name")
     return doc
 
-# ─── SMS OTP (Skebby) ─────────────────────────────────────────────────────────
-def _sms_generate_otp() -> str:
-    return f"{_secrets.randbelow(900000) + 100000}"
+# ─── SMS OTP (Twilio Verify) ──────────────────────────────────────────────────
+# Twilio manages code generation, storage, expiration, and rate-limiting on its
+# side. Our DB only records the pending request for auditing and rate-limiting
+# repeated sends.
 
 
 @api_router.post("/sms/send-otp")
 async def sms_send_otp(body: dict, user: dict = Depends(require_auth)):
-    """Send an SMS OTP to a phone number. Stored in db.sms_otp keyed by (user_id, phone).
-    Returns {message} on success. In dev/fallback returns otp_dev when Skebby is disabled or fails."""
+    """Trigger Twilio Verify to send an OTP by SMS. Twilio owns code lifecycle."""
     phone = (body.get("phone") or "").strip()
     context = (body.get("context") or "verifica").strip()[:40]
     if not phone:
         raise HTTPException(400, "Numero di telefono mancante")
-    otp = _sms_generate_otp()
-    expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+    # Record the request for audit/rate-limiting (we no longer store the code)
     await db.sms_otp.update_one(
         {"user_id": user["_id"], "phone": phone},
         {"$set": {
             "user_id": user["_id"],
             "phone": phone,
-            "otp_code": otp,
-            "expires_at": expires,
             "verified": False,
+            "provider": "twilio_verify",
+            "context": context,
             "created_at": datetime.now(timezone.utc),
         }},
         upsert=True,
     )
-    sent = await send_sms_otp(phone, otp, context)
-    logging.info(f"[SMS OTP] to {phone} (sent={sent}) for user {user['email']}")
-    resp = {"message": "OTP inviato via SMS"}
+    sent = await send_sms_otp(phone, "", context)
+    logging.info(f"[SMS OTP] Twilio Verify send to {phone} (sent={sent}) for user {user['email']}")
     if not sent:
-        # Dev fallback: expose OTP in response when Skebby is disabled/failing
-        resp["otp_dev"] = otp
-    return resp
+        raise HTTPException(502, "Impossibile inviare l'SMS. Riprova tra qualche minuto.")
+    return {"message": "OTP inviato via SMS"}
 
 
 @api_router.post("/sms/verify-otp")
 async def sms_verify_otp(body: dict, user: dict = Depends(require_auth)):
-    """Verify the SMS OTP. On success marks user telefono_verificato=True and saves phone."""
+    """Verify the SMS OTP via Twilio Verify. On success marks user telefono_verificato=True."""
     phone = (body.get("phone") or "").strip()
     code = (body.get("otp_code") or "").strip()
     if not phone or not code:
         raise HTTPException(400, "Dati incompleti")
-    rec = await db.sms_otp.find_one({"user_id": user["_id"], "phone": phone})
-    if not rec:
-        raise HTTPException(400, "Nessun OTP richiesto per questo numero")
-    exp = rec.get("expires_at")
-    if isinstance(exp, str):
-        exp = datetime.fromisoformat(exp)
-    if exp and exp.tzinfo is None:
-        exp = exp.replace(tzinfo=timezone.utc)
-    if not exp or datetime.now(timezone.utc) > exp:
-        raise HTTPException(400, "Codice OTP scaduto")
-    if rec.get("otp_code") != code:
-        raise HTTPException(400, "Codice OTP non valido")
+    approved = await verify_sms_otp(phone, code)
+    if not approved:
+        raise HTTPException(400, "Codice OTP non valido o scaduto")
     now = datetime.now(timezone.utc)
-    await db.sms_otp.update_one({"_id": rec["_id"]}, {"$set": {"verified": True, "verified_at": now}})
+    await db.sms_otp.update_one(
+        {"user_id": user["_id"], "phone": phone},
+        {"$set": {"verified": True, "verified_at": now}},
+    )
     await db.users.update_one(
         {"_id": ObjectId(user["_id"])},
         {"$set": {"telefono": phone, "telefono_verificato": True, "telefono_verificato_at": now}},
