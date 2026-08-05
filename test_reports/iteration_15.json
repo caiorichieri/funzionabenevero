@@ -1,0 +1,41 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "ainda como admin preciso poder abilitar ou suspender terapeura temos essa opcao? eu vi somente excluir",
+  "summary": "No relevant testing skill found. Backend-only focused verification passed: admin can suspend/reactivate Maria Rossi via PATCH; while suspended she is removed from public list/matching, direct public detail returns 404, and therapist login returns 403; after reactivation list/detail/login return to 200/normal. Also verified an existing never-verified therapist returns 404 from direct public detail. No MOCKED APIs used.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/bug_verify_terapista_sospensione_iter15.py",
+    "/app/test_reports/bug_terapista_sospensione_iter15_api_result.json",
+    "/app/test_reports/bug_verification_15.json",
+    "/app/test_reports/iteration_15.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Inspected /app/backend/server.py: public_get_terapista now returns 404 when documenti_verificati is false or sospeso is true.",
+    "Inspected /app/backend/routers/terapisti.py: sospendi endpoint persists terapista.sospeso and linked user.is_active; auth login rejects inactive users with 403 Account disattivato.",
+    "Frontend UI was not retested because the review request specified backend only / skip frontend. iteration_14 reportedly covered UI badge/toggle."
+  ],
+  "updated_files": [
+    "/app/tests/bug_verify_terapista_sospensione_iter15.py",
+    "/app/test_reports/bug_terapista_sospensione_iter15_api_result.json",
+    "/app/test_reports/bug_verification_15.json",
+    "/app/test_reports/iteration_15.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "Created one temporary Mongo therapist document with documenti_verificati=false to verify direct public detail hardening; it was deleted during cleanup. Maria Rossi was left with sospeso=false and linked user.is_active=true.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use /app/tests/bug_verify_terapista_sospensione_iter15.py. The script uses http://localhost:8001/api and Bearer auth fallback because Secure cookies from /auth/login are not resent by Python requests over local HTTP. Raw evidence is in /app/test_reports/bug_terapista_sospensione_iter15_api_result.json.",
+  "rca_of_the_issue": "Regression target was direct public detail exposure: previous GET /api/public/terapisti/{tid} only checked existence, so suspended therapists could still be fetched directly. The fix adds detail-level documenti_verificati and sospeso gates, matching list/matching visibility rules. Verified reproduction path: activate Maria -> detail 200/list includes/login 200; suspend -> detail 404/list excludes/login 403; reactivate -> detail 200/list includes/login 200."
+}

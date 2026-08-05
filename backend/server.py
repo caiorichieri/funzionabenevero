@@ -246,6 +246,8 @@ async def public_get_terapista(tid: str):
     doc = await db.terapisti.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Terapeuta non trovato")
+    if not doc.get("documenti_verificati") or doc.get("sospeso"):
+        raise HTTPException(status_code=404, detail="Terapeuta non trovato")
     doc["_id"] = str(doc["_id"])
     doc.pop("documenti", None)
     doc.pop("note_cliniche", None)
