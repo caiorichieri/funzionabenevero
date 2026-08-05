@@ -874,3 +874,90 @@ Aggiornato `legalInfo.js` con dati BIDOC SRL definitivi:
 - **P1** Fase 15: Area "I miei consensi" per gestire e revocare
 - **P2** Fase 16: Retention automatica 36 mesi (anonimizzazione)
 - **P2** Fase 17: Registro Trattamenti (documento interno)
+
+---
+
+## ✅ FASE 12 — Firma Elettronica + Notify MAJOR + Area Privacy Utente (Feb 2026)
+
+### 1. Firma Elettronica del Contratto Collaborazione (Terapeuti)
+- Nuovo router `/app/backend/routers/legal_signature.py` (594 righe)
+- Nuovo helper `/app/backend/object_storage.py` — Emergent Object Storage (session-cached, retries su 403)
+- Nuovo helper `/app/backend/signature_pdf.py` — genera Ricevuta PDF via ReportLab con:
+  - Header BIDOC + dati Titolare
+  - Dati Sottoscrittore (nome, CF, P.IVA, iscrizione Ordine)
+  - Tabella "Documenti Sottoscritti" con versione + hash SHA-256
+  - Metadati firma: nome digitato, timestamp UTC, IP, user-agent
+  - Dichiarazione probatoria art. 20 CAD + eIDAS
+  - Allegato: contenuto integrale di ciascun documento firmato
+- Endpoints:
+  - `POST /api/contracts/sign` — firma atomica di N contratti, valida nome (case-insensitive) vs anagrafica
+  - `GET /api/contracts/pending/mine` — documenti pendenti (terapeuti: 4 obbligatori)
+  - `GET /api/contracts/signatures/mine` — storico firme raggruppato per receipt_id
+  - `GET /api/contracts/receipt/{receipt_id}` — download PDF (owner/admin only)
+- Frontend `/terapeuta/firma-documenti` (`FirmaDocumentiPage.jsx`):
+  - Sidebar 4 documenti + tick "letto" quando scroll ≥95%
+  - Contenuto principale con scroll tracker
+  - Footer sticky con signature form: nome + validation live
+  - Success state con download PDF + link dashboard
+- Fallback: se Object Storage fallisce, PDF salvato inline base64 in Mongo
+
+### 2. Sistema Aggiornamento Versione MAJOR
+- Endpoint `POST /api/admin/contracts/{cid}/notify-major` (admin only):
+  - Trova utenti che hanno accettato versione precedente del kind
+  - Genera decline token univoco (SHA-256 hashed, valido 60 giorni)
+  - Invia email HTML formattata via Resend con 2 CTA: "Firma" (URL app) e "NON ACCETTO" (URL magic-link)
+  - Registra timestamp `major_notification_sent_at` sul contratto
+- Endpoint pubblico `GET /api/legal/decline/{token}`:
+  - Verifica token (non usato, non scaduto)
+  - Marca `pending_deactivation_reason=legal_decline`, `pending_deactivation_at=+48h`
+  - Se terapeuta: sospende immediatamente (`sospeso=true`) per bloccare nuove prenotazioni
+  - Marca token come usato
+- Frontend `/legal-decline/:token` (`LegalDeclinePage.jsx`):
+  - Stato di successo con data disattivazione + info recesso da appuntamenti
+  - Stato errore per token invalido/scaduto/già usato
+- Admin `/admin/contratti`:
+  - Pulsante "📢 Notifica MAJOR" per ogni documento con version > 1
+  - Confirm dialog + contatore utenti notificati
+
+### 3. Area "I miei dati" (Diritti GDPR)
+- Nuova pagina `/terapeuta/privacy` e `/paziente/privacy` (`PrivacyUtentePage.jsx`):
+  - **Documenti firmati** (solo terapeuti) — lista storico + download ricevute
+  - **Consensi attivi** — 3 toggle (marketing, miglioramento, ricerca) con effetto immediato
+  - **Storico consensi** — log delle azioni grant/revoke con timestamp
+  - **Scarica i miei dati** (art. 20 GDPR) — download JSON completo
+  - **Cancella il mio account** (art. 17 GDPR) — form con conferma "CANCELLA" + motivazione facoltativa
+- Backend endpoints:
+  - `GET /api/user/gdpr/export` — JSON con: titolare, utente, profilo, appuntamenti, firme_contratti, storico_consensi, consensi_attuali
+  - `POST /api/user/gdpr/delete-account` — soft-delete + workflow admin 15 giorni, ip anonimizzato
+  - `GET /api/user/consents/mine` — stato attuale + storico
+  - `POST /api/user/consents/update` — grant/revoke con audit log
+
+### 4. Sicurezza & Privacy by Design
+- IP address anonimizzato prima della persistenza (ultimo ottetto IPv4 → 0, /48 IPv6)
+- Consent history immutabile (append-only)
+- Delete request scriveghe in `db.gdpr_deletion_requests` per audit admin
+- Doppio percorso PDF (Object Storage + inline base64 fallback) per garantire disponibilità
+
+### 5. Testing
+- Backend: 12/12 pytest passing (iteration_16.json)
+- Bug fix critico applicato dal testing agent: tz-aware/naive datetime comparison in `legal_decline`
+- 3 minor issues risolti: dead code audit_consents rimosso, inline PDF fallback implementato, empty state per Documenti firmati
+
+### File di riferimento
+- `/app/backend/routers/legal_signature.py`
+- `/app/backend/signature_pdf.py`
+- `/app/backend/object_storage.py`
+- `/app/backend/email_service.py` (aggiunto `send_legal_major_update_email`, `send_signature_receipt_email`)
+- `/app/frontend/src/pages/therapist/FirmaDocumentiPage.jsx`
+- `/app/frontend/src/pages/shared/PrivacyUtentePage.jsx`
+- `/app/frontend/src/pages/public/LegalDeclinePage.jsx`
+- `/app/frontend/src/pages/admin/ContrattiPage.jsx` (pulsante Notifica MAJOR)
+- `/app/frontend/src/components/shared/Sidebar.jsx` (item "I miei dati")
+- `/app/frontend/src/App.js` (nuove rotte)
+
+### Backlog residuo dopo Fase 12
+- **P1** Fase 13: Consensi granulari nel signup paziente (checkbox obbligatori privacy_pazienti + T&C + dati_sanitari, checkbox facoltativi marketing/ricerca/miglioramento)
+- **P1** Fase 14: Cron settimanale di anonimizzazione dopo 36 mesi inattività
+- **P1** Fase 15: Cron 48h che elabora `pending_deactivation_reason=legal_decline` (cancella appuntamenti, rimborsa pazienti, hard-delete account)
+- **P2** Fase 16: Cookie banner GDPR-compliant con consent-mode Google v2 + pixel Meta/TikTok/LinkedIn (opzione d=2)
+- **P2** Fase 17: Registro Trattamenti art. 30 + DPIA art. 35 (documenti interni)

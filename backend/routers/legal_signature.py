@@ -154,16 +154,19 @@ async def sign_contracts(data: SignContractsInput, request: Request, user: dict 
         logger.exception("[SIGN] PDF generation failed")
         raise HTTPException(500, f"Errore generazione PDF: {e}")
 
-    # Store PDF in Object Storage
+    # Store PDF in Object Storage (with inline DB fallback if upload fails)
     pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
     pdf_uuid = str(uuid.uuid4())
     storage_path = f"funzionabene/signature-receipts/{user['_id']}/{pdf_uuid}.pdf"
+    canonical_path = None
+    pdf_inline_b64 = None
     try:
         upload_res = put_object(storage_path, pdf_bytes, "application/pdf")
         canonical_path = upload_res.get("path", storage_path)
     except Exception as e:
-        logger.exception("[SIGN] Object Storage upload failed — falling back to inline DB storage")
-        canonical_path = None  # fall through, receipt still exists in DB via base64
+        logger.exception(f"[SIGN] Object Storage upload failed, falling back to inline DB storage: {e}")
+        import base64
+        pdf_inline_b64 = base64.b64encode(pdf_bytes).decode("ascii")
 
     # Create acceptance records — one per contract, all linked by receipt_id
     receipt_id = str(uuid.uuid4())
@@ -183,6 +186,7 @@ async def sign_contracts(data: SignContractsInput, request: Request, user: dict 
             "scrolled_to_end": data.scrolled_all,
             "receipt_id": receipt_id,
             "receipt_storage_path": canonical_path,
+            "receipt_pdf_inline_b64": pdf_inline_b64,  # only set when Object Storage upload failed
             "receipt_pdf_hash": pdf_hash,
             "accepted_at": now,
         }
@@ -251,6 +255,16 @@ async def download_receipt(receipt_id: str, user: dict = Depends(require_auth)):
         raise HTTPException(404, "Ricevuta non trovata")
     if acc.get("user_id") != user["_id"] and user["role"] != "admin":
         raise HTTPException(403, "Accesso negato")
+    # Try inline base64 fallback first
+    inline_b64 = acc.get("receipt_pdf_inline_b64")
+    if inline_b64:
+        import base64
+        try:
+            return Response(content=base64.b64decode(inline_b64), media_type="application/pdf", headers={
+                "Content-Disposition": f'attachment; filename="ricevuta_{receipt_id[:8]}.pdf"'
+            })
+        except Exception:
+            pass
     storage_path = acc.get("receipt_storage_path")
     if not storage_path:
         raise HTTPException(410, "PDF non più disponibile — contatta privacy@bidoc.it")
@@ -491,11 +505,19 @@ async def gdpr_export(user: dict = Depends(require_auth)):
             "accepted_at": s.get("accepted_at").isoformat() if s.get("accepted_at") else None,
         })
     export["firme_contratti"] = sigs
-    # Cookie consents
-    cookies = []
-    async for c in db.audit_consents.find({}).limit(200):
-        # audit_consents currently doesn't link to user_id, keep aggregated (no leak)
-        pass
+    # Consent history (linked to this user)
+    consent_history = []
+    async for c in db.consent_history.find({"user_id": uid}).sort("timestamp", -1):
+        consent_history.append({
+            "consent_type": c.get("consent_type"),
+            "action": c.get("action"),
+            "timestamp": c.get("timestamp").isoformat() if c.get("timestamp") else None,
+            "ip_anonymized": c.get("ip_anonymized"),
+        })
+    export["storico_consensi"] = consent_history
+    # Current consent flags
+    if u:
+        export["consensi_attuali"] = u.get("consents") or {}
     return export
 
 
