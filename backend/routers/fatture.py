@@ -271,9 +271,11 @@ def _serialize(f: dict) -> dict:
 
 @router.get("/fatture/mine")
 async def my_fatture(user: dict = Depends(require_auth)):
-    """Terapeuta: sees his invoices (sanitarie con lui come emittente + commissioni B2B ricevute da BIDOC)."""
+    """Terapeuta: sees his invoices (sanitarie con lui come emittente + commissioni B2B ricevute da BIDOC).
+    Paziente: sees fatture where he is the destinatario (sanitarie)."""
+    query_field = "terapeuta_user_id" if user["role"] == "terapeuta" else "paziente_user_id"
     items = []
-    async for f in db.fatture.find({"terapeuta_user_id": user["_id"]}).sort("created_at", -1).limit(500):
+    async for f in db.fatture.find({query_field: user["_id"]}).sort("created_at", -1).limit(500):
         items.append(_serialize(f))
     return {"items": items}
 

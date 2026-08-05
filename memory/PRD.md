@@ -1136,3 +1136,57 @@ Aggiunti in `scheduled_jobs.py`:
 
 ### File modificati
 - `/app/frontend/src/pages/therapist/TerapistaProfile.jsx` — form state + nuova sezione UI
+
+---
+
+## ✅ FASE 14c — Fluxo Fattura al Paziente (Feb 2026)
+
+### Fluxo end-to-end
+1. **Prenotazione + pagamento Stripe** → nessuna fattura ancora (acconto)
+2. **Terapeuta marca seduta come "completato"** (o "cancellato_con_addebito") → hook automatico in `PATCH /appuntamenti/{id}/stato` genera fattura sanitaria FZ-YYYY-NNNN e invia email al paziente con PDF allegato
+3. **Cancellazione con rimborso** (stato "cancellato") → nessuna fattura emessa
+
+### Backend
+- `routers/appuntamenti.py`: aggiunto stato "cancellato_con_addebito" alla whitelist e hook automatico per generazione fattura + email paziente (best-effort, non blocca l'update)
+- `routers/fatture.py`: `GET /fatture/mine` ora fa switch role-based (terapeuta usa `terapeuta_user_id`, paziente usa `paziente_user_id`)
+- Email al paziente via `send_signature_receipt_email` (riusata) con PDF fattura + testo educativo detrazione 730
+
+### Frontend
+- Rotta paziente `/paziente/fatture` → `FatturePage` con `isAdmin={false}`
+- Banner verde **💚 "Detraibile al 730 come spesa sanitaria"** — spiegazione art. 15 TUIR con dettagli su Sistema TS e conservazione 5 anni
+- Sidebar paziente: nuovo item **"Le mie fatture"** (icona Receipt)
+
+### Testing manuale
+- ✅ Creato appt di test, PATCH stato→completato genera FZ-2026-0002 (€90, marca bollo)
+- ✅ GET /api/fatture/mine con cookie paziente ritorna 2 fatture
+- ✅ Screenshot conferma UX: banner detrazione + tabella + KPI + download XML/PDF
+
+### Backlog residuo dopo Fase 14c
+- **P1**: Ricevuta di pagamento generica (non fiscale) via email al momento del pagamento Stripe
+- **P1**: Export ZIP annuale con tutte le fatture del paziente per invio commercialista/730
+- **P2**: Auto-completamento automatico degli appuntamenti passati (cron oraria che marca stato→completato se data_ora < now e ancora "confermato")
+- **P2**: Validazione XML tramite tool ufficiale AdE "Verifica Fatture"
+
+
+---
+
+## ✅ FASE 15 — Firma Documenti Obbligatoria al Login (Feb 2026)
+
+### Obiettivo
+Prima di poter accedere a qualsiasi rotta terapeuta (`/terapeuta/*`), il terapeuta deve aver firmato TUTTI i documenti legali obbligatori (`contratto_collaborazione`, `privacy_terapeuti`, `termini_pazienti`, `cookie_policy`). Requisito GDPR Art. 28 (DPA) + eIDAS.
+
+### Implementazione
+- **Nuovo componente**: `/app/frontend/src/components/therapist/TherapistDocsGate.jsx`
+  - Interroga `GET /api/contracts/pending/mine` all'ingresso e su ogni cambio di rotta
+  - Se `pending.length > 0` → `Navigate replace` a `/terapeuta/firma-documenti`
+  - Fail-open in caso di errore transitorio (non blocca l'utente per errori di rete)
+- **App.js**: il layout terapeuta `/terapeuta` è ora avvolto da `<TherapistDocsGate>`. La rotta standalone `/terapeuta/firma-documenti` resta FUORI dal gate (altrimenti loop).
+- **TerapistaDashboard.jsx**: rimosso il legacy `MandatoAcceptanceGate` (il `contratto_collaborazione` v1+ copre il contenuto del mandato all'incasso in forma più completa).
+
+### Test manuale (Feb 2026)
+- ✅ Terapeuta con doc pending: login → redirect automatico a `/terapeuta/firma-documenti`. Force navigation a `/terapeuta/calendario` → gate re-redirect. 
+- ✅ Terapeuta dopo firma: login → `/terapeuta` accessibile. `/terapeuta/calendario` accessibile senza blocco.
+
+### Backlog residuo
+- **P1**: Invio SDI automatizzato (Fatture in Cloud / Aruba API) — attualmente XML per upload manuale
+- **P2**: Registro Trattamenti art. 30 GDPR + DPIA art. 35 GDPR

@@ -5,7 +5,6 @@ import { API } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar, Clock, Users, ShieldCheck, Video, FileText, MessageCircle } from "lucide-react";
 import ChatPanel from "@/components/shared/ChatPanel";
-import MandatoAcceptanceGate from "@/components/therapist/MandatoAcceptanceGate";
 
 function canJoin(dataOra, durata = 50) {
   const now = new Date();
@@ -49,7 +48,6 @@ export default function TerapistaDashboard() {
   );
 
   return (
-    <MandatoAcceptanceGate>
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-[#0A0A0A] font-[Outfit]">
@@ -177,6 +175,5 @@ export default function TerapistaDashboard() {
         <ChatPanel role="terapeuta" />
       </div>
     </div>
-    </MandatoAcceptanceGate>
   );
 }

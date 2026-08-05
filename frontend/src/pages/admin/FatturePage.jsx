@@ -112,6 +112,20 @@ export default function FatturePage({ isAdmin = true }) {
         )}
       </div>
 
+      {/* Banner detrazione 730 — solo per paziente (isAdmin=false) */}
+      {!isAdmin && (
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3" data-testid="banner-detrazione-730">
+          <span className="text-2xl">💚</span>
+          <div className="text-sm text-green-900">
+            <div className="font-semibold mb-1">Detraibile al 730 come spesa sanitaria</div>
+            <div className="text-green-800/85 leading-relaxed">
+              Queste fatture per prestazioni psicologiche sono detraibili al <strong>19%</strong> dell&apos;importo nella tua dichiarazione dei redditi
+              (art. 15 TUIR — Spese sanitarie). Conservale per almeno 5 anni. Il tuo terapeuta le trasmetterà al Sistema TS per l&apos;inserimento automatico nel 730 precompilato.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters + KPI */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="col-span-2 flex gap-2">

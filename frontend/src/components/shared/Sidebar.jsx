@@ -28,6 +28,7 @@ const THERAPIST_MENU = [
 
 const PATIENT_MENU = [
   { to: "/paziente", icon: LayoutDashboard, label: "Dashboard", exact: true },
+  { to: "/paziente/fatture", icon: Receipt, label: "Le mie fatture" },
   { to: "/paziente/privacy", icon: Shield, label: "I miei dati" },
 ];
 
