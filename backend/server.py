@@ -754,6 +754,7 @@ from routers.blog import router as _blog_router
 from routers.calendario import router as _calendario_router
 from routers.legal_signature import router as _legal_signature_router
 from routers.fatture import router as _fatture_router
+from routers.registro_trattamenti import router as _registro_router
 app.include_router(_build_admin_analytics_router(db, require_admin), prefix="/api")
 app.include_router(_appuntamenti_router, prefix="/api")
 app.include_router(_terapisti_router, prefix="/api")
@@ -763,6 +764,7 @@ app.include_router(_blog_router, prefix="/api")
 app.include_router(_calendario_router, prefix="/api")
 app.include_router(_legal_signature_router, prefix="/api")
 app.include_router(_fatture_router, prefix="/api")
+app.include_router(_registro_router, prefix="/api")
 # CORS — supports multiple frontend origins (preview, production, custom domains) via ALLOWED_ORIGINS env var
 _extra_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 _cors_origins = list({
@@ -799,6 +801,7 @@ async def startup():
     await seed_data()
     await _seed_default_contract()
     await _seed_legal_documents()
+    await _seed_registro_trattamenti()
 
     # Start scheduled background jobs (retention, legal decline processor)
     try:
@@ -962,6 +965,177 @@ async def _seed_legal_documents():
             logging.info(f"[LEGAL SEED] seeded {kind} v1 ({len(html_content)} chars HTML)")
         except Exception as e:
             logging.exception(f"[LEGAL SEED] failed for {kind}: {e}")
+
+
+
+async def _seed_registro_trattamenti():
+    """Seed initial GDPR Art. 30 register entries if collection is empty."""
+    if await db.registro_trattamenti.count_documents({}) > 0:
+        return
+    now = datetime.now(timezone.utc)
+    default_entries = [
+        {
+            "codice": "T-01",
+            "denominazione": "Gestione account e autenticazione",
+            "ruolo": "titolare",
+            "finalita": "Registrazione utenti (pazienti, terapisti, admin), verifica email tramite OTP, autenticazione, gestione sessioni, recupero password.",
+            "base_giuridica": "Art. 6.1.b GDPR — esecuzione di misure precontrattuali/contrattuali; Art. 6.1.f — legittimo interesse alla sicurezza degli accessi.",
+            "categorie_interessati": "Pazienti, Terapisti, Amministratori.",
+            "categorie_dati": "Dati identificativi (nome, cognome), dati di contatto (email, telefono), credenziali (hash bcrypt), token di sessione (JWT httpOnly), log di accesso, IP anonimizzato.",
+            "categorie_particolari": "Nessuna.",
+            "destinatari": "Resend (invio email OTP e transazionali) — Titolare autonomo per la consegna. Nessun altro destinatario esterno.",
+            "trasferimenti_extra_ue": "Resend Inc. (USA) — copertura SCC Clausole Contrattuali Standard UE ex art. 46 GDPR.",
+            "misure_sicurezza": "Password hashate con bcrypt (cost 12), JWT httpOnly + secure cookie, HTTPS obbligatorio, rate limiting sui tentativi di login, anonimizzazione IP (ultimo ottetto), audit trail su modifiche account.",
+            "termini_cancellazione": "Account attivi: fino a cancellazione richiesta dall'utente o inattività 36 mesi (anonimizzazione automatica); log di accesso 12 mesi; token reset password 30 minuti; token verifica OTP 10 minuti.",
+            "note": "",
+        },
+        {
+            "codice": "T-02",
+            "denominazione": "Matching paziente-terapeuta e questionario pre-prenotazione",
+            "ruolo": "titolare",
+            "finalita": "Raccogliere le esigenze del paziente tramite questionario pubblico per proporre terapisti compatibili prima della prenotazione.",
+            "base_giuridica": "Art. 6.1.b GDPR — esecuzione di misure precontrattuali su richiesta dell'interessato.",
+            "categorie_interessati": "Visitatori del sito e Pazienti prospect.",
+            "categorie_dati": "Preferenze terapeutiche (aree di intervento, tipologia di supporto), disponibilità oraria, fascia di età, genere del terapeuta preferito.",
+            "categorie_particolari": "Dati potenzialmente relativi allo stato di salute psicologica raccolti in forma di preferenza — trattati con base ex art. 9.2.a GDPR (consenso esplicito acquisito tramite checkbox al lancio del questionario).",
+            "destinatari": "Solo interno — nessuna condivisione con terzi.",
+            "trasferimenti_extra_ue": "Nessun trasferimento extra-UE.",
+            "misure_sicurezza": "Dati salvati in sessione temporanea, non persistiti su DB fino alla registrazione dell'account. Trasmissione HTTPS. Accesso limitato al sistema di matching.",
+            "termini_cancellazione": "Se il paziente non completa la registrazione entro 72 ore: dati cancellati automaticamente. Se completa: confluiscono nel profilo Paziente (voce T-03).",
+            "note": "",
+        },
+        {
+            "codice": "T-03",
+            "denominazione": "Gestione anagrafe pazienti e fatturazione sanitaria",
+            "ruolo": "titolare",
+            "finalita": "Raccolta dati anagrafici e fiscali per la prenotazione delle sedute, l'emissione della fattura sanitaria in nome del terapeuta (mandato all'incasso), la trasmissione al Sistema Tessera Sanitaria.",
+            "base_giuridica": "Art. 6.1.b GDPR (esecuzione contratto); Art. 6.1.c (obblighi fiscali DPR 633/72, D.M. 31/07/2015 STS); Art. 9.2.h (finalità di cura).",
+            "categorie_interessati": "Pazienti.",
+            "categorie_dati": "Anagrafe completa (nome, cognome, data e luogo di nascita, genere, residenza), Codice Fiscale, dati di contatto, dati di pagamento (via Stripe token, mai raw PAN).",
+            "categorie_particolari": "Dati sanitari (relativi al fatto di ricevere una prestazione psicologica) — art. 9.2.h GDPR e opposizione STS ex D.M. 31/07/2015.",
+            "destinatari": "Stripe Payments Europe (elaborazione pagamento — Responsabile del Trattamento con DPA); Terapeuta che eroga la prestazione (Titolare autonomo per la cartella clinica); Sistema Tessera Sanitaria (Agenzia delle Entrate); commercialista BIDOC (Responsabile).",
+            "trasferimenti_extra_ue": "Stripe: USA con SCC UE. Nessun altro trasferimento.",
+            "misure_sicurezza": "Cifratura at-rest (MongoDB Atlas), TLS 1.3 in transito, tokenizzazione PAN via Stripe, log audit su accessi ai dati sanitari, pseudonimizzazione in reportistica interna, opposizione STS documentata al momento della prenotazione.",
+            "termini_cancellazione": "Anagrafe: fino a cancellazione utente o 36 mesi inattività (anonimizzazione). Dati fiscali (fatture): 10 anni ex art. 2220 c.c. Dati STS: come da normativa AdE.",
+            "note": "",
+        },
+        {
+            "codice": "T-04",
+            "denominazione": "Gestione albo terapisti e profilo pubblico",
+            "ruolo": "titolare",
+            "finalita": "Verifica requisiti professionali (iscrizione all'Albo, assicurazione RC professionale), gestione profilo pubblico, calendario e disponibilità.",
+            "base_giuridica": "Art. 6.1.b GDPR (contratto di collaborazione); Art. 6.1.c (obblighi di verifica ex D.Lgs. 82/2005 e Codice Deontologico Psicologi).",
+            "categorie_interessati": "Terapisti collaboratori.",
+            "categorie_dati": "Anagrafica, P.IVA, Codice Fiscale, numero e ordine iscrizione Albo, dati assicurazione (compagnia, polizza, scadenza), biografia, specializzazioni, foto profilo, IBAN per bonifici, codice SDI/PEC per fatturazione elettronica.",
+            "categorie_particolari": "Nessuna.",
+            "destinatari": "Visitatori del sito (dati pubblici del profilo terapeuta); istituto bancario per bonifici; commercialista BIDOC.",
+            "trasferimenti_extra_ue": "Nessun trasferimento extra-UE.",
+            "misure_sicurezza": "Autocertificazione firmata digitalmente (art. 46 DPR 445/2000), verifica documentale su copia dei documenti caricati, alert automatico scadenza assicurazione a 60/30 gg, cifratura at-rest.",
+            "termini_cancellazione": "Durante la collaborazione: attivo. Cessazione: dati fiscali/contrattuali conservati 10 anni ex art. 2220 c.c.; dati profilo pubblico cancellati entro 30 giorni.",
+            "note": "",
+        },
+        {
+            "codice": "T-05",
+            "denominazione": "Gestione appuntamenti e videoconsulto",
+            "ruolo": "responsabile",
+            "finalita": "Gestione del calendario appuntamenti, generazione della stanza di videoconsulto, invio promemoria.",
+            "base_giuridica": "Art. 28 GDPR — designazione a Responsabile del trattamento da parte del Terapeuta (Titolare del rapporto sanitario). DPA integrato nel Contratto di Collaborazione.",
+            "categorie_interessati": "Pazienti (rispetto al terapeuta come titolare).",
+            "categorie_dati": "Metadati appuntamento (data, ora, durata, stato), link videoconsulto (URL temporaneo), promemoria via email.",
+            "categorie_particolari": "Nessuna (i contenuti clinici non transitano dalla Piattaforma).",
+            "destinatari": "Daily.co (videoconferenza — Sub-Responsabile ex art. 28.4 GDPR).",
+            "trasferimenti_extra_ue": "Daily.co (USA) — SCC UE + Data Processing Agreement.",
+            "misure_sicurezza": "Videoconsulto end-to-end encrypted (SRTP/DTLS), stanze temporanee con token JWT a scadenza, nessuna registrazione video lato piattaforma, log accessi.",
+            "termini_cancellazione": "Metadati appuntamento: 10 anni (obbligo fiscale collegato). Link videoconsulto: cancellati alla scadenza della sessione.",
+            "note": "",
+        },
+        {
+            "codice": "T-06",
+            "denominazione": "Fatturazione elettronica di commissione B2B",
+            "ruolo": "titolare",
+            "finalita": "Emissione delle fatture elettroniche di commissione (30%) dovute dal Terapeuta a BIDOC, generazione XML FatturaPA e archiviazione.",
+            "base_giuridica": "Art. 6.1.b GDPR (contratto); Art. 6.1.c (obblighi fiscali D.Lgs. 127/2015).",
+            "categorie_interessati": "Terapisti collaboratori.",
+            "categorie_dati": "Denominazione, P.IVA, CF, indirizzo di sede, codice SDI/PEC, importo prestazioni del mese, dettaglio sedute conteggiate.",
+            "categorie_particolari": "Nessuna.",
+            "destinatari": "Sistema di Interscambio dell'Agenzia delle Entrate (SDI); commercialista BIDOC.",
+            "trasferimenti_extra_ue": "Nessun trasferimento extra-UE.",
+            "misure_sicurezza": "XML firmato e archiviato in Object Storage, backup crittografato, accesso admin autenticato, retention 10 anni.",
+            "termini_cancellazione": "10 anni ex art. 2220 c.c. e D.Lgs. 127/2015.",
+            "note": "",
+        },
+        {
+            "codice": "T-07",
+            "denominazione": "Comunicazioni transazionali",
+            "ruolo": "titolare",
+            "finalita": "Invio email di conferma prenotazione, promemoria seduta, ricevute di firma documenti legali, notifiche di aggiornamento contratti/informative (MAJOR update).",
+            "base_giuridica": "Art. 6.1.b GDPR (contratto) — non richiede consenso opt-in perché strettamente necessarie all'esecuzione del servizio.",
+            "categorie_interessati": "Pazienti, Terapisti.",
+            "categorie_dati": "Email, nome, contenuto notifica (dati appuntamento o documento).",
+            "categorie_particolari": "Nessuna.",
+            "destinatari": "Resend (mail transazionale — Responsabile).",
+            "trasferimenti_extra_ue": "Resend (USA) con SCC UE.",
+            "misure_sicurezza": "SPF/DKIM/DMARC sul dominio funzionabene.it, TLS in transito, rate limiting anti-abuse.",
+            "termini_cancellazione": "Metadati invio conservati 12 mesi per audit. Contenuto email non persistito lato Piattaforma dopo l'invio.",
+            "note": "",
+        },
+        {
+            "codice": "T-08",
+            "denominazione": "Marketing diretto (newsletter e comunicazioni promozionali)",
+            "ruolo": "titolare",
+            "finalita": "Invio comunicazioni promozionali su nuovi servizi, articoli del blog, contenuti educativi.",
+            "base_giuridica": "Art. 6.1.a GDPR — consenso esplicito opt-in del paziente (checkbox al momento della registrazione, revocabile in qualsiasi momento).",
+            "categorie_interessati": "Pazienti che hanno prestato consenso.",
+            "categorie_dati": "Email, nome, preferenze.",
+            "categorie_particolari": "Nessuna.",
+            "destinatari": "Brevo (mail marketing — Responsabile).",
+            "trasferimenti_extra_ue": "Brevo (Francia) — dentro l'UE. Nessun trasferimento extra-UE.",
+            "misure_sicurezza": "Doppio opt-in (email di conferma), link di disiscrizione one-click in ogni comunicazione, revoca consenso registrata in `consent_history`.",
+            "termini_cancellazione": "Fino a revoca del consenso o cancellazione dell'account.",
+            "note": "",
+        },
+        {
+            "codice": "T-09",
+            "denominazione": "Analisi statistica e miglioramento del servizio",
+            "ruolo": "titolare",
+            "finalita": "Raccolta di dati aggregati e pseudonimizzati per capire l'utilizzo della Piattaforma e migliorare l'esperienza utente.",
+            "base_giuridica": "Art. 6.1.a GDPR (consenso opt-in cookie di statistica).",
+            "categorie_interessati": "Visitatori, Pazienti, Terapisti.",
+            "categorie_dati": "Metadati di navigazione (pagine visitate, durata, referrer), dispositivo, browser, tempo medio di completamento del questionario, tasso di conversione.",
+            "categorie_particolari": "Nessuna.",
+            "destinatari": "Solo interno.",
+            "trasferimenti_extra_ue": "Nessun trasferimento extra-UE.",
+            "misure_sicurezza": "Pseudonimizzazione con hash salato, aggregazione per fasce di utenti > 5, cookie di statistica solo previo consenso.",
+            "termini_cancellazione": "Dati aggregati: 24 mesi. Cookie di statistica: come da Cookie Policy (13 mesi).",
+            "note": "",
+        },
+        {
+            "codice": "T-10",
+            "denominazione": "Sicurezza e prevenzione frodi",
+            "ruolo": "titolare",
+            "finalita": "Log degli accessi, monitoraggio tentativi di login sospetti, rilevamento anomalie sui pagamenti.",
+            "base_giuridica": "Art. 6.1.f GDPR — legittimo interesse alla sicurezza della Piattaforma e degli utenti.",
+            "categorie_interessati": "Tutti gli utenti.",
+            "categorie_dati": "IP anonimizzato, User-Agent, timestamp, esito login, endpoint richiesto.",
+            "categorie_particolari": "Nessuna.",
+            "destinatari": "Amministratori BIDOC; su richiesta, Autorità giudiziaria/Polizia Postale.",
+            "trasferimenti_extra_ue": "Nessun trasferimento extra-UE.",
+            "misure_sicurezza": "IP mascherato (ultimo ottetto IPv4, /48 IPv6), lock automatico account dopo 5 tentativi falliti, MFA opzionale per amministratori.",
+            "termini_cancellazione": "Log accessi: 12 mesi (art. 132 Codice Privacy per obblighi telematici). Log anomalie: 24 mesi.",
+            "note": "",
+        },
+    ]
+    for e in default_entries:
+        await db.registro_trattamenti.insert_one({
+            **e,
+            "archived": False,
+            "created_at": now,
+            "updated_at": now,
+            "created_by": "system_seed",
+            "updated_by": "system_seed",
+        })
+    logging.info(f"[REGISTRO SEED] Inserted {len(default_entries)} default Art. 30 GDPR entries")
+
 
 async def seed_data():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@funzionabene.it")

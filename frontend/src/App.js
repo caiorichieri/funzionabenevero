@@ -60,6 +60,7 @@ import FirmaDocumentiPage from "@/pages/therapist/FirmaDocumentiPage";
 import TherapistDocsGate from "@/components/therapist/TherapistDocsGate";
 import PrivacyUtentePage from "@/pages/shared/PrivacyUtentePage";
 import FatturePage from "@/pages/admin/FatturePage";
+import RegistroTrattamentiPage from "@/pages/admin/RegistroTrattamentiPage";
 import NotFoundPage from "@/pages/public/NotFoundPage";
 
 import "@/App.css";
@@ -125,6 +126,7 @@ export default function App() {
             <Route path="blog" element={<BlogPage />} />
             <Route path="contratti" element={<ContrattiPage />} />
             <Route path="fatture" element={<FatturePage isAdmin={true} />} />
+            <Route path="registro-trattamenti" element={<RegistroTrattamentiPage />} />
             <Route path="pagamenti" element={<PagamentiPage />} />
           </Route>
 

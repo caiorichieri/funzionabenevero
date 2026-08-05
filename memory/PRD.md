@@ -1212,3 +1212,39 @@ Ogni domenica il terapeuta riceve UNA email con **PDF + XML FatturaPA di TUTTE l
 - **P1**: Invio SDI automatizzato (Fatture in Cloud / Aruba API)
 - **P2**: Export ZIP annuale con tutte le fatture per commercialista/730
 
+
+---
+
+## ✅ FASE 16 — Registro dei Trattamenti art. 30 GDPR (Feb 2026)
+
+### Obiettivo
+Pagina admin per gestire il Registro delle attività di trattamento ex art. 30 GDPR, con export PDF pronto per il Garante Privacy.
+
+### Backend
+- Nuovo router `/app/backend/routers/registro_trattamenti.py`:
+  - `GET /api/admin/registro-trattamenti` — lista voci attive
+  - `POST /api/admin/registro-trattamenti` — crea voce
+  - `PUT /api/admin/registro-trattamenti/{id}` — modifica
+  - `POST /api/admin/registro-trattamenti/{id}/archive` — archivia (soft delete)
+  - `DELETE /api/admin/registro-trattamenti/{id}` — hard delete
+  - `GET /api/admin/registro-trattamenti/export/pdf` — export PDF conforme
+- Generatore PDF `/app/backend/registro_pdf.py` (ReportLab, formato A4 landscape, header con dati BIDOC, tabelle strutturate per voce)
+- Seed automatico all'avvio (`_seed_registro_trattamenti`) con **10 voci di default** (T-01 → T-10) che coprono account/autenticazione, matching, anagrafe/fatturazione, albo terapisti, videoconsulto (responsabile), fatture commissione B2B, comunicazioni transazionali, marketing, statistiche, sicurezza.
+
+### Frontend
+- Nuova pagina admin `/admin/registro-trattamenti` (`RegistroTrattamentiPage.jsx`)
+- Sidebar: nuova voce **"Registro Trattamenti"** (icona Shield)
+- Lista con badge ruolo colorato, modal edit con tutti i campi GDPR art. 30, conferma archiviazione
+- Bottone **"Esporta PDF"** in header
+
+### Test manuale (Feb 2026)
+- ✅ Seed inserisce 10 voci di default all'avvio
+- ✅ Lista, edit modal e archive funzionanti (screenshot confermano)
+- ✅ Export PDF genera 21.5 KB, 10 pagine (una per voce), conforme art. 30 GDPR verificato tramite `analyze_file_tool` (95% confidence)
+
+### Backlog residuo
+- **P1**: DPIA — Valutazione d'Impatto art. 35 GDPR (template guidato)
+- **P1**: Email mensile automatica ricevuta al terapeuta per commissione B2B
+- **P1**: Invio SDI automatizzato (Fatture in Cloud / Aruba)
+- **P2**: Export ZIP annuale fatture per commercialista/730
+

@@ -15,6 +15,7 @@ const ADMIN_MENU = [
   { to: "/admin/fatture", icon: Receipt, label: "Fatture" },
   { to: "/admin/blog", icon: FileText, label: "Blog" },
   { to: "/admin/contratti", icon: ScrollText, label: "Documenti Legali" },
+  { to: "/admin/registro-trattamenti", icon: Shield, label: "Registro Trattamenti" },
 ];
 
 const THERAPIST_MENU = [
