@@ -961,3 +961,79 @@ Aggiornato `legalInfo.js` con dati BIDOC SRL definitivi:
 - **P1** Fase 15: Cron 48h che elabora `pending_deactivation_reason=legal_decline` (cancella appuntamenti, rimborsa pazienti, hard-delete account)
 - **P2** Fase 16: Cookie banner GDPR-compliant con consent-mode Google v2 + pixel Meta/TikTok/LinkedIn (opzione d=2)
 - **P2** Fase 17: Registro Trattamenti art. 30 + DPIA art. 35 (documenti interni)
+
+---
+
+## ✅ FASE 13 — Cookie Banner GDPR + Retention + Legal Decline 48h + Consensi Signup (Feb 2026)
+
+### 1. Cookie Banner GDPR-Compliant (Provv. Garante 231/2021)
+- Nuovo componente `/app/frontend/src/components/public/CookieBanner.jsx`:
+  - Banner compatto con **3 pulsanti di pari evidenza grafica**: "Rifiuta tutti" | "Personalizza" | "Accetta tutti"
+  - Modal preferenze con 4 categorie: Necessari (sempre attivo), Statistica, Esperienza, Marketing
+  - Descrizione dettagliata dei singoli servizi (Meta Pixel, TikTok Pixel, LinkedIn Insight, Google Ads, GA4, Microsoft Clarity)
+  - Storage localStorage `funzionabene_cookie_consent_v1` con versioning
+  - Backend audit log via `POST /api/audit/consent` (schema esistente)
+  - `window.__openCookiePreferences()` esposto per riapertura da footer
+- Nuovo `/app/frontend/src/utils/cookieLoader.js`:
+  - **Google Consent Mode v2** con `initGoogleConsentDefaults()` (denied di default) + `updateGoogleConsent()`
+  - Loaders idempotenti per: GA4, MS Clarity, Meta Pixel, TikTok Pixel, LinkedIn Insight, Google Ads
+  - Pixel IDs caricati da `process.env.REACT_APP_*` (placeholders finché non forniti)
+- Rimosso vecchio `CookieConsentBanner.jsx` per evitare duplicazioni
+- Registrato globalmente in App.js dopo `</Routes>`
+
+### 2. Retention Automatica Settimanale
+- Nuovo `/app/backend/scheduled_jobs.py` con APScheduler:
+  - `retention_anonymize(db)` — cron domenica 03:00 UTC
+  - Trova pazienti con `last_login_at < 36 mesi fa` (o mancante + `created_at < 36 mesi fa`)
+  - Skip di sicurezza: NON anonimizza se ha appuntamenti negli ultimi 36 mesi
+  - Anonimizzazione: email→`anon-{id}@anon.funzionabene.local`, nome→"Anonimo", cognome/telefono→null, is_active=false, gdpr_anonymized_at
+  - **Dati fiscali mantenuti** in `db.fatture` per obbligo art. 2220 c.c. (10 anni)
+- **NON** anonimizza terapeuti automaticamente (obblighi professionali di conservazione)
+
+### 3. Cron Disattivazione 48h dopo Legal Decline
+- `process_legal_declines(db)` — cron ogni ora al minuto :07
+- Trova users con `pending_deactivation_reason=legal_decline` e `pending_deactivation_at < now`
+- Per terapeuti: cancella appuntamenti futuri (`stato=cancellato`, `rimborso_pending=true` per pickup dal worker refund Stripe)
+- Hard-deactivate: `is_active=false`, unset `pending_deactivation_*`
+- Se terapeuta: `terapista.sospeso=true`, `sospeso_motivo=legal_decline_definitive`
+- Log in `db.admin_actions` per audit trail
+
+### 4. Consensi Granulari nel Signup
+- `models.py`: `RegisterInput` esteso con 6 consent fields + version fields
+- `routers/auth.py`: 
+  - Validazione: paziente DEVE dare `consenso_privacy + consenso_termini` (400 altrimenti)
+  - Snapshot in `user.consents` con timestamp per singolo consenso
+  - **6 eventi in `db.consent_history`** collection (art. 7 GDPR accountability), source='signup'
+- `RegisterPage.jsx`:
+  - Paziente: 3 checkbox obbligatori (*) — Privacy, Termini, Dati Sanitari (art. 9.2.a)
+  - Terapeuta: 1 checkbox obbligatorio — Privacy
+  - 3 checkbox facoltativi con divisore "FACOLTATIVI" — Marketing, Ricerca, Miglioramento
+  - Ogni checkbox linka al documento pertinente in nuova tab
+
+### 5. Admin Manual Triggers
+- `POST /api/admin/jobs/retention/run` — trigger manuale retention
+- `POST /api/admin/jobs/legal-decline/run` — trigger manuale legal decline processor
+- Utile per test in staging e per admin intervention
+
+### 6. Testing
+- Testing agent iteration_17: 13/13 backend passing
+- 1 bug critico fix: rimossi 2 CookieBanner simultanei (rimosso CookieConsentBanner.jsx legacy)
+- Screenshot verify: single banner con 3 pulsanti pari evidenza + 4 categorie in Personalizza + 6 checkbox nel register
+
+### File di riferimento
+- `/app/backend/scheduled_jobs.py`
+- `/app/backend/server.py` (startup event con AsyncIOScheduler)
+- `/app/backend/routers/auth.py` (register con consents_snapshot + history)
+- `/app/backend/routers/legal_signature.py` (admin triggers)
+- `/app/backend/models.py` (RegisterInput con 6 consent fields)
+- `/app/frontend/src/components/public/CookieBanner.jsx`
+- `/app/frontend/src/utils/cookieLoader.js`
+- `/app/frontend/src/pages/RegisterPage.jsx`
+- `/app/frontend/src/App.js` (CookieBanner globale)
+- `/app/frontend/src/components/public/PublicLayout.jsx` (rimosso vecchio banner)
+
+### Backlog residuo dopo Fase 13
+- **P2** Fase 14: Registro Trattamenti art. 30 GDPR + DPIA art. 35 (documenti interni)
+- **P2** Fase 15: Endpoint webhook Resend per intercettare risposta email "NON ACCETTO" e triggerare decline flow automaticamente
+- **P3** Fase 16: Real pixel IDs (Meta/TikTok/LinkedIn/Google Ads) e configurazione tracking eventi conversione
+- **P3** Fase 17: Envio SDI (fatturazione elettronica automatizzata)

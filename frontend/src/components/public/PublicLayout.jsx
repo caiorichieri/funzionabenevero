@@ -2,7 +2,6 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
-import CookieConsentBanner from "@/components/public/CookieConsentBanner";
 import { TITOLARE } from "@/data/legalInfo";
 
 const NAV = [
@@ -194,7 +193,6 @@ export default function PublicLayout() {
       <Header />
       <Outlet />
       <Footer />
-      <CookieConsentBanner />
     </div>
   );
 }
