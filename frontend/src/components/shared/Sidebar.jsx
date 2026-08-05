@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard, Users, UserCheck, Calendar,
-  FileText, X, Heart, ScrollText, Wallet, CalendarDays, Shield
+  FileText, X, Heart, ScrollText, Wallet, CalendarDays, Shield, Receipt
 } from "lucide-react";
 
 const ADMIN_MENU = [
@@ -12,6 +12,7 @@ const ADMIN_MENU = [
   { to: "/admin/pazienti", icon: Users, label: "Pazienti" },
   { to: "/admin/appuntamenti", icon: Calendar, label: "Appuntamenti" },
   { to: "/admin/pagamenti", icon: Wallet, label: "Pagamenti" },
+  { to: "/admin/fatture", icon: Receipt, label: "Fatture" },
   { to: "/admin/blog", icon: FileText, label: "Blog" },
   { to: "/admin/contratti", icon: ScrollText, label: "Documenti Legali" },
 ];
@@ -20,6 +21,7 @@ const THERAPIST_MENU = [
   { to: "/terapeuta", icon: LayoutDashboard, label: "Dashboard", exact: true },
   { to: "/terapeuta/calendario", icon: CalendarDays, label: "Calendario Disponibilità" },
   { to: "/terapeuta/profilo", icon: UserCheck, label: "Il mio Profilo" },
+  { to: "/terapeuta/fatture", icon: Receipt, label: "Fatture" },
   { to: "/terapeuta/blog", icon: FileText, label: "Blog" },
   { to: "/terapeuta/privacy", icon: Shield, label: "I miei dati" },
 ];

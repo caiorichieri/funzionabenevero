@@ -58,6 +58,7 @@ import ContrattoCollaborazionePage from "@/pages/public/ContrattoCollaborazioneP
 import LegalDeclinePage from "@/pages/public/LegalDeclinePage";
 import FirmaDocumentiPage from "@/pages/therapist/FirmaDocumentiPage";
 import PrivacyUtentePage from "@/pages/shared/PrivacyUtentePage";
+import FatturePage from "@/pages/admin/FatturePage";
 import NotFoundPage from "@/pages/public/NotFoundPage";
 
 import "@/App.css";
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="appuntamenti" element={<AppuntamentiPage />} />
             <Route path="blog" element={<BlogPage />} />
             <Route path="contratti" element={<ContrattiPage />} />
+            <Route path="fatture" element={<FatturePage isAdmin={true} />} />
             <Route path="pagamenti" element={<PagamentiPage />} />
           </Route>
 
@@ -131,6 +133,7 @@ export default function App() {
             <Route path="calendario" element={<TerapistaCalendarioPage />} />
             <Route path="profilo" element={<TerapistaProfile />} />
             <Route path="blog" element={<TerapistaBlogPage />} />
+            <Route path="fatture" element={<FatturePage isAdmin={false} />} />
             <Route path="privacy" element={<PrivacyUtentePage />} />
           </Route>
 

@@ -76,6 +76,10 @@ class TerapistaProfileInput(BaseModel):
     lingue: Optional[List[str]] = []
     disponibilita: Optional[List[DisponibilitaItem]] = []
     iban: Optional[str] = None
+    # Fatturazione elettronica
+    regime_fiscale: Optional[str] = "forfettario"  # forfettario | ordinario_esente | ordinario_iva | minimi
+    codice_sdi: Optional[str] = None  # 7 chars, "0000000" if using PEC
+    pec: Optional[str] = None  # Required if codice_sdi is empty/default
 
     @field_validator("partita_iva", mode="before")
     @classmethod

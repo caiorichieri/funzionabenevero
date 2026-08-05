@@ -1037,3 +1037,79 @@ Aggiornato `legalInfo.js` con dati BIDOC SRL definitivi:
 - **P2** Fase 15: Endpoint webhook Resend per intercettare risposta email "NON ACCETTO" e triggerare decline flow automaticamente
 - **P3** Fase 16: Real pixel IDs (Meta/TikTok/LinkedIn/Google Ads) e configurazione tracking eventi conversione
 - **P3** Fase 17: Envio SDI (fatturazione elettronica automatizzata)
+
+---
+
+## ✅ FASE 14 — Fatturazione Elettronica MVP (Feb 2026)
+
+### Approccio scelto (MVP low-cost, no SdI automation)
+BIDOC genera XML + PDF di ogni fattura; ogni terapeuta riceve via email settimanale i suoi documenti e li trasmette autonomamente al Sistema TS / SdI. Nessuna delega Agenzia Entrate richiesta all'inizio.
+
+### 1. Generatore FatturaPA v1.2.2
+- Nuovo `/app/backend/fatturazione.py` (~450 righe):
+  - `generate_xml_sanitaria()` — esente IVA art. 10 DPR 633/72 c.1 n.18, natura N4, marca bollo €2 se ≥ €77,47
+  - `generate_xml_commissione()` — B2B con IVA 22% (BIDOC → terapeuta)
+  - `generate_pdf()` — versione leggibile con logo, dati fiscali, riferimenti normativi
+  - `next_fattura_number()` — contatore atomico Mongo per serie separate (FZ-YYYY-NNNN per sanitarie, CM-YYYY-NNNN per commissioni)
+  - Regime fiscale mappato al codice AdE (RF01/RF02/RF19)
+- Schema conforme allo standard Agenzia Entrate — validato struttura XML
+
+### 2. Modelli e profilo terapeuta esteso
+- `models.py`: aggiunto al `TerapistaProfileInput`:
+  - `regime_fiscale` (default: forfettario)
+  - `codice_sdi` (7 char, "0000000" se usa PEC)
+  - `pec` (obbligatorio se codice_sdi mancante)
+
+### 3. Router `/app/backend/routers/fatture.py`
+Endpoints:
+- `POST /api/admin/fatture/generate/paziente/{appuntamento_id}` — genera sanitaria (idempotente)
+- `POST /api/admin/fatture/generate/commissione/{year}/{month}` — genera B2B commissioni mensili aggregate per terapeuta
+- `GET /api/fatture/mine` — terapeuta vede le sue fatture emesse + commissioni ricevute
+- `GET /api/admin/fatture[?kind=]` — cassetto BIDOC completo
+- `GET /api/fatture/{id}/xml` — download XML (Object Storage + fallback inline base64)
+- `GET /api/fatture/{id}/pdf` — download PDF
+
+### 4. Scheduler jobs
+Aggiunti in `scheduled_jobs.py`:
+- **weekly_fatture_email** — Domenica 20:00 UTC — invia email a ogni terapeuta con le fatture della settimana + PDF allegato
+- **monthly_generate_commissioni** — 1° del mese 03:30 UTC — genera fatture B2B commissione del mese precedente
+- Admin manual triggers via `/api/admin/jobs/weekly-fatture/run` e `/api/admin/jobs/monthly-commissioni/run`
+
+### 5. Frontend Admin/Terapeuta Fatture
+- Nuovo `/app/frontend/src/pages/admin/FatturePage.jsx`:
+  - Rotta admin: `/admin/fatture` con `isAdmin={true}` — cassetto completo BIDOC
+  - Rotta terapeuta: `/terapeuta/fatture` con `isAdmin={false}` — solo fatture proprie
+  - Tabella con: numero, tipo (sanitaria/commissione con badge colorati), data, imponibile, IVA, totale, marca bollo, download XML/PDF
+  - KPI cards: totale sanitarie + totale commissioni BIDOC
+  - Filtri per tipo + ricerca per numero
+  - Export CSV completo per commercialista
+  - Admin: pulsanti manual trigger jobs settimanale/mensile
+- Sidebar: nuovo item "Fatture" (icona Receipt) per admin e terapeuta
+
+### 6. Testing manuale
+- ✅ Fattura sanitaria FZ-2026-0001 generata per demo appt (€70 esente, natura N4)
+- ✅ Fattura commissione CM-2026-0001 generata (€21 imponibile + €4,62 IVA = €25,62)
+- ✅ XML valido con namespaces corretti (FatturaElettronicaHeader, DatiTrasmissione, CedentePrestatore, CessionarioCommittente, DatiBeniServizi)
+- ✅ PDF leggibile 2544 bytes, magic %PDF-1.4
+- ✅ Screenshot admin/fatture: tabella + KPI + filtri + download
+
+### File di riferimento
+- `/app/backend/fatturazione.py` (generatore XML+PDF)
+- `/app/backend/routers/fatture.py` (endpoints CRUD + jobs)
+- `/app/backend/scheduled_jobs.py` (weekly/monthly cron)
+- `/app/backend/models.py` (TerapistaProfileInput esteso)
+- `/app/backend/server.py` (router registrato)
+- `/app/frontend/src/pages/admin/FatturePage.jsx` (dual-role page)
+- `/app/frontend/src/App.js` (nuove rotte /admin/fatture e /terapeuta/fatture)
+- `/app/frontend/src/components/shared/Sidebar.jsx` (item "Fatture")
+
+### ⚠️ Da verificare prima di produzione
+- Validazione XML tramite uno dei tool ufficiali AdE ("Verifica Fatture" del portale Fatture&Corrispettivi)
+- Test con commercialista italiano su almeno 1 fattura di prova
+- Il terapeuta è responsabile della trasmissione al Sistema TS — istruzioni operative nell'email settimanale
+
+### Backlog residuo dopo Fase 14
+- **Fase 14b (P1)**: Frontend campo profilo terapeuta per regime_fiscale + codice_sdi + PEC + banner "Completa dati fiscali per emissione fatture"
+- **Fase 14c (P2)**: Automatizzazione invio SdI (delega Agenzia Entrate + integrazione Fatture in Cloud o Aruba)
+- **Fase 15 (P2)**: Sistema TS trasmissione automatica dopo delega
+- **Fase 16 (P2)**: Registro Trattamenti art. 30 + DPIA (docs interni)

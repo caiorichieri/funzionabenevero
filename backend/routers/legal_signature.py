@@ -630,3 +630,17 @@ async def admin_run_legal_decline(admin: dict = Depends(require_admin)):
     """Manually trigger the process_legal_declines job."""
     from scheduled_jobs import process_legal_declines
     return await process_legal_declines(db)
+
+
+@router.post("/admin/jobs/weekly-fatture/run")
+async def admin_run_weekly_fatture(admin: dict = Depends(require_admin)):
+    """Manually trigger the weekly fatture email job."""
+    from scheduled_jobs import weekly_fatture_email
+    return await weekly_fatture_email(db)
+
+
+@router.post("/admin/jobs/monthly-commissioni/run")
+async def admin_run_monthly_commissioni(admin: dict = Depends(require_admin)):
+    """Manually trigger the monthly commissioni generation job."""
+    from scheduled_jobs import monthly_generate_commissioni
+    return await monthly_generate_commissioni(db)
