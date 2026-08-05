@@ -344,6 +344,31 @@ async def admin_download_terapista_doc(terapista_id: str, tipo: str, user: dict 
     return FileResponse(p, media_type=media, filename=p.name)
 
 
+@router.patch("/admin/terapisti/{terapista_id}/sospendi")
+async def sospendi_terapista(terapista_id: str, body: dict, user: dict = Depends(require_admin)):
+    """Sospendi/riattiva un terapista. body: {sospeso: bool}.
+    Sospeso=true → user.is_active=false (blocca login) + terapista.sospeso=true (nascosto al pubblico).
+    Sospeso=false → riabilita entrambi."""
+    sospeso = bool(body.get("sospeso", True))
+    t = await db.terapisti.find_one({"_id": ObjectId(terapista_id)})
+    if not t:
+        raise HTTPException(404, "Terapeuta non trovato")
+    now = datetime.now(timezone.utc)
+    await db.terapisti.update_one(
+        {"_id": ObjectId(terapista_id)},
+        {"$set": {
+            "sospeso": sospeso,
+            "sospeso_at": now if sospeso else None,
+            "sospeso_by": user["_id"] if sospeso else None,
+        }},
+    )
+    if t.get("user_id"):
+        u = await find_user_by_id(t["user_id"])
+        if u:
+            await db.users.update_one({"_id": u["_id"]}, {"$set": {"is_active": not sospeso}})
+    return {"message": "Terapeuta sospeso" if sospeso else "Terapeuta riattivato", "sospeso": sospeso}
+
+
 @router.patch("/admin/terapisti/{terapista_id}/verifica")
 async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = Depends(require_admin)):
     """Admin toggles documenti_verificati. When True, therapist becomes publicly visible."""

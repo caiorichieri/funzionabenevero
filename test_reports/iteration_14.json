@@ -1,0 +1,49 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "ainda como admin preciso poder abilitar ou suspender terapeura temos essa opcao? eu vi somente excluir",
+  "summary": "No relevant testing skill found. Focused verification passed: admin can suspend/reactivate Maria Rossi from /admin/terapisti, backend persists sospeso/is_active state, suspended login is blocked, public list/matching hide her while suspended, and reactivation restores login/public visibility. UI confirm dialogs, SOSPESO badge, and pause/play title changes were verified end to end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/public/terapisti/{tid}",
+        "issue": "Observation only: direct public detail URL still returned the suspended therapist with sospeso=true. This was not in the explicit acceptance list, but should be considered if 'hidden from patients' must include known/direct profile URLs."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/bug_terapista_sospensione_api_check.py",
+    "/app/test_reports/bug_terapista_sospensione_api_result.json",
+    "/app/tests/bug_terapista_sospensione_ui_playwright.py",
+    "/app/auth_testing.md"
+  ],
+  "action_items": [
+    "Optional hardening: filter or 404 GET /api/public/terapisti/{tid} when documenti_verificati is false or sospeso is true if direct public profile access must also be hidden."
+  ],
+  "critical_code_review_comments": [
+    "Inspected changed files: backend/routers/terapisti.py, backend/server.py, frontend/src/pages/admin/TerapistiPage.jsx. The new PATCH endpoint is admin-protected, valid-missing therapist returns 404, and public list/matching queries include sospeso != true.",
+    "Auth implementation checks is_active during /api/auth/login; runtime verified 403 'Account disattivato' for suspended Maria and 200 after reactivation."
+  ],
+  "updated_files": [
+    "/app/auth_testing.md",
+    "/app/tests/bug_terapista_sospensione_api_check.py",
+    "/app/tests/bug_terapista_sospensione_ui_playwright.py",
+    "/app/test_reports/bug_terapista_sospensione_api_result.json",
+    "/app/test_reports/bug_verification_14.json",
+    "/app/test_reports/iteration_14.json"
+  ],
+  "success_rate": {
+    "backend": "100% for requested suspension/auth/public-list/matching checks",
+    "frontend": "100% for requested admin row toggle flow"
+  },
+  "seed_data_creation": "Temporarily set Maria Rossi to documenti_verificati=true and a unique specializzazione for deterministic public/matching assertions; restored original documenti_verificati/specializzazioni/genere. Per request, left Maria non-suspended and user is_active=true.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Maria Rossi should be clean at end: terapisti.sospeso=false and users.is_active=true. UI test used data-testid toggle-sospensione-69e5c83ca585e313092bd593 and badge-sospeso-69e5c83ca585e313092bd593. Backend test evidence is in /app/test_reports/bug_terapista_sospensione_api_result.json.",
+  "rca_of_the_issue": "Original symptom was missing non-destructive admin suspend/reactivate action. The fix adds a row toggle and backend PATCH that synchronizes therapist visibility state with user login state. Reproduction verified by admin login -> /admin/terapisti -> suspend Maria -> badge/play state -> login blocked/public hidden -> reactivate -> badge removed/login restored."
+}

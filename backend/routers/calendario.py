@@ -169,11 +169,11 @@ async def pubblica_calendario(user: dict = Depends(require_auth)):
 # ─── Admin: aggregated calendar ───────────────────────────────────────────────
 @router.get("/admin/calendario")
 async def admin_calendario(anno: int, mese: int, user: dict = Depends(require_admin)):
-    """Return day-by-day count of therapists with any availability for the given month."""
+    """Return day-by-day count of therapists with any availability + booked appointments for the given month.
+    Admin vede ANCHE i calendari in bozza (badge) e TUTTE le prenotazioni attive."""
     if not (1 <= mese <= 12) or not (2020 <= anno <= 2100):
         raise HTTPException(400, "Anno/mese invalido")
 
-    # Compute all dates in month
     start = datetime(anno, mese, 1, tzinfo=timezone.utc)
     if mese == 12:
         end = datetime(anno + 1, 1, 1, tzinfo=timezone.utc)
@@ -183,16 +183,24 @@ async def admin_calendario(anno: int, mese: int, user: dict = Depends(require_ad
     days_in_month: Dict[str, Dict] = {}
     d = start
     while d < end:
-        days_in_month[d.strftime("%Y-%m-%d")] = {"terapisti_count": 0, "slot_count": 0, "terapisti": []}
+        days_in_month[d.strftime("%Y-%m-%d")] = {
+            "terapisti_count": 0,
+            "slot_count": 0,
+            "appuntamenti_count": 0,
+            "terapisti": [],
+            "appuntamenti": [],
+        }
         d += timedelta(days=1)
 
-    # Fetch published therapists
+    # 1) Availability slots — include ALL therapists (admin view), flag bozza status
     cursor = db.terapisti.find(
-        {"calendario_bozza": {"$ne": True}, "documenti_verificati": True},
-        {"nome": 1, "cognome": 1, "disponibilita_calendario": 1},
+        {},
+        {"nome": 1, "cognome": 1, "disponibilita_calendario": 1, "calendario_bozza": 1, "documenti_verificati": 1},
     )
     async for t in cursor:
         cal = t.get("disponibilita_calendario") or {}
+        if not cal:
+            continue
         nome = f"{t.get('nome','')} {t.get('cognome','')}".strip() or "—"
         for date_key, slots in cal.items():
             if date_key in days_in_month and slots:
@@ -201,8 +209,52 @@ async def admin_calendario(anno: int, mese: int, user: dict = Depends(require_ad
                 days_in_month[date_key]["terapisti"].append({
                     "id": str(t["_id"]),
                     "nome": nome,
-                    "slots": slots,
+                    "slots": sorted(slots),
+                    "bozza": bool(t.get("calendario_bozza")),
+                    "documenti_verificati": bool(t.get("documenti_verificati")),
                 })
+
+    # 2) Booked appointments — enrich with patient + therapist names
+    start_iso = start.isoformat()[:10]
+    end_iso = end.isoformat()[:10]
+    async for a in db.appuntamenti.find({
+        "stato": {"$in": ["confermato", "prenotato", "completato"]},
+        "data_ora": {"$gte": start_iso, "$lt": end_iso},
+    }):
+        data_ora = a.get("data_ora", "")
+        date_key = data_ora[:10]
+        ora = data_ora[11:16]
+        if date_key not in days_in_month:
+            continue
+
+        # Names lookup (best-effort)
+        pnome, tnome = "—", "—"
+        try:
+            p = await db.pazienti.find_one({"_id": ObjectId(a["paziente_id"])})
+            if p:
+                pnome = f"{p.get('nome','')} {p.get('cognome','')}".strip() or "Paziente"
+        except Exception:
+            pass
+        try:
+            t = await db.terapisti.find_one({"_id": ObjectId(a["terapeuta_id"])})
+            if t:
+                tnome = f"{t.get('nome','')} {t.get('cognome','')}".strip() or "Terapista"
+        except Exception:
+            pass
+
+        days_in_month[date_key]["appuntamenti_count"] += 1
+        days_in_month[date_key]["appuntamenti"].append({
+            "id": str(a["_id"]),
+            "ora": ora,
+            "terapeuta_id": a.get("terapeuta_id"),
+            "terapeuta_nome": tnome,
+            "paziente_nome": pnome,
+            "stato": a.get("stato"),
+        })
+
+    # Sort inner lists
+    for v in days_in_month.values():
+        v["appuntamenti"].sort(key=lambda x: x["ora"])
 
     return {
         "anno": anno,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle } from "lucide-react";
 
 const EMPTY_FORM = {
   nome: "", cognome: "", telefono: "", bio: "", anni_esperienza: "",
@@ -138,6 +138,20 @@ export default function TerapistiPage() {
     load();
   };
 
+  const handleToggleSospensione = async (t) => {
+    const nextSospeso = !t.sospeso;
+    const msg = nextSospeso
+      ? `Sospendere ${t.nome} ${t.cognome}? Non potrà più accedere e sarà nascosto ai pazienti. Gli appuntamenti già prenotati restano attivi.`
+      : `Riattivare ${t.nome} ${t.cognome}? Potrà di nuovo accedere e ricevere prenotazioni.`;
+    if (!window.confirm(msg)) return;
+    try {
+      await axios.patch(`${API}/admin/terapisti/${t._id}/sospendi`, { sospeso: nextSospeso }, { withCredentials: true });
+      load();
+    } catch (e) {
+      alert(e.response?.data?.detail || "Errore durante l'operazione");
+    }
+  };
+
   const downloadDoc = (id, tipo) => {
     window.open(`${API}/admin/terapisti/${id}/documenti/${tipo}/download`, "_blank", "noopener");
   };
@@ -183,7 +197,12 @@ export default function TerapistiPage() {
                     {t.nome?.[0]}{t.cognome?.[0]}
                   </div>
                   <div>
-                    <div className="font-semibold text-[#0A0A0A]">{t.nome} {t.cognome}</div>
+                    <div className="font-semibold text-[#0A0A0A] flex items-center gap-2">
+                      {t.nome} {t.cognome}
+                      {t.sospeso && (
+                        <span data-testid={`badge-sospeso-${t._id}`} className="text-[10px] uppercase tracking-wide font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Sospeso</span>
+                      )}
+                    </div>
                     <div className="text-sm text-[#0A0A0A]/55">
                       {t.albo_numero ? `Albo n. ${t.albo_numero}` : "Albo non inserito"} ·{" "}
                       {t.prezzo_sessione ? `€${t.prezzo_sessione}/sessione` : "Tariffa n.d."}
@@ -210,6 +229,14 @@ export default function TerapistiPage() {
                       <ShieldCheck className="w-4 h-4" />
                     </button>
                   )}
+                  <button
+                    data-testid={`toggle-sospensione-${t._id}`}
+                    onClick={() => handleToggleSospensione(t)}
+                    className={`p-2 rounded-xl ${t.sospeso ? "hover:bg-green-50 text-green-600" : "hover:bg-orange-50 text-orange-600"}`}
+                    title={t.sospeso ? "Riattiva terapista" : "Sospendi terapista"}
+                  >
+                    {t.sospeso ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
+                  </button>
                   <button data-testid={`delete-terapista-${t._id}`} onClick={() => handleDelete(t._id)}
                     className="p-2 rounded-xl hover:bg-red-50 text-[#0A0A0A]/55 hover:text-red-600">
                     <Trash2 className="w-4 h-4" />

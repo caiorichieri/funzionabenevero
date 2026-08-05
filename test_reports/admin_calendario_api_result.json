@@ -1,0 +1,84 @@
+{
+  "api_base": "https://portugues-writer-2.preview.emergentagent.com/api",
+  "checks": [
+    {
+      "name": "2026-08-06 present",
+      "passed": true
+    },
+    {
+      "name": "2026-08-06 has one booking",
+      "passed": true
+    },
+    {
+      "name": "2026-08-06 is bookings-only",
+      "passed": true
+    },
+    {
+      "name": "2026-08-06 booking enriched",
+      "passed": true
+    },
+    {
+      "name": "2026-08-07 present",
+      "passed": true
+    },
+    {
+      "name": "2026-08-07 has one therapist",
+      "passed": true
+    },
+    {
+      "name": "2026-08-07 has two slots",
+      "passed": true
+    },
+    {
+      "name": "2026-08-07 draft therapist availability included",
+      "passed": true
+    }
+  ],
+  "login_status": 200,
+  "login_user": {
+    "_id": "69e5c83ca585e313092bd591",
+    "email": "admin@funzionabene.it",
+    "nome": "Amministratore",
+    "cognome": "FunzionaBene",
+    "role": "admin"
+  },
+  "calendar_status": 200,
+  "days_returned": 31,
+  "day_2026_08_06": {
+    "data": "2026-08-06",
+    "terapisti_count": 0,
+    "slot_count": 0,
+    "appuntamenti_count": 1,
+    "terapisti": [],
+    "appuntamenti": [
+      {
+        "id": "6a7210974165735ef94ed847",
+        "ora": "15:00",
+        "terapeuta_id": "69e5c83ca585e313092bd593",
+        "terapeuta_nome": "Maria Rossi",
+        "paziente_nome": "Luca Bianchi",
+        "stato": "confermato"
+      }
+    ]
+  },
+  "day_2026_08_07": {
+    "data": "2026-08-07",
+    "terapisti_count": 1,
+    "slot_count": 2,
+    "appuntamenti_count": 0,
+    "terapisti": [
+      {
+        "id": "69e5c83ca585e313092bd593",
+        "nome": "Maria Rossi",
+        "slots": [
+          "14:00",
+          "15:00"
+        ],
+        "bozza": true,
+        "documenti_verificati": true
+      }
+    ],
+    "appuntamenti": []
+  },
+  "passed": true
+}

@@ -1,0 +1,853 @@
+{
+  "api_base": "https://portugues-writer-2.preview.emergentagent.com/api",
+  "checks": [
+    {
+      "name": "admin login succeeds",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "_id": "69e5c83ca585e313092bd591",
+          "email": "admin@funzionabene.it",
+          "nome": "Amministratore",
+          "cognome": "FunzionaBene",
+          "role": "admin"
+        }
+      }
+    },
+    {
+      "name": "admin session cookie works on protected route",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "_id": "69e5c83ca585e313092bd591",
+          "email": "admin@funzionabene.it",
+          "nome": "Amministratore",
+          "cognome": "FunzionaBene",
+          "role": "admin",
+          "is_verified": true,
+          "is_active": true,
+          "created_at": "2026-04-20T06:31:24.656000"
+        }
+      }
+    },
+    {
+      "name": "therapist can login before suspension",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "_id": "69e5c83ca585e313092bd592",
+          "email": "demo.terapeuta@funzionabene.it",
+          "nome": "Maria",
+          "cognome": "Rossi",
+          "role": "terapeuta"
+        }
+      }
+    },
+    {
+      "name": "admin terapisti list contains Maria with sospeso false baseline",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "maria": {
+          "_id": "69e5c83ca585e313092bd593",
+          "user_id": "69e5c83ca585e313092bd592",
+          "nome": "Maria",
+          "cognome": "Rossi",
+          "email": "demo.terapeuta@funzionabene.it",
+          "telefono": "+39 02 1234567",
+          "bio": "Psicologa e sessuologa clinica con 12 anni di esperienza. Approccio integrato cognitivo-comportamentale e sistemico.",
+          "anni_esperienza": 12,
+          "specializzazioni": [
+            "qa-sospensione-1785916970"
+          ],
+          "formazione": [],
+          "approccio_terapeutico": "Cognitivo-Comportamentale integrato",
+          "genere": "F",
+          "albo_numero": "12345",
+          "albo_ordine": "Ordine degli Psicologi della Lombardia",
+          "albo_iscrizione_data": "2011-03-15",
+          "assicurazione_compagnia": "Generali",
+          "assicurazione_numero_polizza": "POL-2024-001",
+          "assicurazione_scadenza": "2025-12-31",
+          "prezzo_sessione": 90,
+          "lingue": [],
+          "autocertificazione_firmata": true,
+          "autocertificazione_data": "2026-04-20T06:31:24.887000",
+          "disponibilita": [],
+          "created_at": "2026-04-20T06:31:24.887000",
+          "documenti_verificati": true,
+          "iban": "IT60X0542811101000000123456",
+          "updated_at": "2026-08-04T17:01:46.067000",
+          "calendario_bozza": true,
+          "calendario_pubblicato_at": "2026-08-04T16:04:39.071000",
+          "calendario_updated_at": "2026-08-04T16:29:10.136000",
+          "disponibilita_calendario": {
+            "2026-08-07": [
+              "14:00",
+              "15:00"
+            ]
+          },
+          "cap": "20100",
+          "citta": "Milano",
+          "codice_fiscale": "RSSMRA80A01H501U",
+          "data_nascita": "1980-01-01",
+          "indirizzo": "Via Roma 1",
+          "luogo_nascita_comune": "Roma",
+          "luogo_nascita_provincia": "RM",
+          "nato_all_estero": false,
+          "provincia_residenza": "MI",
+          "partita_iva": "12345678903",
+          "sospeso": false,
+          "sospeso_at": null,
+          "sospeso_by": null
+        }
+      }
+    },
+    {
+      "name": "public therapist list contains active verified Maria before suspension",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "count": 5
+      }
+    },
+    {
+      "name": "public matching contains Maria before suspension",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "terapisti": [
+            {
+              "_id": "69e5c83ca585e313092bd593",
+              "user_id": "69e5c83ca585e313092bd592",
+              "nome": "Maria",
+              "cognome": "Rossi",
+              "email": "demo.terapeuta@funzionabene.it",
+              "telefono": "+39 02 1234567",
+              "bio": "Psicologa e sessuologa clinica con 12 anni di esperienza. Approccio integrato cognitivo-comportamentale e sistemico.",
+              "anni_esperienza": 12,
+              "specializzazioni": [
+                "qa-sospensione-1785916970"
+              ],
+              "formazione": [],
+              "approccio_terapeutico": "Cognitivo-Comportamentale integrato",
+              "genere": "F",
+              "albo_numero": "12345",
+              "albo_ordine": "Ordine degli Psicologi della Lombardia",
+              "albo_iscrizione_data": "2011-03-15",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-2024-001",
+              "assicurazione_scadenza": "2025-12-31",
+              "prezzo_sessione": 90,
+              "lingue": [],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:24.887000",
+              "disponibilita": [],
+              "created_at": "2026-04-20T06:31:24.887000",
+              "documenti_verificati": true,
+              "iban": "IT60X0542811101000000123456",
+              "updated_at": "2026-08-04T17:01:46.067000",
+              "calendario_bozza": true,
+              "calendario_pubblicato_at": "2026-08-04T16:04:39.071000",
+              "calendario_updated_at": "2026-08-04T16:29:10.136000",
+              "disponibilita_calendario": {
+                "2026-08-07": [
+                  "14:00",
+                  "15:00"
+                ]
+              },
+              "cap": "20100",
+              "citta": "Milano",
+              "codice_fiscale": "RSSMRA80A01H501U",
+              "data_nascita": "1980-01-01",
+              "indirizzo": "Via Roma 1",
+              "luogo_nascita_comune": "Roma",
+              "luogo_nascita_provincia": "RM",
+              "nato_all_estero": false,
+              "provincia_residenza": "MI",
+              "partita_iva": "12345678903",
+              "sospeso": false,
+              "sospeso_at": null,
+              "sospeso_by": null,
+              "match_score": 50,
+              "match_reasons": [
+                "Specializzazione: qa-sospensione-1785916970",
+                "Preferenza di genere"
+              ],
+              "compatibilita": 99
+            },
+            {
+              "_id": "69e5c83da585e313092bd59b",
+              "user_id": "69e5c83da585e313092bd59a",
+              "nome": "Chiara",
+              "cognome": "Esposito",
+              "email": "chiara.esposito@funzionabene.it",
+              "telefono": "+39 02 0000000",
+              "bio": "Psicoterapeuta e sessuologa con focus su traumi sessuali, abusi e disturbi post-traumatici. Certificata EMDR. Approccio rispettoso dei tuoi tempi.",
+              "anni_esperienza": 18,
+              "specializzazioni": [
+                "Traumi sessuali",
+                "Abusi",
+                "EMDR",
+                "Sessualit\u00e0 in menopausa"
+              ],
+              "formazione": [
+                {
+                  "titolo": "Laurea in Psicologia Clinica",
+                  "istituto": "Universit\u00e0 Federico II, Napoli",
+                  "anno": 2003
+                },
+                {
+                  "titolo": "Specializzazione in Psicoterapia Cognitivo-Comportamentale",
+                  "istituto": "APC, Roma",
+                  "anno": 2008
+                },
+                {
+                  "titolo": "Certificazione EMDR livello II",
+                  "istituto": "EMDR Italia",
+                  "anno": 2011
+                },
+                {
+                  "titolo": "Master in Sessuologia Clinica",
+                  "istituto": "IISS, Milano",
+                  "anno": 2015
+                }
+              ],
+              "approccio_terapeutico": "EMDR, trauma-focused CBT",
+              "genere": "F",
+              "albo_numero": "9245",
+              "albo_ordine": "Ordine degli Psicologi della Campania",
+              "albo_iscrizione_data": "2010-01-01",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-9245",
+              "assicurazione_scadenza": "2026-12-31",
+              "prezzo_sessione": 85.0,
+              "lingue": [
+                "Italiano"
+              ],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:25.822000",
+              "foto_url": "/api/media/therapists/chiara_esposito.png",
+              "disponibilita": [
+                {
+                  "giorno": "Luned\u00ec",
+                  "ora_inizio": "14:00",
+                  "ora_fine": "19:00"
+                },
+                {
+                  "giorno": "Mercoled\u00ec",
+                  "ora_inizio": "14:00",
+                  "ora_fine": "19:00"
+                },
+                {
+                  "giorno": "Venerd\u00ec",
+                  "ora_inizio": "09:00",
+                  "ora_fine": "13:00"
+                }
+              ],
+              "created_at": "2026-04-20T06:31:25.822000",
+              "documenti_verificati": true,
+              "match_score": 45,
+              "match_reasons": [
+                "Preferenza di genere"
+              ],
+              "compatibilita": 89
+            },
+            {
+              "_id": "69e5c83da585e313092bd597",
+              "user_id": "69e5c83da585e313092bd596",
+              "nome": "Giulia",
+              "cognome": "Marchetti",
+              "email": "giulia.marchetti@funzionabene.it",
+              "telefono": "+39 02 0000000",
+              "bio": "Psicologa e sessuologa, approccio femminile e caloroso. Mi dedico con particolare attenzione al benessere sessuale femminile, all'anorgasmia e al vaginismo.",
+              "anni_esperienza": 9,
+              "specializzazioni": [],
+              "formazione": [],
+              "approccio_terapeutico": "Mindfulness-based e psicocorporeo",
+              "genere": "F",
+              "albo_numero": "18456",
+              "albo_ordine": "Ordine degli Psicologi del Veneto",
+              "albo_iscrizione_data": "2010-01-01",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-18456",
+              "assicurazione_scadenza": "2026-12-31",
+              "prezzo_sessione": 65.0,
+              "lingue": [],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:25.368000",
+              "foto_url": "/api/media/therapists/giulia_marchetti.png",
+              "disponibilita": [],
+              "created_at": "2026-04-20T06:31:25.368000",
+              "documenti_verificati": true,
+              "updated_at": "2026-08-04T13:35:26.547000",
+              "match_score": 30,
+              "match_reasons": [
+                "Preferenza di genere"
+              ],
+              "compatibilita": 70
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "non-admin therapist cannot call suspension endpoint",
+      "ok": true,
+      "detail": {
+        "status": 403,
+        "body": {
+          "detail": "Accesso riservato agli amministratori"
+        }
+      }
+    },
+    {
+      "name": "missing therapist returns 404",
+      "ok": true,
+      "detail": {
+        "status": 404,
+        "body": {
+          "detail": "Terapeuta non trovato"
+        }
+      }
+    },
+    {
+      "name": "admin can suspend Maria",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "message": "Terapeuta sospeso",
+          "sospeso": true
+        }
+      }
+    },
+    {
+      "name": "suspension persisted to terapisti.sospeso and users.is_active=false",
+      "ok": true,
+      "detail": {
+        "sospeso": true,
+        "is_active": false
+      }
+    },
+    {
+      "name": "suspended therapist login is blocked with Account disattivato",
+      "ok": true,
+      "detail": {
+        "status": 403,
+        "body": {
+          "detail": "Account disattivato"
+        },
+        "cookies": {
+          "__cf_bm": "V7WIVVM_84AtmFmzxWIZXw7wuEjuMm.fhOFfZw8ylWk-1785916972.0261624-1.0.1.1-6Gx9i8dLKBX2DuNWelmxRXLK08ACfBkoHWiksdlwuQ3DUB2QlwZEKg.k0W3xI1wD5dvpuk7prpuoolvGsrSmMLMZ_QVIbLo2fjId2AOKiMvMqdESXxIwH.lh4Q5bo8.v"
+        }
+      }
+    },
+    {
+      "name": "public therapist list hides Maria while suspended",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "count": 4
+      }
+    },
+    {
+      "name": "public matching hides Maria while suspended",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "terapisti": [
+            {
+              "_id": "69e5c83da585e313092bd59b",
+              "user_id": "69e5c83da585e313092bd59a",
+              "nome": "Chiara",
+              "cognome": "Esposito",
+              "email": "chiara.esposito@funzionabene.it",
+              "telefono": "+39 02 0000000",
+              "bio": "Psicoterapeuta e sessuologa con focus su traumi sessuali, abusi e disturbi post-traumatici. Certificata EMDR. Approccio rispettoso dei tuoi tempi.",
+              "anni_esperienza": 18,
+              "specializzazioni": [
+                "Traumi sessuali",
+                "Abusi",
+                "EMDR",
+                "Sessualit\u00e0 in menopausa"
+              ],
+              "formazione": [
+                {
+                  "titolo": "Laurea in Psicologia Clinica",
+                  "istituto": "Universit\u00e0 Federico II, Napoli",
+                  "anno": 2003
+                },
+                {
+                  "titolo": "Specializzazione in Psicoterapia Cognitivo-Comportamentale",
+                  "istituto": "APC, Roma",
+                  "anno": 2008
+                },
+                {
+                  "titolo": "Certificazione EMDR livello II",
+                  "istituto": "EMDR Italia",
+                  "anno": 2011
+                },
+                {
+                  "titolo": "Master in Sessuologia Clinica",
+                  "istituto": "IISS, Milano",
+                  "anno": 2015
+                }
+              ],
+              "approccio_terapeutico": "EMDR, trauma-focused CBT",
+              "genere": "F",
+              "albo_numero": "9245",
+              "albo_ordine": "Ordine degli Psicologi della Campania",
+              "albo_iscrizione_data": "2010-01-01",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-9245",
+              "assicurazione_scadenza": "2026-12-31",
+              "prezzo_sessione": 85.0,
+              "lingue": [
+                "Italiano"
+              ],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:25.822000",
+              "foto_url": "/api/media/therapists/chiara_esposito.png",
+              "disponibilita": [
+                {
+                  "giorno": "Luned\u00ec",
+                  "ora_inizio": "14:00",
+                  "ora_fine": "19:00"
+                },
+                {
+                  "giorno": "Mercoled\u00ec",
+                  "ora_inizio": "14:00",
+                  "ora_fine": "19:00"
+                },
+                {
+                  "giorno": "Venerd\u00ec",
+                  "ora_inizio": "09:00",
+                  "ora_fine": "13:00"
+                }
+              ],
+              "created_at": "2026-04-20T06:31:25.822000",
+              "documenti_verificati": true,
+              "match_score": 45,
+              "match_reasons": [
+                "Preferenza di genere"
+              ],
+              "compatibilita": 99
+            },
+            {
+              "_id": "69e5c83da585e313092bd597",
+              "user_id": "69e5c83da585e313092bd596",
+              "nome": "Giulia",
+              "cognome": "Marchetti",
+              "email": "giulia.marchetti@funzionabene.it",
+              "telefono": "+39 02 0000000",
+              "bio": "Psicologa e sessuologa, approccio femminile e caloroso. Mi dedico con particolare attenzione al benessere sessuale femminile, all'anorgasmia e al vaginismo.",
+              "anni_esperienza": 9,
+              "specializzazioni": [],
+              "formazione": [],
+              "approccio_terapeutico": "Mindfulness-based e psicocorporeo",
+              "genere": "F",
+              "albo_numero": "18456",
+              "albo_ordine": "Ordine degli Psicologi del Veneto",
+              "albo_iscrizione_data": "2010-01-01",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-18456",
+              "assicurazione_scadenza": "2026-12-31",
+              "prezzo_sessione": 65.0,
+              "lingue": [],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:25.368000",
+              "foto_url": "/api/media/therapists/giulia_marchetti.png",
+              "disponibilita": [],
+              "created_at": "2026-04-20T06:31:25.368000",
+              "documenti_verificati": true,
+              "updated_at": "2026-08-04T13:35:26.547000",
+              "match_score": 30,
+              "match_reasons": [
+                "Preferenza di genere"
+              ],
+              "compatibilita": 70
+            },
+            {
+              "_id": "69e5c83da585e313092bd599",
+              "user_id": "69e5c83da585e313092bd598",
+              "nome": "Marco",
+              "cognome": "Fontana",
+              "email": "marco.fontana@funzionabene.it",
+              "telefono": "+39 02 0000000",
+              "bio": "Sessuologo specializzato in tematiche LGBTQIA+, identit\u00e0 di genere, coming out e relazioni non tradizionali. Uno spazio davvero libero da giudizi.",
+              "anni_esperienza": 5,
+              "specializzazioni": [
+                "LGBTQIA+",
+                "Identit\u00e0 di genere",
+                "Orientamento sessuale",
+                "Poliamore"
+              ],
+              "formazione": [
+                {
+                  "titolo": "Laurea in Psicologia",
+                  "istituto": "Universit\u00e0 La Sapienza, Roma",
+                  "anno": 2018
+                },
+                {
+                  "titolo": "Corso di Perfezionamento in Sessuologia",
+                  "istituto": "FISS, Roma",
+                  "anno": 2020
+                },
+                {
+                  "titolo": "Formazione in Gender Affirmative Care",
+                  "istituto": "WPATH Standard of Care",
+                  "anno": 2022
+                }
+              ],
+              "approccio_terapeutico": "Affirmative Therapy, approccio non normativo",
+              "genere": "M",
+              "albo_numero": "21890",
+              "albo_ordine": "Ordine degli Psicologi del Lazio",
+              "albo_iscrizione_data": "2010-01-01",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-21890",
+              "assicurazione_scadenza": "2026-12-31",
+              "prezzo_sessione": 55.0,
+              "lingue": [
+                "Italiano"
+              ],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:25.595000",
+              "foto_url": "/api/media/therapists/marco_fontana.png",
+              "disponibilita": [
+                {
+                  "giorno": "Marted\u00ec",
+                  "ora_inizio": "16:00",
+                  "ora_fine": "21:00"
+                },
+                {
+                  "giorno": "Gioved\u00ec",
+                  "ora_inizio": "16:00",
+                  "ora_fine": "21:00"
+                },
+                {
+                  "giorno": "Venerd\u00ec",
+                  "ora_inizio": "10:00",
+                  "ora_fine": "18:00"
+                }
+              ],
+              "created_at": "2026-04-20T06:31:25.595000",
+              "documenti_verificati": true,
+              "match_score": 15,
+              "match_reasons": [],
+              "compatibilita": 70
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "admin terapisti list shows Maria with sospeso true after suspension",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "maria": {
+          "_id": "69e5c83ca585e313092bd593",
+          "user_id": "69e5c83ca585e313092bd592",
+          "nome": "Maria",
+          "cognome": "Rossi",
+          "email": "demo.terapeuta@funzionabene.it",
+          "telefono": "+39 02 1234567",
+          "bio": "Psicologa e sessuologa clinica con 12 anni di esperienza. Approccio integrato cognitivo-comportamentale e sistemico.",
+          "anni_esperienza": 12,
+          "specializzazioni": [
+            "qa-sospensione-1785916970"
+          ],
+          "formazione": [],
+          "approccio_terapeutico": "Cognitivo-Comportamentale integrato",
+          "genere": "F",
+          "albo_numero": "12345",
+          "albo_ordine": "Ordine degli Psicologi della Lombardia",
+          "albo_iscrizione_data": "2011-03-15",
+          "assicurazione_compagnia": "Generali",
+          "assicurazione_numero_polizza": "POL-2024-001",
+          "assicurazione_scadenza": "2025-12-31",
+          "prezzo_sessione": 90,
+          "lingue": [],
+          "autocertificazione_firmata": true,
+          "autocertificazione_data": "2026-04-20T06:31:24.887000",
+          "disponibilita": [],
+          "created_at": "2026-04-20T06:31:24.887000",
+          "documenti_verificati": true,
+          "iban": "IT60X0542811101000000123456",
+          "updated_at": "2026-08-04T17:01:46.067000",
+          "calendario_bozza": true,
+          "calendario_pubblicato_at": "2026-08-04T16:04:39.071000",
+          "calendario_updated_at": "2026-08-04T16:29:10.136000",
+          "disponibilita_calendario": {
+            "2026-08-07": [
+              "14:00",
+              "15:00"
+            ]
+          },
+          "cap": "20100",
+          "citta": "Milano",
+          "codice_fiscale": "RSSMRA80A01H501U",
+          "data_nascita": "1980-01-01",
+          "indirizzo": "Via Roma 1",
+          "luogo_nascita_comune": "Roma",
+          "luogo_nascita_provincia": "RM",
+          "nato_all_estero": false,
+          "provincia_residenza": "MI",
+          "partita_iva": "12345678903",
+          "sospeso": true,
+          "sospeso_at": "2026-08-05T08:02:51.929000",
+          "sospeso_by": "69e5c83ca585e313092bd591"
+        }
+      }
+    },
+    {
+      "name": "admin can reactivate Maria",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "message": "Terapeuta riattivato",
+          "sospeso": false
+        }
+      }
+    },
+    {
+      "name": "reactivation persisted to terapisti.sospeso=false and users.is_active=true",
+      "ok": true,
+      "detail": {
+        "sospeso": false,
+        "is_active": true
+      }
+    },
+    {
+      "name": "therapist can login again after reactivation",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "_id": "69e5c83ca585e313092bd592",
+          "email": "demo.terapeuta@funzionabene.it",
+          "nome": "Maria",
+          "cognome": "Rossi",
+          "role": "terapeuta"
+        }
+      }
+    },
+    {
+      "name": "public therapist list shows Maria again after reactivation",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "count": 5
+      }
+    },
+    {
+      "name": "public matching shows Maria again after reactivation",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "terapisti": [
+            {
+              "_id": "69e5c83ca585e313092bd593",
+              "user_id": "69e5c83ca585e313092bd592",
+              "nome": "Maria",
+              "cognome": "Rossi",
+              "email": "demo.terapeuta@funzionabene.it",
+              "telefono": "+39 02 1234567",
+              "bio": "Psicologa e sessuologa clinica con 12 anni di esperienza. Approccio integrato cognitivo-comportamentale e sistemico.",
+              "anni_esperienza": 12,
+              "specializzazioni": [
+                "qa-sospensione-1785916970"
+              ],
+              "formazione": [],
+              "approccio_terapeutico": "Cognitivo-Comportamentale integrato",
+              "genere": "F",
+              "albo_numero": "12345",
+              "albo_ordine": "Ordine degli Psicologi della Lombardia",
+              "albo_iscrizione_data": "2011-03-15",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-2024-001",
+              "assicurazione_scadenza": "2025-12-31",
+              "prezzo_sessione": 90,
+              "lingue": [],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:24.887000",
+              "disponibilita": [],
+              "created_at": "2026-04-20T06:31:24.887000",
+              "documenti_verificati": true,
+              "iban": "IT60X0542811101000000123456",
+              "updated_at": "2026-08-04T17:01:46.067000",
+              "calendario_bozza": true,
+              "calendario_pubblicato_at": "2026-08-04T16:04:39.071000",
+              "calendario_updated_at": "2026-08-04T16:29:10.136000",
+              "disponibilita_calendario": {
+                "2026-08-07": [
+                  "14:00",
+                  "15:00"
+                ]
+              },
+              "cap": "20100",
+              "citta": "Milano",
+              "codice_fiscale": "RSSMRA80A01H501U",
+              "data_nascita": "1980-01-01",
+              "indirizzo": "Via Roma 1",
+              "luogo_nascita_comune": "Roma",
+              "luogo_nascita_provincia": "RM",
+              "nato_all_estero": false,
+              "provincia_residenza": "MI",
+              "partita_iva": "12345678903",
+              "sospeso": false,
+              "sospeso_at": null,
+              "sospeso_by": null,
+              "match_score": 50,
+              "match_reasons": [
+                "Specializzazione: qa-sospensione-1785916970",
+                "Preferenza di genere"
+              ],
+              "compatibilita": 99
+            },
+            {
+              "_id": "69e5c83da585e313092bd59b",
+              "user_id": "69e5c83da585e313092bd59a",
+              "nome": "Chiara",
+              "cognome": "Esposito",
+              "email": "chiara.esposito@funzionabene.it",
+              "telefono": "+39 02 0000000",
+              "bio": "Psicoterapeuta e sessuologa con focus su traumi sessuali, abusi e disturbi post-traumatici. Certificata EMDR. Approccio rispettoso dei tuoi tempi.",
+              "anni_esperienza": 18,
+              "specializzazioni": [
+                "Traumi sessuali",
+                "Abusi",
+                "EMDR",
+                "Sessualit\u00e0 in menopausa"
+              ],
+              "formazione": [
+                {
+                  "titolo": "Laurea in Psicologia Clinica",
+                  "istituto": "Universit\u00e0 Federico II, Napoli",
+                  "anno": 2003
+                },
+                {
+                  "titolo": "Specializzazione in Psicoterapia Cognitivo-Comportamentale",
+                  "istituto": "APC, Roma",
+                  "anno": 2008
+                },
+                {
+                  "titolo": "Certificazione EMDR livello II",
+                  "istituto": "EMDR Italia",
+                  "anno": 2011
+                },
+                {
+                  "titolo": "Master in Sessuologia Clinica",
+                  "istituto": "IISS, Milano",
+                  "anno": 2015
+                }
+              ],
+              "approccio_terapeutico": "EMDR, trauma-focused CBT",
+              "genere": "F",
+              "albo_numero": "9245",
+              "albo_ordine": "Ordine degli Psicologi della Campania",
+              "albo_iscrizione_data": "2010-01-01",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-9245",
+              "assicurazione_scadenza": "2026-12-31",
+              "prezzo_sessione": 85.0,
+              "lingue": [
+                "Italiano"
+              ],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:25.822000",
+              "foto_url": "/api/media/therapists/chiara_esposito.png",
+              "disponibilita": [
+                {
+                  "giorno": "Luned\u00ec",
+                  "ora_inizio": "14:00",
+                  "ora_fine": "19:00"
+                },
+                {
+                  "giorno": "Mercoled\u00ec",
+                  "ora_inizio": "14:00",
+                  "ora_fine": "19:00"
+                },
+                {
+                  "giorno": "Venerd\u00ec",
+                  "ora_inizio": "09:00",
+                  "ora_fine": "13:00"
+                }
+              ],
+              "created_at": "2026-04-20T06:31:25.822000",
+              "documenti_verificati": true,
+              "match_score": 45,
+              "match_reasons": [
+                "Preferenza di genere"
+              ],
+              "compatibilita": 89
+            },
+            {
+              "_id": "69e5c83da585e313092bd597",
+              "user_id": "69e5c83da585e313092bd596",
+              "nome": "Giulia",
+              "cognome": "Marchetti",
+              "email": "giulia.marchetti@funzionabene.it",
+              "telefono": "+39 02 0000000",
+              "bio": "Psicologa e sessuologa, approccio femminile e caloroso. Mi dedico con particolare attenzione al benessere sessuale femminile, all'anorgasmia e al vaginismo.",
+              "anni_esperienza": 9,
+              "specializzazioni": [],
+              "formazione": [],
+              "approccio_terapeutico": "Mindfulness-based e psicocorporeo",
+              "genere": "F",
+              "albo_numero": "18456",
+              "albo_ordine": "Ordine degli Psicologi del Veneto",
+              "albo_iscrizione_data": "2010-01-01",
+              "assicurazione_compagnia": "Generali",
+              "assicurazione_numero_polizza": "POL-18456",
+              "assicurazione_scadenza": "2026-12-31",
+              "prezzo_sessione": 65.0,
+              "lingue": [],
+              "autocertificazione_firmata": true,
+              "autocertificazione_data": "2026-04-20T06:31:25.368000",
+              "foto_url": "/api/media/therapists/giulia_marchetti.png",
+              "disponibilita": [],
+              "created_at": "2026-04-20T06:31:25.368000",
+              "documenti_verificati": true,
+              "updated_at": "2026-08-04T13:35:26.547000",
+              "match_score": 30,
+              "match_reasons": [
+                "Preferenza di genere"
+              ],
+              "compatibilita": 70
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "failures": [],
+  "observations": [
+    {
+      "name": "direct public therapist detail while suspended",
+      "status": 200,
+      "body_contains_sospeso": true
+    }
+  ],
+  "therapist_id": "69e5c83ca585e313092bd593",
+  "cleanup_done": true,
+  "cleanup_state": {
+    "sospeso": false,
+    "is_active": true,
+    "restored_profile_fields": [
+      "documenti_verificati",
+      "specializzazioni",
+      "genere"
+    ]
+  },
+  "overall_ok": true
+}
