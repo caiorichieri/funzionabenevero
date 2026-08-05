@@ -200,16 +200,24 @@ def register_jobs(scheduler, db):
 
 
 async def weekly_fatture_email(db) -> dict:
-    """Every Sunday: email each terapeuta with the fatture emitted this past week.
-    Attaches PDF+XML of each fattura. Only sends if there are fatture."""
+    """Every Sunday: email each terapeuta with all fatture (sanitarie + commissioni)
+    generated in the past 7 days, attaching PDF+XML of each fattura."""
     from datetime import timedelta
-    from email_service import send_signature_receipt_email  # reusable email sender
+    import base64
+    from email_service import send_weekly_fatture_email
+    from object_storage import get_object
+
     now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
-    # Group by terapeuta
+    week_from = week_ago.strftime("%d/%m/%Y")
+    week_to = now.strftime("%d/%m/%Y")
+
+    # Group all fatture (sanitaria + commissione) by terapeuta_user_id
     by_terapeuta: dict = {}
-    async for f in db.fatture.find({"kind": "sanitaria", "created_at": {"$gte": week_ago}}):
+    async for f in db.fatture.find({"created_at": {"$gte": week_ago}}):
         tid = f.get("terapeuta_user_id")
+        if not tid:
+            continue
         by_terapeuta.setdefault(tid, []).append(f)
 
     sent = 0
@@ -217,26 +225,57 @@ async def weekly_fatture_email(db) -> dict:
         user = await db.users.find_one({"_id": ObjectId(tid)})
         if not user or not user.get("email"):
             continue
-        titles = [f"{f['numero']} — € {f.get('importo_totale', 0):.2f}" for f in items]
-        # For simplicity attach only first PDF as sample; full ZIP would need extra work
-        # Use existing send_signature_receipt_email for a generic branded email w/ list
+
+        # Split by kind for the email template
+        sanitarie = [f for f in items if f.get("kind") == "sanitaria"]
+        commissioni = [f for f in items if f.get("kind") == "commissione"]
+
+        # Build attachments: PDF + XML for each fattura (from Object Storage or inline b64 fallback)
+        attachments: list = []
+        for f in items:
+            numero = f.get("numero", "fattura")
+            # PDF
+            pdf_b64 = None
+            if f.get("pdf_storage_path"):
+                try:
+                    data, _ = get_object(f["pdf_storage_path"])
+                    pdf_b64 = base64.b64encode(data).decode("ascii")
+                except Exception as e:
+                    logger.warning(f"[WEEKLY FATTURE] PDF fetch failed for {numero}: {e}")
+            if not pdf_b64:
+                pdf_b64 = f.get("pdf_inline_b64")
+            if pdf_b64:
+                attachments.append({"filename": f"{numero}.pdf", "content": pdf_b64})
+            # XML
+            xml_b64 = None
+            if f.get("xml_storage_path"):
+                try:
+                    data, _ = get_object(f["xml_storage_path"])
+                    xml_b64 = base64.b64encode(data).decode("ascii")
+                except Exception as e:
+                    logger.warning(f"[WEEKLY FATTURE] XML fetch failed for {numero}: {e}")
+            if not xml_b64:
+                xml_b64 = f.get("xml_inline_b64")
+            if xml_b64:
+                attachments.append({"filename": f"{numero}.xml", "content": xml_b64})
+
         try:
-            first_pdf_b64 = items[0].get("pdf_inline_b64")
-            pdf_bytes = b""
-            if first_pdf_b64:
-                import base64
-                pdf_bytes = base64.b64decode(first_pdf_b64)
-            await send_signature_receipt_email(
-                email=user.get("email", ""),
+            ok = await send_weekly_fatture_email(
+                email=user["email"],
                 nome=user.get("nome", "Terapeuta"),
-                doc_titles=[f"Fatture della settimana ({len(items)}): "] + titles,
-                pdf_bytes=pdf_bytes,
+                fatture_sanitarie=sanitarie,
+                fatture_commissioni=commissioni,
+                attachments=attachments,
+                week_from=week_from,
+                week_to=week_to,
             )
-            sent += 1
+            if ok:
+                sent += 1
         except Exception as e:
             logger.error(f"[WEEKLY FATTURE] email fail terapeuta {tid}: {e}")
-    logger.info(f"[WEEKLY FATTURE] sent to {sent} terapeuti")
-    return {"sent": sent, "ran_at": now.isoformat()}
+
+    logger.info(f"[WEEKLY FATTURE] sent to {sent} terapeuti (out of {len(by_terapeuta)} with activity)")
+    return {"sent": sent, "candidates": len(by_terapeuta), "ran_at": now.isoformat()}
 
 
 async def monthly_generate_commissioni(db) -> dict:

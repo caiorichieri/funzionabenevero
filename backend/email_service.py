@@ -470,3 +470,90 @@ BIDOC SRL · P.IVA 01985930930 · privacy@bidoc.it
     except Exception as e:
         logger.error(f"[EMAIL ERROR] Receipt to {email} failed: {e}")
         return False
+
+
+
+async def send_weekly_fatture_email(
+    email: str,
+    nome: str,
+    fatture_sanitarie: list,   # [{numero, data, importo_totale}]
+    fatture_commissioni: list, # [{numero, data, importo_totale, mese_riferimento, anno_riferimento}]
+    attachments: list,         # [{filename, content_b64}]
+    week_from: str,
+    week_to: str,
+) -> bool:
+    """Weekly digest email: attaches ALL PDF + XML of the week's fatture (sanitarie + commissioni)."""
+    if not SEND_EMAILS or not RESEND_API_KEY or RESEND_API_KEY == "placeholder_resend_key":
+        logger.info(f"[EMAIL DISABLED] Weekly fatture digest for {email} ({len(attachments)} allegati)")
+        return False
+
+    sanit_rows = "".join([
+        f'<tr><td style="padding:6px 12px;color:#F4F1ED;font-family:monospace;">{f.get("numero","")}</td>'
+        f'<td style="padding:6px 12px;color:rgba(230,226,216,0.75);">{f.get("data","")}</td>'
+        f'<td style="padding:6px 12px;color:#F58A1F;text-align:right;">€ {f.get("importo_totale",0):.2f}</td></tr>'
+        for f in fatture_sanitarie
+    ]) or '<tr><td colspan="3" style="padding:12px;color:rgba(230,226,216,0.5);text-align:center;font-style:italic;">Nessuna fattura sanitaria emessa</td></tr>'
+
+    comm_rows = "".join([
+        f'<tr><td style="padding:6px 12px;color:#F4F1ED;font-family:monospace;">{f.get("numero","")}</td>'
+        f'<td style="padding:6px 12px;color:rgba(230,226,216,0.75);">{f.get("mese_riferimento","")}/{f.get("anno_riferimento","")}</td>'
+        f'<td style="padding:6px 12px;color:#F58A1F;text-align:right;">€ {f.get("importo_totale",0):.2f}</td></tr>'
+        for f in fatture_commissioni
+    ]) or '<tr><td colspan="3" style="padding:12px;color:rgba(230,226,216,0.5);text-align:center;font-style:italic;">Nessuna fattura di commissione ricevuta</td></tr>'
+
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table width="620" cellpadding="0" cellspacing="0" style="margin:0 auto;max-width:620px;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#F58A1F;margin-top:4px;">RIEPILOGO FATTURE SETTIMANALE</div>
+</td></tr>
+<tr><td style="padding:28px 40px 12px;">
+<p style="color:rgba(230,226,216,0.85);font-size:15px;line-height:1.6;margin:0 0 8px;">Ciao <strong>{nome}</strong>,</p>
+<p style="color:rgba(230,226,216,0.75);font-size:14px;line-height:1.6;margin:0 0 20px;">
+Ecco il riepilogo delle fatture della settimana <strong style="color:#F4F1ED;">{week_from} → {week_to}</strong>.
+In allegato trovi <strong style="color:#F58A1F;">PDF e XML FatturaPA</strong> di ogni fattura per l'inoltro
+al tuo commercialista e al Sistema di Interscambio (SDI).
+</p>
+</td></tr>
+<tr><td style="padding:0 40px 12px;">
+<div style="font-size:11px;letter-spacing:2px;color:#F58A1F;margin-bottom:8px;">FATTURE SANITARIE EMESSE ({len(fatture_sanitarie)})</div>
+<table width="100%" style="background:rgba(255,255,255,0.03);border-radius:10px;border-collapse:separate;">
+<thead><tr><th style="padding:8px 12px;text-align:left;font-size:11px;color:rgba(230,226,216,0.5);text-transform:uppercase;letter-spacing:1.5px;">Numero</th>
+<th style="padding:8px 12px;text-align:left;font-size:11px;color:rgba(230,226,216,0.5);text-transform:uppercase;letter-spacing:1.5px;">Data</th>
+<th style="padding:8px 12px;text-align:right;font-size:11px;color:rgba(230,226,216,0.5);text-transform:uppercase;letter-spacing:1.5px;">Totale</th></tr></thead>
+<tbody>{sanit_rows}</tbody></table>
+</td></tr>
+<tr><td style="padding:16px 40px 12px;">
+<div style="font-size:11px;letter-spacing:2px;color:#F58A1F;margin-bottom:8px;">FATTURE DI COMMISSIONE B2B RICEVUTE ({len(fatture_commissioni)})</div>
+<table width="100%" style="background:rgba(255,255,255,0.03);border-radius:10px;border-collapse:separate;">
+<thead><tr><th style="padding:8px 12px;text-align:left;font-size:11px;color:rgba(230,226,216,0.5);text-transform:uppercase;letter-spacing:1.5px;">Numero</th>
+<th style="padding:8px 12px;text-align:left;font-size:11px;color:rgba(230,226,216,0.5);text-transform:uppercase;letter-spacing:1.5px;">Periodo</th>
+<th style="padding:8px 12px;text-align:right;font-size:11px;color:rgba(230,226,216,0.5);text-transform:uppercase;letter-spacing:1.5px;">Totale</th></tr></thead>
+<tbody>{comm_rows}</tbody></table>
+</td></tr>
+<tr><td style="padding:16px 40px 28px;">
+<p style="color:rgba(230,226,216,0.6);font-size:12px;line-height:1.5;margin:12px 0 0;">
+Puoi consultare, filtrare e scaricare le fatture in qualsiasi momento dalla tua dashboard →
+<a href="https://www.funzionabene.it/terapeuta/fatture" style="color:#F58A1F;text-decoration:none;">Le mie fatture</a>.
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px;text-align:center;font-size:11px;color:rgba(230,226,216,0.3);border-top:1px solid rgba(255,255,255,0.08);">
+BIDOC SRL · P.IVA 01985930930 · fatturazione@funzionabene.it
+</td></tr>
+</table></body></html>"""
+
+    params = {
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [email],
+        "subject": f"Riepilogo fatture — {week_from} → {week_to}",
+        "html": html,
+        "attachments": attachments,  # list of {filename, content}
+    }
+    try:
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"[EMAIL SENT] Weekly fatture digest to {email} — {len(attachments)} allegati (id={result.get('id') if isinstance(result, dict) else result})")
+        return True
+    except Exception as e:
+        logger.error(f"[EMAIL ERROR] Weekly fatture digest to {email} failed: {e}")
+        return False

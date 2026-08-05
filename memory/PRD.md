@@ -1190,3 +1190,25 @@ Prima di poter accedere a qualsiasi rotta terapeuta (`/terapeuta/*`), il terapeu
 ### Backlog residuo
 - **P1**: Invio SDI automatizzato (Fatture in Cloud / Aruba API) — attualmente XML per upload manuale
 - **P2**: Registro Trattamenti art. 30 GDPR + DPIA art. 35 GDPR
+
+---
+
+## ✅ FASE 15b — Email Semanale Fatture Completa (Feb 2026)
+
+### Obiettivo
+Ogni domenica il terapeuta riceve UNA email con **PDF + XML FatturaPA di TUTTE le fatture della settimana** (sanitarie emesse ai pazienti + commissione B2B ricevuta da BIDOC), pronte per l'invio al commercialista e al SDI.
+
+### Implementazione
+- **Nuova funzione email**: `send_weekly_fatture_email` in `email_service.py` — template HTML branded con 2 tabelle (sanitarie + commissioni), accetta lista di attachments `{filename, content}`.
+- **Job aggiornato**: `weekly_fatture_email` in `scheduled_jobs.py` — ora recupera fatture di ENTRAMBI i kind (`sanitaria` + `commissione`), scarica PDF+XML dall'Object Storage (fallback su `pdf_inline_b64`/`xml_inline_b64` inline), allega tutto.
+- **Trigger**: cron domenica 20:00 UTC + manuale via `POST /api/admin/jobs/weekly-fatture/run`.
+
+### Test manuale (Feb 2026)
+- ✅ Trigger manuale del cron → email inviata a `demo.terapeuta@funzionabene.it` con **6 allegati** (3 fatture × PDF+XML = FZ-2026-0001, FZ-2026-0002, CM-2026-0001).
+- ✅ Resend ID confermato in logs.
+
+### Backlog residuo
+- **P1**: Email mensile automatica ricevuta al terapeuta appena viene generata la fattura di commissione B2B del mese
+- **P1**: Invio SDI automatizzato (Fatture in Cloud / Aruba API)
+- **P2**: Export ZIP annuale con tutte le fatture per commercialista/730
+
