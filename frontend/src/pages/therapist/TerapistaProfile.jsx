@@ -27,6 +27,8 @@ export default function TerapistaProfile() {
     luogo_nascita_comune:"", luogo_nascita_provincia:"", paese_nascita:"",
     indirizzo:"", citta:"", cap:"", provincia_residenza:"",
     iban:"",
+    // Fatturazione elettronica
+    regime_fiscale:"forfettario", codice_sdi:"", pec:"",
   });
 
   const fetchProfilo = useCallback(() => {
@@ -57,6 +59,9 @@ export default function TerapistaProfile() {
           indirizzo: p.indirizzo||"", citta: p.citta||"", cap: p.cap||"",
           provincia_residenza: p.provincia_residenza||"",
           iban: p.iban||"",
+          regime_fiscale: p.regime_fiscale||"forfettario",
+          codice_sdi: p.codice_sdi||"",
+          pec: p.pec||"",
         });
       }).catch(console.error).finally(() => setLoading(false));
   }, []);
@@ -196,6 +201,73 @@ export default function TerapistaProfile() {
               maxLength={34} placeholder="IT60 X054 2811 1010 0000 0123 456"
               className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] uppercase font-mono tracking-wider" />
             <p className="text-xs text-[#0A0A0A]/55 mt-1">Formato italiano: IT + 2 cifre + 23 caratteri. Verifica la correttezza — usiamo questo IBAN per accreditarti il 70% dei pagamenti dei tuoi pazienti.</p>
+          </div>
+          {/* Fatturazione Elettronica */}
+          <div className="mt-6 pt-4 border-t border-[#0A0A0A]/10">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="font-semibold text-[#0A0A0A]">Fatturazione elettronica</h4>
+                <p className="text-xs text-[#0A0A0A]/55 mt-0.5">Dati necessari per l&apos;emissione delle fatture in nome del terapeuta.</p>
+              </div>
+              {(!form.regime_fiscale || (!form.codice_sdi && !form.pec)) && (
+                <span data-testid="fatt-elet-warning-badge" className="text-xs px-2.5 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-full font-medium">
+                  ⚠️ Da completare
+                </span>
+              )}
+            </div>
+
+            {(!form.regime_fiscale || (!form.codice_sdi && !form.pec)) && (
+              <div data-testid="fatt-elet-banner" className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-900 flex items-start gap-2">
+                <span className="text-lg">📋</span>
+                <span>
+                  <strong>Completa i dati fiscali per abilitare la fatturazione.</strong><br/>
+                  Servono: regime fiscale, e almeno uno tra <b>Codice SDI</b> o <b>PEC</b>. Senza questi dati non potremo generare la fattura mensile di commissione a te intestata.
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Regime fiscale *</label>
+                <select
+                  data-testid="profilo-regime-fiscale"
+                  value={form.regime_fiscale}
+                  onChange={e => setForm({...form, regime_fiscale: e.target.value})}
+                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]"
+                >
+                  <option value="forfettario">Forfettario (RF19)</option>
+                  <option value="ordinario_esente">Ordinario — esente sanitario (RF01)</option>
+                  <option value="ordinario_iva">Ordinario con IVA (RF01)</option>
+                  <option value="minimi">Regime dei minimi (RF02)</option>
+                </select>
+                <p className="text-xs text-[#0A0A0A]/50 mt-1">La maggior parte degli psicologi under €85k è forfettario.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Codice SDI (7 caratteri)</label>
+                <input
+                  data-testid="profilo-codice-sdi"
+                  type="text"
+                  value={form.codice_sdi}
+                  onChange={e => setForm({...form, codice_sdi: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,7)})}
+                  placeholder="0000000 se usi PEC"
+                  maxLength={7}
+                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] font-mono uppercase"
+                />
+                <p className="text-xs text-[#0A0A0A]/50 mt-1">Codice destinatario del tuo software di fatturazione (es. commercialista).</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Indirizzo PEC</label>
+                <input
+                  data-testid="profilo-pec"
+                  type="email"
+                  value={form.pec}
+                  onChange={e => setForm({...form, pec: e.target.value.toLowerCase().trim()})}
+                  placeholder="mario.rossi@pec.it"
+                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]"
+                />
+                <p className="text-xs text-[#0A0A0A]/50 mt-1">Obbligatoria se il Codice SDI è vuoto o &quot;0000000&quot;.</p>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -1113,3 +1113,26 @@ Aggiunti in `scheduled_jobs.py`:
 - **Fase 14c (P2)**: Automatizzazione invio SdI (delega Agenzia Entrate + integrazione Fatture in Cloud o Aruba)
 - **Fase 15 (P2)**: Sistema TS trasmissione automatica dopo delega
 - **Fase 16 (P2)**: Registro Trattamenti art. 30 + DPIA (docs interni)
+
+---
+
+## ✅ FASE 14b — Profilo Terapeuta: Campi Fiscali Fatturazione (Feb 2026)
+
+### Aggiunto al Profilo Terapeuta (/terapeuta/profilo)
+- Nuova sezione **"Fatturazione elettronica"** dentro il card IBAN/Dati Bancari
+- 3 nuovi campi:
+  - **Regime fiscale** (select): forfettario / ordinario_esente / ordinario_iva / minimi (mappati a codice RF19/RF01/RF02)
+  - **Codice SDI** (input 7 char alfanumerici uppercase auto-format)
+  - **Indirizzo PEC** (input email lowercase auto-format)
+- Badge arancione "⚠️ Da completare" mostrato in header quando dati mancanti
+- Banner arancione con call-to-action quando manca regime fiscale OR (codice SDI vuoto/0000000 AND PEC vuota)
+- Auto-hide del banner al completamento dati
+- Salvataggio automatico tramite PUT `/api/terapisti/profilo/me` (usando `TerapistaProfileInput` esteso in models.py fase 14)
+
+### Testing
+- ✅ Backend PUT accetta i 3 nuovi campi (validato via curl)
+- ✅ Frontend renderizza banner + badge + 3 form fields con data-testid completi (`fatt-elet-banner`, `fatt-elet-warning-badge`, `profilo-regime-fiscale`, `profilo-codice-sdi`, `profilo-pec`)
+- ✅ Nessun lint error, screenshot conferma UX
+
+### File modificati
+- `/app/frontend/src/pages/therapist/TerapistaProfile.jsx` — form state + nuova sezione UI
