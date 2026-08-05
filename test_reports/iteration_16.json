@@ -1,0 +1,44 @@
+{
+  "summary": "Tested 3 new GDPR compliance features (firma legale documenti + notify MAJOR + area 'I miei dati'). Backend: 12/12 pytest passing after fixing 1 critical tz-aware/naive datetime comparison bug in /api/legal/decline/{token}. Frontend: verified /paziente/privacy, /terapeuta/privacy, /terapeuta/firma-documenti, sidebar 'I miei dati' item, /legal-decline/:token public page (invalid token).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/user/gdpr/export", "issue": "audit_consents loop is dead code (no user_id filter, immediately 'pass') — cookie consents never exported. Not a blocker but incomplete."},
+      {"endpoint": "GET /api/contracts/receipt/{id}", "issue": "storage_path can be null when Object Storage upload silently fails, and the receipt is then permanently 410 (PDF not stored in DB fallback despite comment mentioning base64 fallback). Verify EMERGENT_LLM_KEY / object storage config."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/paziente/privacy", "issues": ["'Documenti firmati' section is hidden when user has zero signatures — spec expected 4 sections always visible; consider showing empty state instead."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration16_gdpr_signature.py",
+    "/app/test_reports/pytest/iter16_results.xml"
+  ],
+  "action_items": [
+    "[DONE by testing agent] Fixed tz-aware vs naive datetime comparison in legal_signature.py::legal_decline — Mongo returned naive datetime causing 500.",
+    "Review Object Storage upload path for signature receipts: silent failure leaves storage_path=null and receipt endpoint returns 410 forever. Either implement inline DB fallback (as comment suggests) or bubble the error.",
+    "In gdpr_export, either remove dead audit_consents loop or filter by user email/id and return the aggregated consents."
+  ],
+  "critical_code_review_comments": [
+    "legal_signature.py:390 (fixed): comparing tz-aware datetime.now(utc) with naive Mongo datetime raised TypeError → 500 on any /legal/decline call. Added normalization.",
+    "legal_signature.py sign(): PDF hash and receipt_id are generated but storage_path may be None; downstream download returns 410. Comment says base64 DB fallback but it is not implemented.",
+    "legal_signature.py:180 stores raw IP (ip_raw) even though _anonymize_ip is also stored. Retention comment says '10 years' — verify with DPO whether raw IP retention is GDPR-defensible.",
+    "legal_signature.py notify_major_update() emits emails inside the loop synchronously (`await`) — if RESEND_API_KEY is unset it silently returns and only logs. Consider batching / rate limiting for large user bases."
+  ],
+  "updated_files": [
+    "/app/backend/routers/legal_signature.py",
+    "/app/backend/tests/test_iteration16_gdpr_signature.py",
+    "/app/test_reports/iteration_16.json"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% smoke of the 3 pages + sidebar + decline"},
+  "test_credentials": "admin@funzionabene.it/admin2026, demo.terapeuta@funzionabene.it/terapeuta2026 (Maria Rossi), demo.paziente@funzionabene.it/paziente2026",
+  "seed_data_creation": "Deleted terapeuta contract_acceptances before each sign-related test. Created a v-next MAJOR version of contratto_collaborazione (kind unchanged). Left the therapist re-activated at end. Added marketing consent grant/revoke history for paziente demo (visible in UI).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Test file /app/backend/tests/test_iteration16_gdpr_signature.py uses cookies via requests.Session and directly manipulates db.contract_acceptances between tests. If contratto_collaborazione has been bumped to v>=3, therapist pending count may still be 4 iff no acceptance for current version exists — the fixture resets it. Object Storage may still return storage_path=None if Emergent Object Storage backend not fully configured; owner-download test tolerates both 200 and 410.",
+  "rca_of_the_issue": "GET /api/legal/decline/{valid_token} returned 500 because tokens created via db.legal_decline_tokens.insert_one() were stored with tz-aware datetime, but Motor/Mongo returns them tz-naive on read. Comparing exp < datetime.now(timezone.utc) raised TypeError. Fix normalizes exp to UTC-aware before comparison."
+}

@@ -54,6 +54,9 @@ import MandatoLegalePage from "@/pages/public/MandatoLegalePage";
 import PrivacyVisitatoriPage from "@/pages/public/PrivacyVisitatoriPage";
 import PrivacyTerapeutiPage from "@/pages/public/PrivacyTerapeutiPage";
 import ContrattoCollaborazionePage from "@/pages/public/ContrattoCollaborazionePage";
+import LegalDeclinePage from "@/pages/public/LegalDeclinePage";
+import FirmaDocumentiPage from "@/pages/therapist/FirmaDocumentiPage";
+import PrivacyUtentePage from "@/pages/shared/PrivacyUtentePage";
 import NotFoundPage from "@/pages/public/NotFoundPage";
 
 import "@/App.css";
@@ -127,12 +130,24 @@ export default function App() {
             <Route path="calendario" element={<TerapistaCalendarioPage />} />
             <Route path="profilo" element={<TerapistaProfile />} />
             <Route path="blog" element={<TerapistaBlogPage />} />
+            <Route path="privacy" element={<PrivacyUtentePage />} />
           </Route>
+
+          {/* Standalone signature flow (no layout — full-screen guided experience) */}
+          <Route path="/terapeuta/firma-documenti" element={
+            <ProtectedRoute roles={THERAPIST_ROLES}>
+              <FirmaDocumentiPage />
+            </ProtectedRoute>
+          } />
 
           {/* Patient routes */}
           <Route path="/paziente" element={<ProtectedRoute roles={PATIENT_ROLES}><Layout /></ProtectedRoute>}>
             <Route index element={<PazienteDashboard />} />
+            <Route path="privacy" element={<PrivacyUtentePage />} />
           </Route>
+
+          {/* Public legal decline landing (no auth required — token-based) */}
+          <Route path="/legal-decline/:token" element={<LegalDeclinePage />} />
 
           <Route path="/register" element={<Navigate to="/registrati" replace />} />
 

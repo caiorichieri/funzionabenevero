@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard, Users, UserCheck, Calendar,
-  FileText, X, Heart, ScrollText, Wallet, CalendarDays
+  FileText, X, Heart, ScrollText, Wallet, CalendarDays, Shield
 } from "lucide-react";
 
 const ADMIN_MENU = [
@@ -13,7 +13,7 @@ const ADMIN_MENU = [
   { to: "/admin/appuntamenti", icon: Calendar, label: "Appuntamenti" },
   { to: "/admin/pagamenti", icon: Wallet, label: "Pagamenti" },
   { to: "/admin/blog", icon: FileText, label: "Blog" },
-  { to: "/admin/contratti", icon: ScrollText, label: "Contratti" },
+  { to: "/admin/contratti", icon: ScrollText, label: "Documenti Legali" },
 ];
 
 const THERAPIST_MENU = [
@@ -21,10 +21,12 @@ const THERAPIST_MENU = [
   { to: "/terapeuta/calendario", icon: CalendarDays, label: "Calendario Disponibilità" },
   { to: "/terapeuta/profilo", icon: UserCheck, label: "Il mio Profilo" },
   { to: "/terapeuta/blog", icon: FileText, label: "Blog" },
+  { to: "/terapeuta/privacy", icon: Shield, label: "I miei dati" },
 ];
 
 const PATIENT_MENU = [
   { to: "/paziente", icon: LayoutDashboard, label: "Dashboard", exact: true },
+  { to: "/paziente/privacy", icon: Shield, label: "I miei dati" },
 ];
 
 export default function Sidebar({ onClose }) {

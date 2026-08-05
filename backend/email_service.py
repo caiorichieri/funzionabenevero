@@ -355,3 +355,118 @@ async def send_reschedule_notification_email(
     except Exception as e:
         logger.error(f"[EMAIL ERROR] reschedule notify failed: {e}")
         return False
+
+
+# ─── Legal document MAJOR-version notification ───────────────────────────────
+async def send_legal_major_update_email(
+    email: str,
+    nome: str,
+    doc_title: str,
+    doc_version: int,
+    frontend_url: str,
+    decline_token: str,
+) -> bool:
+    """Notify a user (typically terapeuta) that a legal doc had a MAJOR update.
+    Includes a link to accept and a link to decline (auto-deactivation 48h)."""
+    if not SEND_EMAILS or not RESEND_API_KEY or RESEND_API_KEY == "placeholder_resend_key":
+        logger.info(f"[EMAIL DISABLED] MAJOR update {doc_title} v{doc_version} to {email}")
+        return False
+    accept_url = f"{frontend_url.rstrip('/')}/terapeuta/firma-documenti"
+    decline_url = f"{frontend_url.rstrip('/')}/legal-decline/{decline_token}"
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#0A0A0A;font-family:Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0A;padding:40px 20px;"><tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px 12px;text-align:center;">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#F58A1F;margin-top:4px;">DOCUMENTO LEGALE AGGIORNATO</div>
+</td></tr>
+<tr><td style="padding:16px 40px;">
+<h1 style="font-family:Georgia,serif;font-size:24px;color:#F4F1ED;margin:0 0 12px 0;">Ciao {nome},</h1>
+<p style="color:rgba(230,226,216,0.75);font-size:15px;line-height:1.6;margin:0 0 20px 0;">
+è stata pubblicata una <strong style="color:#F58A1F;">nuova versione MAJOR</strong> del documento:<br>
+<strong style="color:#F4F1ED;">{doc_title}</strong> — versione {doc_version}
+</p>
+<p style="color:rgba(230,226,216,0.65);font-size:14px;line-height:1.5;margin:0 0 24px 0;">
+Per continuare a operare sulla piattaforma è necessario <strong style="color:#F4F1ED;">rileggere e ri-firmare</strong> il documento al prossimo accesso.
+</p>
+</td></tr>
+<tr><td style="padding:0 40px 24px;text-align:center;">
+<a href="{accept_url}" style="display:inline-block;padding:14px 30px;background:linear-gradient(135deg,#F58A1F,#F5D419);color:#0A0A0A;text-decoration:none;font-weight:bold;border-radius:100px;font-size:14px;">Vai alla piattaforma per firmare →</a>
+</td></tr>
+<tr><td style="padding:16px 40px 24px;border-top:1px solid rgba(255,255,255,0.08);">
+<p style="color:rgba(230,226,216,0.55);font-size:12px;line-height:1.5;margin:0 0 8px 0;">
+<strong>Non intendi accettare la nuova versione?</strong>
+</p>
+<p style="color:rgba(230,226,216,0.5);font-size:12px;line-height:1.5;margin:0;">
+Clicca qui: <a href="{decline_url}" style="color:#F58A1F;">NON ACCETTO — disattiva il mio profilo</a>.<br>
+Il tuo profilo verrà disattivato automaticamente entro 48 ore e riceverai una conferma via email.
+Gli appuntamenti già confermati saranno onorati; le prenotazioni future saranno cancellate con rimborso ai pazienti.
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px;text-align:center;font-size:11px;color:rgba(230,226,216,0.3);">
+BIDOC SRL · P.IVA 01985930930 · Via Mazzini 62, 33097 Spilimbergo (PN)<br>
+Per assistenza: <a href="mailto:privacy@bidoc.it" style="color:rgba(230,226,216,0.5);">privacy@bidoc.it</a>
+</td></tr>
+</table></td></tr></table></body></html>"""
+    params = {
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [email],
+        "subject": f"Aggiornamento importante: {doc_title} v{doc_version}",
+        "html": html,
+    }
+    try:
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"[EMAIL SENT] MAJOR update {doc_title} v{doc_version} to {email} (id={result.get('id') if isinstance(result, dict) else result})")
+        return True
+    except Exception as e:
+        logger.error(f"[EMAIL ERROR] MAJOR update to {email} failed: {e}")
+        return False
+
+
+async def send_signature_receipt_email(email: str, nome: str, doc_titles: list, pdf_bytes: bytes) -> bool:
+    """Send the signed PDF receipt as email attachment."""
+    if not SEND_EMAILS or not RESEND_API_KEY or RESEND_API_KEY == "placeholder_resend_key":
+        logger.info(f"[EMAIL DISABLED] Receipt for {email} ({len(doc_titles)} docs)")
+        return False
+    import base64
+    docs_list = "".join([f"<li>{t}</li>" for t in doc_titles])
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;max-width:560px;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#F58A1F;margin-top:4px;">RICEVUTA DI SOTTOSCRIZIONE</div>
+</td></tr>
+<tr><td style="padding:0 40px 24px;">
+<p style="color:rgba(230,226,216,0.85);font-size:15px;line-height:1.6;margin:0 0 20px;">Ciao <strong>{nome}</strong>,</p>
+<p style="color:rgba(230,226,216,0.75);font-size:14px;line-height:1.6;margin:0 0 16px;">
+Grazie per aver sottoscritto i seguenti documenti legali:
+</p>
+<ul style="color:rgba(230,226,216,0.75);font-size:14px;line-height:1.8;">{docs_list}</ul>
+<p style="color:rgba(230,226,216,0.65);font-size:13px;line-height:1.5;margin:20px 0 0;">
+In allegato trovi la <strong style="color:#F4F1ED;">Ricevuta di Sottoscrizione</strong> con tutti i dettagli
+(hash SHA-256, timestamp UTC, metadati di firma). Ti consigliamo di conservarla.
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px;text-align:center;font-size:11px;color:rgba(230,226,216,0.3);border-top:1px solid rgba(255,255,255,0.08);">
+BIDOC SRL · P.IVA 01985930930 · privacy@bidoc.it
+</td></tr>
+</table></body></html>"""
+    params = {
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [email],
+        "subject": "Ricevuta di sottoscrizione — Funzionabene",
+        "html": html,
+        "attachments": [{
+            "filename": "ricevuta_sottoscrizione.pdf",
+            "content": base64.b64encode(pdf_bytes).decode("utf-8"),
+        }],
+    }
+    try:
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"[EMAIL SENT] Receipt to {email} (id={result.get('id') if isinstance(result, dict) else result})")
+        return True
+    except Exception as e:
+        logger.error(f"[EMAIL ERROR] Receipt to {email} failed: {e}")
+        return False

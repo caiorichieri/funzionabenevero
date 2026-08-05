@@ -131,13 +131,32 @@ export default function ContrattiPage() {
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   {current && (
-                    <button
-                      onClick={() => openAudit(current)}
-                      data-testid={`view-acceptances-btn-${kind}`}
-                      className="px-3 py-2 text-xs text-[#0A0A0A]/70 hover:bg-[#0A0A0A]/5 rounded-lg inline-flex items-center gap-1.5"
-                    >
-                      <ShieldCheck className="w-4 h-4" /> Accettazioni
-                    </button>
+                    <>
+                      <button
+                        onClick={() => openAudit(current)}
+                        data-testid={`view-acceptances-btn-${kind}`}
+                        className="px-3 py-2 text-xs text-[#0A0A0A]/70 hover:bg-[#0A0A0A]/5 rounded-lg inline-flex items-center gap-1.5"
+                      >
+                        <ShieldCheck className="w-4 h-4" /> Accettazioni
+                      </button>
+                      {current.version > 1 && (
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Inviare email di aggiornamento MAJOR a tutti gli utenti che hanno accettato una versione precedente di "${KIND_LABELS[kind]}"?`)) return;
+                            try {
+                              const r = await axios.post(`${API}/admin/contracts/${current.id}/notify-major`, { include_terapeuti: true, include_pazienti: false }, { withCredentials: true });
+                              alert(`Notifica inviata a ${r.data?.notified_count || 0} utenti.`);
+                            } catch (e) {
+                              alert("Errore: " + (e.response?.data?.detail || e.message));
+                            }
+                          }}
+                          data-testid={`notify-major-btn-${kind}`}
+                          className="px-3 py-2 text-xs text-orange-700 hover:bg-orange-50 rounded-lg inline-flex items-center gap-1.5 border border-orange-200"
+                        >
+                          📢 Notifica MAJOR
+                        </button>
+                      )}
+                    </>
                   )}
                   <button
                     onClick={() => startEditFromKind(kind)}
