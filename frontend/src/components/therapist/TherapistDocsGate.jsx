@@ -29,8 +29,8 @@ export default function TherapistDocsGate({ children }) {
         const { data } = await axios.get(`${API}/contracts/pending/mine`, { withCredentials: true });
         if (!cancelled) setState({ loading: false, pendingCount: (data?.pending || []).length });
       } catch {
-        // On error, don't block — fail open so we never lock users out due to transient errors.
-        if (!cancelled) setState({ loading: false, pendingCount: 0 });
+        // Fail CLOSED: on error we must not allow access. Assume 1 pending doc so gate redirects.
+        if (!cancelled) setState({ loading: false, pendingCount: 1, error: true });
       }
     })();
     return () => { cancelled = true; };

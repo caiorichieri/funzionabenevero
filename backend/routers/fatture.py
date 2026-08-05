@@ -1,11 +1,15 @@
 """Fatture router — genera e serve XML+PDF di fatture sanitarie (per conto del terapeuta)
 e commissioni B2B (BIDOC → terapeuta).
 """
+import asyncio
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
+from html import escape
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Response
+from pymongo.errors import DuplicateKeyError
 
 from deps import db, require_auth, require_admin, find_user_by_id
 from fatturazione import (
@@ -46,7 +50,9 @@ async def _get_paziente_full(user_id: str) -> dict:
 
 
 async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
-    """Idempotent: if a fattura already exists for this appuntamento, return it."""
+    """Idempotent + race-safe: unique index on {appuntamento_id, kind} guarantees
+    only one fattura sanitaria per appuntamento. Number is allocated AFTER content
+    build succeeds so failed generations don't burn fiscal numbers."""
     existing = await db.fatture.find_one({"appuntamento_id": appuntamento_id, "kind": "sanitaria"})
     if existing:
         return existing
@@ -62,42 +68,62 @@ async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
 
     importo = Decimal(str(appt.get("prezzo", terapeuta.get("tariffa", 70))))
     year = datetime.now(timezone.utc).year
-    numero = await next_fattura_number(db, "sanitaria", year)
     data = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     causale = f"Prestazione psicologica del {appt.get('data_ora', '')[:10]}"
+
+    # Validate anagraphics BEFORE allocating a fiscal number.
+    # This dry-run also catches any character issues in cedente/cessionario.
+    _validate_anagrafica("terapeuta", terapeuta, ["nome", "cognome", "partita_iva", "codice_fiscale"])
+    _validate_anagrafica("paziente", paziente, ["nome", "cognome"])
+
+    # Allocate number AFTER validation → minimizes wasted fiscal numbers
+    numero = await next_fattura_number(db, "sanitaria", year)
 
     try:
         xml_bytes = generate_xml_sanitaria(
             numero=numero, data=data, terapeuta=terapeuta, paziente=paziente,
             importo=importo, causale=causale,
         )
+        pdf_bytes = generate_pdf(
+            fattura={
+                "numero": numero, "data": data, "totale": importo,
+                "imponibile": importo, "imposta": Decimal("0"),
+                "linee": [{"descrizione": causale, "prezzo": importo}],
+                "causale": causale,
+            },
+            cedente_display=_safe_html_block(
+                f"<b>{escape(terapeuta.get('nome',''))} {escape(terapeuta.get('cognome',''))}</b>",
+                f"P.IVA {escape(terapeuta.get('partita_iva',''))}",
+                f"CF {escape(terapeuta.get('codice_fiscale',''))}",
+                escape(terapeuta.get('residenza_indirizzo','')),
+                f"{escape(terapeuta.get('residenza_cap',''))} {escape(terapeuta.get('residenza_comune',''))} {escape(terapeuta.get('residenza_provincia',''))}",
+            ),
+            cessionario_display=_safe_html_block(
+                f"<b>{escape(paziente.get('nome',''))} {escape(paziente.get('cognome',''))}</b>",
+                f"CF {escape(paziente.get('codice_fiscale','—'))}",
+                escape(paziente.get('indirizzo','')),
+                f"{escape(paziente.get('cap',''))} {escape(paziente.get('comune',''))} {escape(paziente.get('provincia',''))}",
+            ),
+            is_sanitaria=True,
+        )
     except Exception as e:
-        logger.exception(f"[FATTURA] XML gen failed: {e}")
+        logger.exception(f"[FATTURA] Content generation failed for {numero} appt={appuntamento_id}: {e}")
+        # Record burned number for fiscal audit trail (Italian law requires explaining gaps)
+        await db.fattura_burned_numbers.insert_one({
+            "numero": numero, "kind": "sanitaria", "year": year,
+            "reason": str(e)[:500], "appuntamento_id": appuntamento_id,
+            "burned_at": datetime.now(timezone.utc),
+        })
         raise
-    pdf_bytes = generate_pdf(
-        fattura={
-            "numero": numero, "data": data, "totale": importo,
-            "imponibile": importo, "imposta": Decimal("0"),
-            "linee": [{"descrizione": causale, "prezzo": importo}],
-            "causale": causale,
-        },
-        cedente_display=(f"<b>{terapeuta.get('nome','')} {terapeuta.get('cognome','')}</b><br/>"
-                          f"P.IVA {terapeuta.get('partita_iva','')}<br/>CF {terapeuta.get('codice_fiscale','')}<br/>"
-                          f"{terapeuta.get('residenza_indirizzo','')}<br/>"
-                          f"{terapeuta.get('residenza_cap','')} {terapeuta.get('residenza_comune','')} "
-                          f"{terapeuta.get('residenza_provincia','')}"),
-        cessionario_display=(f"<b>{paziente.get('nome','')} {paziente.get('cognome','')}</b><br/>"
-                              f"CF {paziente.get('codice_fiscale','—')}<br/>"
-                              f"{paziente.get('indirizzo','')}<br/>{paziente.get('cap','')} {paziente.get('comune','')} {paziente.get('provincia','')}"),
-        is_sanitaria=True,
-    )
 
-    # Upload to Object Storage (fallback: inline base64 in DB)
+    # Upload to Object Storage OFF the event loop (non-blocking)
     xml_path = pdf_path = None
     xml_b64 = pdf_b64 = None
     try:
-        xml_path = put_object(f"funzionabene/fatture/{numero}.xml", xml_bytes, "application/xml").get("path")
-        pdf_path = put_object(f"funzionabene/fatture/{numero}.pdf", pdf_bytes, "application/pdf").get("path")
+        xml_result = await asyncio.to_thread(put_object, f"funzionabene/fatture/{numero}.xml", xml_bytes, "application/xml")
+        pdf_result = await asyncio.to_thread(put_object, f"funzionabene/fatture/{numero}.pdf", pdf_bytes, "application/pdf")
+        xml_path = xml_result.get("path")
+        pdf_path = pdf_result.get("path")
     except Exception as e:
         import base64
         logger.warning(f"[FATTURA] Object Storage failed for {numero}, using inline: {e}")
@@ -124,9 +150,33 @@ async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
         "created_at": datetime.now(timezone.utc),
         "trasmessa_sistema_ts": False,
     }
-    result = await db.fatture.insert_one(doc)
-    doc["_id"] = result.inserted_id
+    try:
+        result = await db.fatture.insert_one(doc)
+        doc["_id"] = result.inserted_id
+    except DuplicateKeyError:
+        # Race: another concurrent request already generated this fattura.
+        # Burn our number and return the pre-existing document.
+        await db.fattura_burned_numbers.insert_one({
+            "numero": numero, "kind": "sanitaria", "year": year,
+            "reason": "concurrent duplicate — fatture unique index triggered",
+            "appuntamento_id": appuntamento_id,
+            "burned_at": datetime.now(timezone.utc),
+        })
+        existing = await db.fatture.find_one({"appuntamento_id": appuntamento_id, "kind": "sanitaria"})
+        return existing
     return doc
+
+
+def _validate_anagrafica(who: str, data: dict, required: list[str]):
+    """Fail-fast pre-check so a fiscal number isn't allocated for a broken record."""
+    missing = [k for k in required if not (data or {}).get(k)]
+    if missing:
+        raise ValueError(f"Dati {who} mancanti: {', '.join(missing)}")
+
+
+def _safe_html_block(*lines: str) -> str:
+    """Join pre-escaped lines with <br/> for ReportLab Paragraph rendering."""
+    return "<br/>".join(l for l in lines if l is not None and str(l).strip())
 
 
 async def _generate_fatture_commissione_mensile(year: int, month: int) -> list[dict]:
@@ -199,17 +249,23 @@ async def _generate_fatture_commissione_mensile(year: int, month: int) -> list[d
             cedente_display=("<b>BIDOC SRL</b><br/>Marchio: Funzionabene<br/>"
                               "P.IVA/CF 01985930930<br/>REA PN-377600<br/>"
                               "Via Mazzini 62, 33097 Spilimbergo (PN)<br/>PEC bidocsrl@pecimprese.it"),
-            cessionario_display=(f"<b>{terapeuta.get('nome','')} {terapeuta.get('cognome','')}</b><br/>"
-                                  f"P.IVA {terapeuta.get('partita_iva','')}<br/>CF {terapeuta.get('codice_fiscale','')}<br/>"
-                                  f"SDI: {terapeuta.get('codice_sdi') or '0000000'}<br/>PEC: {terapeuta.get('pec','—')}"),
+            cessionario_display=_safe_html_block(
+                f"<b>{escape(terapeuta.get('nome',''))} {escape(terapeuta.get('cognome',''))}</b>",
+                f"P.IVA {escape(terapeuta.get('partita_iva',''))}",
+                f"CF {escape(terapeuta.get('codice_fiscale',''))}",
+                f"SDI: {escape(terapeuta.get('codice_sdi') or '0000000')}",
+                f"PEC: {escape(terapeuta.get('pec','—'))}",
+            ),
             is_sanitaria=False,
         )
 
         xml_path = pdf_path = None
         xml_b64 = pdf_b64 = None
         try:
-            xml_path = put_object(f"funzionabene/fatture-commissione/{numero}.xml", xml_bytes, "application/xml").get("path")
-            pdf_path = put_object(f"funzionabene/fatture-commissione/{numero}.pdf", pdf_bytes, "application/pdf").get("path")
+            xml_result = await asyncio.to_thread(put_object, f"funzionabene/fatture-commissione/{numero}.xml", xml_bytes, "application/xml")
+            pdf_result = await asyncio.to_thread(put_object, f"funzionabene/fatture-commissione/{numero}.pdf", pdf_bytes, "application/pdf")
+            xml_path = xml_result.get("path")
+            pdf_path = pdf_result.get("path")
         except Exception as e:
             import base64
             logger.warning(f"[FATTURA CM] Storage failed for {numero}: {e}")
@@ -293,6 +349,7 @@ async def admin_fatture(kind: str = None, admin: dict = Depends(require_admin)):
 
 
 async def _fetch_and_serve(fid: str, fmt: str, user: dict):
+    """Return (fattura_doc, file_bytes) — single fetch, off-loop storage read."""
     try:
         f = await db.fatture.find_one({"_id": ObjectId(fid)})
     except Exception:
@@ -306,17 +363,16 @@ async def _fetch_and_serve(fid: str, fmt: str, user: dict):
     path_key = f"{fmt}_storage_path"
     if f.get(inline_key):
         import base64
-        return base64.b64decode(f[inline_key])
+        return f, base64.b64decode(f[inline_key])
     if f.get(path_key):
-        data, _ = get_object(f[path_key])
-        return data
+        data, _ = await asyncio.to_thread(get_object, f[path_key])
+        return f, data
     raise HTTPException(410, f"File {fmt.upper()} non disponibile")
 
 
 @router.get("/fatture/{fid}/xml")
 async def download_xml(fid: str, user: dict = Depends(require_auth)):
-    data = await _fetch_and_serve(fid, "xml", user)
-    f = await db.fatture.find_one({"_id": ObjectId(fid)})
+    f, data = await _fetch_and_serve(fid, "xml", user)
     return Response(content=data, media_type="application/xml", headers={
         "Content-Disposition": f'attachment; filename="{f.get("numero","fattura")}.xml"'
     })
@@ -324,8 +380,7 @@ async def download_xml(fid: str, user: dict = Depends(require_auth)):
 
 @router.get("/fatture/{fid}/pdf")
 async def download_pdf(fid: str, user: dict = Depends(require_auth)):
-    data = await _fetch_and_serve(fid, "pdf", user)
-    f = await db.fatture.find_one({"_id": ObjectId(fid)})
+    f, data = await _fetch_and_serve(fid, "pdf", user)
     return Response(content=data, media_type="application/pdf", headers={
         "Content-Disposition": f'attachment; filename="{f.get("numero","fattura")}.pdf"'
     })

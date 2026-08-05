@@ -786,6 +786,82 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ─── Therapist signature enforcement middleware ────────────────────────────────
+# Rejects therapist-authenticated requests to protected endpoints when mandatory
+# legal documents haven't been signed. Fail-CLOSED: any error checking signature
+# status blocks the therapist (except for allowlisted paths).
+from deps import _TERAPEUTA_REQUIRED_KINDS
+import jwt as _jwt
+
+# Endpoints therapists can ALWAYS access, even without signed docs (needed to
+# actually complete the signature flow, log out, view their profile, etc.).
+_SIGNATURE_ALLOWLIST_PREFIXES = (
+    "/api/auth/",           # login, logout, /me
+    "/api/contracts/",      # sign, list pending
+    "/api/legal-documents/",  # read legal doc content (public reads)
+    "/api/upload/",         # file uploads used by signature flow
+)
+
+@app.middleware("http")
+async def therapist_signature_gate(request, call_next):
+    path = request.url.path
+    method = request.method
+    # Skip non-API and non-mutating requests fast
+    if not path.startswith("/api/") or method in ("OPTIONS", "GET", "HEAD"):
+        return await call_next(request)
+    if any(path.startswith(p) for p in _SIGNATURE_ALLOWLIST_PREFIXES):
+        return await call_next(request)
+    logging.info(f"[SIGGATE] check {method} {path}")
+
+    # Pull token
+    token = request.cookies.get("access_token")
+    if not token:
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            token = auth.split(" ", 1)[1]
+    if not token:
+        return await call_next(request)  # no session → downstream deps will 401
+    try:
+        payload = _jwt.decode(token, os.environ["JWT_SECRET"], algorithms=["HS256"])
+        role = payload.get("role")
+        user_id = payload.get("sub")
+    except Exception:
+        return await call_next(request)  # let downstream handle invalid token
+
+    if role != "terapeuta" or not user_id:
+        return await call_next(request)
+
+    # Check signature status
+    try:
+        for kind in _TERAPEUTA_REQUIRED_KINDS:
+            current = await db.contracts.find_one({"kind": kind, "is_current": True})
+            if not current:
+                continue
+            signed = await db.contract_acceptances.find_one({
+                "user_id": user_id,
+                "contract_kind": kind,
+                "contract_version": current.get("version"),
+            })
+            if not signed:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": "Devi firmare i documenti obbligatori prima di eseguire questa operazione.",
+                        "required_signature": True,
+                    },
+                )
+    except Exception as e:
+        logging.exception(f"[SIGNATURE GATE] check failed: {e}")
+        # Fail closed for compliance
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Verifica firma documenti temporaneamente non disponibile. Riprova."},
+        )
+    return await call_next(request)
+
 # ─── Startup ──────────────────────────────────────────────────────────────────
 from booking_service import scheduler, start_scheduler, stop_scheduler, schedule_reminders, finalize_confirmed_booking
 
@@ -798,6 +874,18 @@ async def startup():
     await db.login_attempts.create_index("identifier")
     await db.password_reset_tokens.create_index("token_hash", unique=True)
     await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
+    # Fatture uniqueness — prevent duplicate invoices under race conditions
+    await db.fatture.create_index("numero", unique=True)
+    await db.fatture.create_index(
+        [("appuntamento_id", 1), ("kind", 1)],
+        unique=True,
+        partialFilterExpression={"appuntamento_id": {"$type": "string"}},
+    )
+    await db.fatture.create_index(
+        [("terapeuta_user_id", 1), ("kind", 1), ("anno_riferimento", 1), ("mese_riferimento", 1)],
+        unique=True,
+        partialFilterExpression={"kind": "commissione"},
+    )
     await seed_data()
     await _seed_default_contract()
     await _seed_legal_documents()

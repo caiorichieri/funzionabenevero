@@ -1248,3 +1248,36 @@ Pagina admin per gestire il Registro delle attività di trattamento ex art. 30 G
 - **P1**: Invio SDI automatizzato (Fatture in Cloud / Aruba)
 - **P2**: Export ZIP annuale fatture per commercialista/730
 
+
+---
+
+## ✅ FASE 17 — Code Review Hardening (Feb 2026)
+
+### Achados MEDIUM corrigidos (4/4)
+
+**1. Backend signature gate (fail-closed)**
+- Novo middleware HTTP em `server.py` → `therapist_signature_gate`
+- Rejeita qualquer request `POST/PUT/PATCH/DELETE` de terapeuta sem docs firmados (excluindo allowlist: `/api/auth/`, `/api/contracts/`, `/api/legal-documents/`, `/api/upload/`)
+- Retorna `403 {required_signature: true}`
+- Fail-closed em erro de DB → retorna `503`
+- Frontend `TherapistDocsGate` também mudou para fail-closed (bloqueia em erro de rede)
+
+**2. Numerazione fatture race-safe**
+- Índices únicos criados em startup: `numero`, `{appuntamento_id, kind}`, `{terapeuta, kind, anno, mese}`
+- Numero allocado **após** validação anagrafica (reduz "queima" de numeri)
+- Try/except `DuplicateKeyError` → em corrida, registra "burned number" e retorna a fattura pré-existente
+- Nova coleção `fattura_burned_numbers` para audit trail fiscal
+
+**3. Object Storage assíncrono**
+- Todos `put_object`/`get_object` envolvidos em `asyncio.to_thread(...)` em `fatture.py` e `legal_signature.py`
+- Backend não congela mais sob lentidão do storage
+
+**4. HTML escape em PDF**
+- Adicionado `escape()` (html) em todos os campos anagrafica cedente/cessionario em `fatture.py`
+- Novo helper `_safe_html_block` para juntar linhas pré-escapadas
+- Testado com "Via A&lt;B&gt;C" — PDF gera OK
+
+### Achados LOW
+- Duplicate fetch em `download_xml`/`download_pdf` → agora `_fetch_and_serve` retorna `(doc, bytes)` em uma única query
+- Weekly email attachment cap: **NÃO endereçado** (backlog LOW)
+

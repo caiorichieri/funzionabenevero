@@ -14,6 +14,7 @@ Endpoints:
 """
 import os
 import uuid
+import asyncio
 import hashlib
 import secrets
 import logging
@@ -161,7 +162,7 @@ async def sign_contracts(data: SignContractsInput, request: Request, user: dict 
     canonical_path = None
     pdf_inline_b64 = None
     try:
-        upload_res = put_object(storage_path, pdf_bytes, "application/pdf")
+        upload_res = await asyncio.to_thread(put_object, storage_path, pdf_bytes, "application/pdf")
         canonical_path = upload_res.get("path", storage_path)
     except Exception as e:
         logger.exception(f"[SIGN] Object Storage upload failed, falling back to inline DB storage: {e}")
@@ -269,7 +270,7 @@ async def download_receipt(receipt_id: str, user: dict = Depends(require_auth)):
     if not storage_path:
         raise HTTPException(410, "PDF non più disponibile — contatta privacy@bidoc.it")
     try:
-        data, ct = get_object(storage_path)
+        data, ct = await asyncio.to_thread(get_object, storage_path)
     except Exception as e:
         logger.exception(f"[RECEIPT DOWNLOAD] failed: {e}")
         raise HTTPException(502, "Errore recupero PDF")

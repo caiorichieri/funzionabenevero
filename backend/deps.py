@@ -135,3 +135,37 @@ async def require_admin(user: dict = Depends(get_current_user)):
 
 async def require_auth(user: dict = Depends(get_current_user)):
     return user
+
+
+
+# Required legal document kinds a therapist MUST sign (mirrors legal_signature.TERAPEUTA_REQUIRED_KINDS
+# but declared here to avoid circular imports).
+_TERAPEUTA_REQUIRED_KINDS = [
+    "contratto_collaborazione",
+    "privacy_terapeuti",
+    "termini_pazienti",
+    "cookie_policy",
+]
+
+
+async def require_therapist_signed(user: dict = Depends(get_current_user)):
+    """Server-side gate: rejects therapists who haven't signed all mandatory legal documents.
+    Admins and non-therapists pass through unchanged."""
+    if user.get("role") != "terapeuta":
+        return user
+    # Check every required kind against its CURRENT version
+    for kind in _TERAPEUTA_REQUIRED_KINDS:
+        current = await db.contracts.find_one({"kind": kind, "is_current": True})
+        if not current:
+            continue
+        signed = await db.contract_acceptances.find_one({
+            "user_id": user["_id"],
+            "contract_kind": kind,
+            "contract_version": current.get("version"),
+        })
+        if not signed:
+            raise HTTPException(
+                status_code=403,
+                detail="Devi firmare i documenti obbligatori prima di eseguire questa operazione. Vai su /terapeuta/firma-documenti",
+            )
+    return user
