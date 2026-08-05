@@ -165,6 +165,7 @@ function Footer() {
             <li><Link to="/lavora-con-noi" className="hover:text-[#0A0A0A]">Lavora con noi</Link></li>
             <li><Link to="/contatti" className="hover:text-[#0A0A0A]">Contatti</Link></li>
             <li><Link to="/emergenze" className="hover:text-[#C77474]">Numeri d&apos;emergenza</Link></li>
+            <li><Link to="/scarica-app" className="hover:text-[#0A0A0A] font-medium">Scarica l&apos;app</Link></li>
           </ul>
         </div>
         <div>

@@ -34,7 +34,9 @@ export default function OTPPage() {
       await axios.post(`${API}/auth/verify-otp`, { email, otp_code: otp }, { withCredentials: true });
       await refreshUser();
       setSuccess("Account verificato! Reindirizzamento...");
-      setTimeout(() => navigate("/"), 1500);
+      // Flag so the destination can suggest PWA install
+      sessionStorage.setItem("just-registered", "1");
+      setTimeout(() => navigate("/paziente"), 1500);
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(typeof detail === "string" ? detail : "Codice OTP non valido");

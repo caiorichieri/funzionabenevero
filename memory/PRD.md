@@ -1333,3 +1333,37 @@ Pagina admin per gestire il Registro delle attività di trattamento ex art. 30 G
 - Admin `/admin/psicoeducazione` curadoria de biblioteca
 - Frontend `/paziente/impara` catálogo com articoli/podcast/mini-lezioni
 
+
+---
+
+## ✅ FASE 18a-plus — Download Experience (Feb 2026)
+
+Decisione strategica utente: **PWA only, nessuna app store**. Tutto il download avviene via install-to-home-screen.
+
+### Novidades
+- **Pagina pubblica `/scarica-app`** (`ScaricaAppPage.jsx`):
+  - Hero mobile-friendly con propone il valore del PWA
+  - Detection automatica della piattaforma (iOS/Android/Desktop) → mostra le istruzioni giuste
+  - QR code (via qrserver.com, zero-dependency) per desktop users → scan e installa dal telefono
+  - FAQ integrato (perché non è nello store, offline, sicurezza, disinstallazione)
+  - Card "Cosa avrai": Appuntamenti · Diario · Chat · Riservatezza
+- **`IOSInstallHelper`** — modal visuale che si attiva SOLO su Safari iPhone/iPad, dopo 2.5s dall'ingresso:
+  - 2 step illustrati con icone: Condividi 📤 → Aggiungi a Home ➕
+  - Dismissible + memorizzato in localStorage
+  - Bypassata la limitazione Apple che disabilita `beforeinstallprompt`
+- **`PWAInstaller` migliorato**: banner nativo Android/Desktop + fallback a `/scarica-app` quando l'evento non è disponibile
+- **Post-registration prompt**: dopo verifica OTP, sessionStorage flag `just-registered` → PWA banner appare sul dashboard
+- **Link visibili nel marketing**:
+  - Footer sezione "Esplora" → "Scarica l'app"
+  - `AppSection` homepage → CTA nero "Scarica l'app"
+
+### Test manuale (Feb 2026)
+- ✅ `/scarica-app` renderizza su desktop com QR code + coluna "Cosa avrai"
+- ✅ Screenshot mobile confirma design responsivo
+- ✅ Detection logic funcionando (default: desktop)
+
+### Backlog
+- **Fase 18b Web Push VAPID**: Notifiche promemoria seduta 24h/1h antes + alerta terapeuta quando nova nota chega
+- **Fase 19 Coach Sessuale AI (Claude Sonnet 5)**
+- **Fase 20 Psicoeducazione (biblioteca curada admin BIDOC)**
+

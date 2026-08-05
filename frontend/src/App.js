@@ -61,6 +61,8 @@ import LegalDeclinePage from "@/pages/public/LegalDeclinePage";
 import FirmaDocumentiPage from "@/pages/therapist/FirmaDocumentiPage";
 import TherapistDocsGate from "@/components/therapist/TherapistDocsGate";
 import PWAInstaller from "@/components/shared/PWAInstaller";
+import IOSInstallHelper from "@/components/shared/IOSInstallHelper";
+import ScaricaAppPage from "@/pages/public/ScaricaAppPage";
 import PrivacyUtentePage from "@/pages/shared/PrivacyUtentePage";
 import FatturePage from "@/pages/admin/FatturePage";
 import RegistroTrattamentiPage from "@/pages/admin/RegistroTrattamentiPage";
@@ -83,6 +85,7 @@ export default function App() {
         <ScrollToTop />
         <MagicCursor />
         <PWAInstaller />
+        <IOSInstallHelper />
         <Routes>
           {/* Public site */}
           <Route element={<PublicLayout />}>
@@ -109,6 +112,7 @@ export default function App() {
             <Route path="/il-nostro-mondo" element={<IlNostroMondoPage />} />
             <Route path="/lavora-con-noi" element={<LavoraConNoiPage />} />
             <Route path="/contatti" element={<ContattiPage />} />
+            <Route path="/scarica-app" element={<ScaricaAppPage />} />
             <Route path="/payment/success" element={<PaymentSuccessPage />} />
             <Route path="/payment/cancel" element={<PaymentCancelPage />} />
             <Route path="/mandato-legale" element={<MandatoLegalePage />} />

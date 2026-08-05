@@ -72,6 +72,13 @@ export default function AppSection() {
           </ul>
 
           <div className="mt-10 flex flex-wrap gap-3 items-center">
+            <a
+              href="/scarica-app"
+              data-testid="cta-scarica-app-section"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0A0A0A] text-white text-sm font-semibold hover:bg-[#0A0A0A]/85 transition-colors"
+            >
+              <Sparkles className="w-4 h-4 text-[#F5D419]" /> Scarica l&apos;app
+            </a>
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/60 border border-[#0A0A0A]/12 text-xs text-[#0A0A0A]/75">
               <Lock className="w-3.5 h-3.5" /> Sicura, criptata, GDPR
             </span>
