@@ -28,6 +28,7 @@ import VideoCallPage from "@/pages/VideoCallPage";
 import Layout from "@/components/shared/Layout";
 import ScrollToTop from "@/components/shared/ScrollToTop";
 import MagicCursor from "@/components/shared/MagicCursor";
+import CookieBanner from "@/components/public/CookieBanner";
 
 // Public site
 import PublicLayout from "@/components/public/PublicLayout";
@@ -165,6 +166,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
+        <CookieBanner />
       </BrowserRouter>
     </AuthProvider>
   );

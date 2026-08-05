@@ -52,6 +52,29 @@ async def register(data: RegisterInput, response: Response):
     otp_code = generate_otp()
     otp_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
 
+    now = datetime.now(timezone.utc)
+    consents_snapshot = {
+        "privacy_accettata": bool(data.consenso_privacy),
+        "privacy_accettata_at": now if data.consenso_privacy else None,
+        "privacy_versione": data.consent_version_privacy,
+        "termini_accettati": bool(data.consenso_termini),
+        "termini_accettati_at": now if data.consenso_termini else None,
+        "termini_versione": data.consent_version_termini,
+        "dati_sanitari": bool(data.consenso_dati_sanitari),
+        "dati_sanitari_at": now if data.consenso_dati_sanitari else None,
+        "marketing": bool(data.consenso_marketing),
+        "marketing_at": now if data.consenso_marketing else None,
+        "ricerca": bool(data.consenso_ricerca),
+        "ricerca_at": now if data.consenso_ricerca else None,
+        "miglioramento": bool(data.consenso_miglioramento),
+        "miglioramento_at": now if data.consenso_miglioramento else None,
+    }
+
+    # Paziente MUST accept mandatory consents
+    if data.role == "paziente":
+        if not (data.consenso_privacy and data.consenso_termini):
+            raise HTTPException(status_code=400, detail="I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione")
+
     user_doc = {
         "email": email,
         "password_hash": hash_password(data.password),
@@ -63,13 +86,34 @@ async def register(data: RegisterInput, response: Response):
         "otp_code": otp_code,
         "otp_expires": otp_expires,
         "consenso_privacy": data.consenso_privacy,
-        "created_at": datetime.now(timezone.utc),
+        "consents": consents_snapshot,
+        "created_at": now,
     }
     if data.role == "terapeuta":
         user_doc["approval_status"] = "pending"
 
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
+
+    # Record initial consents into the audit history (art. 7 GDPR accountability)
+    consent_signup_map = {
+        "privacy": bool(data.consenso_privacy),
+        "termini": bool(data.consenso_termini),
+        "dati_sanitari": bool(data.consenso_dati_sanitari),
+        "marketing": bool(data.consenso_marketing),
+        "ricerca": bool(data.consenso_ricerca),
+        "miglioramento": bool(data.consenso_miglioramento),
+    }
+    consent_events = [{
+        "user_id": user_id,
+        "consent_type": ctype,
+        "action": "grant" if granted else "not_granted_at_signup",
+        "timestamp": now,
+        "ip_anonymized": "",
+        "source": "signup",
+    } for ctype, granted in consent_signup_map.items()]
+    if consent_events:
+        await db.consent_history.insert_many(consent_events)
 
     if data.role == "paziente":
         await db.pazienti.insert_one({

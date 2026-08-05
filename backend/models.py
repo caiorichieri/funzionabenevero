@@ -10,6 +10,14 @@ class RegisterInput(BaseModel):
     cognome: str
     role: str = "paziente"
     consenso_privacy: bool = True
+    # New granular consents (Fase 13)
+    consenso_termini: bool = False       # OBBLIGATORIO paziente: T&C
+    consenso_dati_sanitari: bool = False # OBBLIGATORIO paziente: art. 9.2.a GDPR (questionario)
+    consenso_marketing: bool = False     # facoltativo
+    consenso_ricerca: bool = False       # facoltativo
+    consenso_miglioramento: bool = False # facoltativo
+    consent_version_privacy: Optional[str] = None
+    consent_version_termini: Optional[str] = None
 
 
 class LoginInput(BaseModel):

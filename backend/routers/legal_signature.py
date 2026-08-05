@@ -613,3 +613,20 @@ async def update_consent(data: UpdateConsentInput, request: Request, user: dict 
         "ip_anonymized": _anonymize_ip(_client_ip(request)),
     })
     return {"consent_type": data.consent_type, "granted": data.granted, "timestamp": now.isoformat()}
+
+
+# ─── Admin manual triggers for scheduled jobs ────────────────────────────────
+
+
+@router.post("/admin/jobs/retention/run")
+async def admin_run_retention(admin: dict = Depends(require_admin)):
+    """Manually trigger the retention_anonymize job. Useful for testing."""
+    from scheduled_jobs import retention_anonymize
+    return await retention_anonymize(db)
+
+
+@router.post("/admin/jobs/legal-decline/run")
+async def admin_run_legal_decline(admin: dict = Depends(require_admin)):
+    """Manually trigger the process_legal_declines job."""
+    from scheduled_jobs import process_legal_declines
+    return await process_legal_declines(db)

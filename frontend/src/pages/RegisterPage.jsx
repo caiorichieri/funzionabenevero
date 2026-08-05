@@ -15,6 +15,14 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState("");
   const [form, setForm] = useState({ nome: "", cognome: "", email: "", password: "", conferma_password: "" });
+  const [consents, setConsents] = useState({
+    privacy: false,
+    termini: false,
+    dati_sanitari: false,
+    marketing: false,
+    ricerca: false,
+    miglioramento: false,
+  });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -26,12 +34,31 @@ export default function RegisterPage() {
     setError("");
     if (form.password !== form.conferma_password) { setError("Le password non coincidono"); return; }
     if (form.password.length < 8) { setError("La password deve avere almeno 8 caratteri"); return; }
+    if (role === "paziente") {
+      if (!consents.privacy || !consents.termini || !consents.dati_sanitari) {
+        setError("Devi accettare Privacy, Termini e trattamento dei dati sanitari per proseguire.");
+        return;
+      }
+    } else {
+      if (!consents.privacy) {
+        setError("Devi accettare l'informativa Privacy per proseguire.");
+        return;
+      }
+    }
     setLoading(true);
     try {
       const res = await axios.post(`${API}/auth/register`, {
         email: form.email, password: form.password,
         nome: form.nome, cognome: form.cognome,
-        role, consenso_privacy: true
+        role,
+        consenso_privacy: consents.privacy,
+        consenso_termini: consents.termini,
+        consenso_dati_sanitari: consents.dati_sanitari,
+        consenso_marketing: consents.marketing,
+        consenso_ricerca: consents.ricerca,
+        consenso_miglioramento: consents.miglioramento,
+        consent_version_privacy: "1.0",
+        consent_version_termini: "1.0",
       });
       navigate("/verifica-otp", { state: { email: form.email, otp_dev: res.data.otp_dev } });
     } catch (err) {
@@ -41,6 +68,8 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  const toggleConsent = (k) => setConsents(prev => ({ ...prev, [k]: !prev[k] }));
 
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center p-6">
@@ -164,12 +193,94 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
-                <input type="checkbox" required id="privacy" className="mt-1 accent-[#0A0A0A]" />
-                <label htmlFor="privacy" className="text-sm text-[#0A0A0A]/75">
-                  Accetto la{" "}
-                  <span className="text-[#0A0A0A] cursor-pointer">Privacy Policy</span>{" "}
-                  e il trattamento dei dati personali ai sensi del GDPR
+              <div className="space-y-2.5 pt-1 border-t border-[#0A0A0A]/10">
+                <label className="flex items-start gap-2.5 cursor-pointer text-sm text-[#0A0A0A]/80" data-testid="consent-privacy-wrapper">
+                  <input
+                    data-testid="consent-privacy"
+                    type="checkbox"
+                    checked={consents.privacy}
+                    onChange={() => toggleConsent("privacy")}
+                    className="mt-1 accent-[#0A0A0A]"
+                    required
+                  />
+                  <span>
+                    <span className="text-red-600">*</span> Ho letto l&apos;
+                    <Link to={role === "paziente" ? "/privacy-pazienti" : "/privacy-visitatori"} target="_blank" className="underline hover:text-[#0A0A0A]">
+                      Informativa Privacy
+                    </Link>{" "}
+                    (art. 13 GDPR).
+                  </span>
+                </label>
+
+                {role === "paziente" && (
+                  <>
+                    <label className="flex items-start gap-2.5 cursor-pointer text-sm text-[#0A0A0A]/80" data-testid="consent-termini-wrapper">
+                      <input
+                        data-testid="consent-termini"
+                        type="checkbox"
+                        checked={consents.termini}
+                        onChange={() => toggleConsent("termini")}
+                        className="mt-1 accent-[#0A0A0A]"
+                        required
+                      />
+                      <span>
+                        <span className="text-red-600">*</span> Ho letto e accetto i{" "}
+                        <Link to="/termini-pazienti" target="_blank" className="underline hover:text-[#0A0A0A]">
+                          Termini e Condizioni
+                        </Link>
+                        .
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-2.5 cursor-pointer text-sm text-[#0A0A0A]/80" data-testid="consent-sanitari-wrapper">
+                      <input
+                        data-testid="consent-sanitari"
+                        type="checkbox"
+                        checked={consents.dati_sanitari}
+                        onChange={() => toggleConsent("dati_sanitari")}
+                        className="mt-1 accent-[#0A0A0A]"
+                        required
+                      />
+                      <span>
+                        <span className="text-red-600">*</span> Acconsento al trattamento dei miei dati particolari relativi alla salute per la compilazione del questionario iniziale e la proposta del Terapeuta più adatto (art. 9.2.a GDPR).
+                      </span>
+                    </label>
+                  </>
+                )}
+
+                <div className="text-[11px] uppercase tracking-widest text-[#0A0A0A]/45 pt-1">Facoltativi</div>
+
+                <label className="flex items-start gap-2.5 cursor-pointer text-sm text-[#0A0A0A]/75" data-testid="consent-marketing-wrapper">
+                  <input
+                    data-testid="consent-marketing"
+                    type="checkbox"
+                    checked={consents.marketing}
+                    onChange={() => toggleConsent("marketing")}
+                    className="mt-1 accent-[#0A0A0A]"
+                  />
+                  <span>Voglio ricevere comunicazioni promozionali su nuovi servizi, contenuti e iniziative di Funzionabene (art. 6.1.a GDPR).</span>
+                </label>
+
+                <label className="flex items-start gap-2.5 cursor-pointer text-sm text-[#0A0A0A]/75" data-testid="consent-ricerca-wrapper">
+                  <input
+                    data-testid="consent-ricerca"
+                    type="checkbox"
+                    checked={consents.ricerca}
+                    onChange={() => toggleConsent("ricerca")}
+                    className="mt-1 accent-[#0A0A0A]"
+                  />
+                  <span>Autorizzo l&apos;uso dei miei dati in forma anonimizzata per ricerca scientifica in ambito psicologico (art. 9.2.a GDPR).</span>
+                </label>
+
+                <label className="flex items-start gap-2.5 cursor-pointer text-sm text-[#0A0A0A]/75" data-testid="consent-miglioramento-wrapper">
+                  <input
+                    data-testid="consent-miglioramento"
+                    type="checkbox"
+                    checked={consents.miglioramento}
+                    onChange={() => toggleConsent("miglioramento")}
+                    className="mt-1 accent-[#0A0A0A]"
+                  />
+                  <span>Acconsento all&apos;utilizzo dei miei dati aggregati per analisi statistiche di miglioramento del servizio.</span>
                 </label>
               </div>
 

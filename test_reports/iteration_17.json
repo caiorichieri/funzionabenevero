@@ -1,0 +1,44 @@
+{
+  "summary": "Fase 13 GDPR compliance testing — backend (consenti signup + retention job + legal-decline job + admin triggers) all PASS (13/13). Frontend: new CookieBanner + granular RegisterPage consent checkboxes work correctly. CRITICAL BUG: two cookie banners are rendered simultaneously — the NEW GDPR-compliant CookieBanner (App.js) plus the OLD CookieConsentBanner (PublicLayout.jsx) which lacks 'Rifiuta tutti' — old banner is the one visible on public pages, violating Provv. Garante 231/2021.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CookieConsentBanner (legacy) + CookieBanner (new) — DUPLICATE",
+        "issue": "Two cookie banners are registered: App.js includes new GDPR-compliant <CookieBanner/>, but PublicLayout.jsx (line 197) still renders legacy <CookieConsentBanner/> with only 'Solo essenziali / Personalizza / Accetta tutti' (missing 'Rifiuta tutti'). Visible banner on public pages is the LEGACY one — violates Provv. Garante 231/2021 requirement of 3 buttons of equal evidence (Rifiuta / Personalizza / Accetta). Also the legacy banner uses different localStorage key ('fb_cookie_consent'), so user preferences set through new banner do NOT dismiss the old banner.",
+        "selector": "components/public/CookieConsentBanner.jsx used in PublicLayout.jsx line 197",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration17_gdpr_fase13.py",
+    "/app/backend/tests/test_iteration17_jobs_e2e.py",
+    "/app/test_reports/pytest/iter17_results.xml"
+  ],
+  "action_items": [
+    "REMOVE legacy <CookieConsentBanner/> from /app/frontend/src/components/public/PublicLayout.jsx line 197 (and delete CookieConsentBanner.jsx + utils/cookieConsent.js if no longer used).",
+    "Ensure CookiePage.jsx (pages/public/CookiePage.jsx) is refactored to use the new STORAGE_KEY 'funzionabene_cookie_consent_v1' + applyConsent from cookieLoader, since it currently imports from legacy utils/cookieConsent.js.",
+    "Verify no other component references legacy 'fb_cookie_consent' key."
+  ],
+  "critical_code_review_comments": [
+    "Duplicate cookie banner components is a compliance CRITICAL — the user-visible banner is the legacy one lacking 'Rifiuta tutti'.",
+    "scheduled_jobs.retention_anonymize: uses `days=INACTIVITY_MONTHS * 30` — approximate; acceptable but consider dateutil.relativedelta for precision.",
+    "scheduled_jobs.process_legal_declines: cancels appuntamenti only for role=='terapeuta' — pazienti's future bookings are NOT cancelled when their account is legally-declined-deactivated (they still have appointments booked with terapeuti). Consider whether paziente future bookings should also be cancelled + refunded.",
+    "auth.py register: consents_snapshot stores datetime objects mixed with None — Mongo will store them fine, but on export via /gdpr/export the snapshot is returned as-is (contains raw datetime dicts). Consider isoformat serialization.",
+    "CookieBanner.jsx pushBackend calls /api/audit/consent with only essential/analytics/marketing — loses granularity (esperienza + statistica are collapsed). Consider dedicated /api/audit/cookie-consent endpoint or expand ConsentPrefs model."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration17_gdpr_fase13.py (new)",
+    "/app/backend/tests/test_iteration17_jobs_e2e.py (new)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "80% (banner works but duplicate legacy banner blocks compliance)"},
+  "test_credentials": "admin@funzionabene.it / admin2026",
+  "seed_data_creation": "Test users created with prefix 'test-fase13-' via API + direct MongoDB (all cleaned up in finally blocks). test_paziente_all_consents_ok_and_history creates a verified paziente that persists (no cleanup — email includes timestamp so idempotent).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend Fase 13 fully verified: /auth/register 6-consent validation, /admin/jobs/retention/run E2E (anonymizes 40-month-stale paziente, keeps fattura, skips users with recent appointments), /admin/jobs/legal-decline/run E2E (cancels future appts w/ rimborso_pending, suspends terapista, unsets pending_deactivation flags, writes admin_actions audit). Idempotency verified. Frontend cookie banner NEW component works but LEGACY CookieConsentBanner in PublicLayout.jsx still renders and is the one visible to users. Main agent must remove legacy banner.",
+  "rca of the issue": "PublicLayout.jsx line 197 still mounts <CookieConsentBanner/> from before Fase 13. App.js was updated to include the new <CookieBanner/> globally, but the legacy component was never removed. Because public pages use PublicLayout, users see BOTH banners (or only the legacy one visually — depends on z-index/layout). Fix: delete line 5 import + line 197 render in PublicLayout.jsx, remove now-unused CookieConsentBanner.jsx + utils/cookieConsent.js, migrate CookiePage.jsx to new cookieLoader utilities."
+}

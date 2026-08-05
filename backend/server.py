@@ -797,6 +797,18 @@ async def startup():
     await seed_data()
     await _seed_default_contract()
     await _seed_legal_documents()
+
+    # Start scheduled background jobs (retention, legal decline processor)
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from scheduled_jobs import register_jobs
+        _scheduler = AsyncIOScheduler(timezone="UTC")
+        register_jobs(_scheduler, db)
+        _scheduler.start()
+        app.state.scheduler = _scheduler
+    except Exception as e:
+        logging.exception(f"[STARTUP] failed to start scheduler: {e}")
+
     # Backfill: make existing self-certified therapists publicly visible under the new gate
     await db.terapisti.update_many(
         {"autocertificazione_firmata": True, "documenti_verificati": {"$exists": False}},
