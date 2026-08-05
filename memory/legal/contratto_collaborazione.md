@@ -374,15 +374,15 @@ c) La cui divulgazione è imposta da legge o da provvedimento di Autorità.
 
 ---
 
-## Art. 21 — Sottoscrizione con Firma Elettronica Avanzata
+## Art. 21 — Sottoscrizione con Firma Elettronica
 
-21.1 Il presente Contratto è sottoscritto dal Terapeuta mediante **firma elettronica avanzata** ai sensi dell'art. 20 del D.Lgs. 82/2005 (Codice dell'Amministrazione Digitale) e del Regolamento (UE) 910/2014 (eIDAS), consistente nella verifica combinata di:
+21.1 Il presente Contratto è sottoscritto dal Terapeuta mediante **firma elettronica** ai sensi dell'art. 20 del D.Lgs. 82/2005 (Codice dell'Amministrazione Digitale) e del Regolamento (UE) 910/2014 (eIDAS), consistente nell'insieme delle seguenti azioni verificate dal sistema:
 
-a) Possesso dell'account email verificato al momento della registrazione;
-b) Verifica **OTP via email** con codice generato ad hoc;
-c) Verifica **OTP via SMS** al numero di telefono verificato tramite Twilio;
-d) Digitazione manuale del proprio nome e cognome come sigla di conferma;
-e) Timestamp certificato UTC + IP address + user agent + hash SHA-256 dei documenti sottoscritti.
+a) Possesso dell'account email e del numero di telefono verificati in fase di registrazione;
+b) Lettura integrale dei documenti contrattuali (Contratto di Collaborazione, Informativa Privacy Terapeuti, DPA, Termini e Condizioni), con conferma del completamento dello scorrimento;
+c) Spunta esplicita delle caselle di accettazione delle singole clausole richieste e delle **clausole vessatorie ex artt. 1341 e 1342 c.c.** di cui all'art. 22.4;
+d) Digitazione manuale del proprio **nome e cognome** come conferma di sottoscrizione, con validazione di corrispondenza con l'anagrafica registrata;
+e) Registrazione automatica di **timestamp UTC, indirizzo IP, user agent, hash SHA-256** dei documenti sottoscritti nella versione corrente.
 
 21.2 A conferma dell'avvenuta sottoscrizione, BIDOC S.R.L. genera una **Ricevuta di Sottoscrizione in formato PDF** contenente il testo integrale del Contratto e dei documenti allegati, i dati identificativi del Terapeuta, i metadati di firma e gli hash crittografici, che è:
 
@@ -390,7 +390,7 @@ e) Timestamp certificato UTC + IP address + user agent + hash SHA-256 dei docume
 - Archiviata sulla Piattaforma nell'area riservata del Terapeuta;
 - Conservata da BIDOC S.R.L. per un periodo di **10 anni** ai fini probatori.
 
-21.3 La firma elettronica avanzata ha valore giuridico equivalente alla sottoscrizione autografa ai sensi dell'art. 20, comma 1-bis del D.Lgs. 82/2005 e assicura l'integrità e la paternità del documento.
+21.3 La firma elettronica così apposta è idonea a soddisfare il requisito della forma scritta e ha valore probatorio liberamente valutabile in giudizio ai sensi dell'art. 20 del D.Lgs. 82/2005 e dell'art. 25 del Regolamento (UE) 910/2014.
 
 ---
 
@@ -422,7 +422,7 @@ _Legale rappresentante pro tempore_
 
 **Il Terapeuta**
 _Nome, Cognome, C.F.: come da modulo di registrazione_
-_Sottoscritto con firma elettronica avanzata (OTP email + OTP SMS + digitazione nome)_
+_Sottoscritto con firma elettronica (accettazione documenti + digitazione nome)_
 _Timestamp: [FIRMA_TIMESTAMP]_
 _IP: [FIRMA_IP]_
 _Hash Contratto v1.0: [FIRMA_HASH]_

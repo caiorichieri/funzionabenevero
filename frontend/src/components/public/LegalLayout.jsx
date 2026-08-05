@@ -29,7 +29,7 @@ export default function LegalLayout({ title, lastUpdate, children, testId }) {
 
         <div className="mt-16 pt-8 border-t border-[#0A0A0A]/10 text-xs text-[#0A0A0A]/50">
           <p>
-            Per domande su questa informativa: <a href="mailto:privacy@funzionabene.it" className="text-[#0A0A0A] hover:text-[#0A0A0A]/70">privacy@funzionabene.it</a>
+            Per domande su questa informativa: <a href="mailto:privacy@bidoc.it" className="text-[#0A0A0A] hover:text-[#0A0A0A]/70">privacy@bidoc.it</a>
           </p>
         </div>
       </article>

@@ -4,10 +4,26 @@ import { API } from "@/contexts/AuthContext";
 import { ScrollText, Plus, Check, History, ShieldCheck, X } from "lucide-react";
 
 const KIND_LABELS = {
-  mandato_all_incasso: "Mandato all'incasso con Rappresentanza",
+  mandato_all_incasso: "Mandato all'incasso (v1 legacy)",
+  contratto_collaborazione: "Contratto di Collaborazione Professionale",
+  privacy_visitatori: "Privacy · Visitatori del Sito",
+  privacy_pazienti: "Privacy · Pazienti Registrati",
+  privacy_terapeuti: "Privacy · Terapeuti (+ DPA art. 28 GDPR)",
+  cookie_policy: "Cookie Policy",
+  termini_pazienti: "Termini e Condizioni · Pazienti",
 };
 
-const DEFAULT_NEW = { kind: "mandato_all_incasso", title: "", content_html: "" };
+const KIND_ORDER = [
+  "contratto_collaborazione",
+  "privacy_pazienti",
+  "privacy_terapeuti",
+  "privacy_visitatori",
+  "termini_pazienti",
+  "cookie_policy",
+  "mandato_all_incasso",
+];
+
+const DEFAULT_NEW = { kind: "contratto_collaborazione", title: "", content_html: "" };
 
 export default function ContrattiPage() {
   const [contracts, setContracts] = useState([]);
@@ -29,18 +45,23 @@ export default function ContrattiPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const currentMandato = contracts.find(c => c.kind === "mandato_all_incasso" && c.is_current);
-  const history = contracts.filter(c => c.kind === "mandato_all_incasso" && !c.is_current);
+  const currentByKind = Object.fromEntries(
+    KIND_ORDER.map(k => [k, contracts.find(c => c.kind === k && c.is_current)])
+  );
+  const historyByKind = Object.fromEntries(
+    KIND_ORDER.map(k => [k, contracts.filter(c => c.kind === k && !c.is_current)])
+  );
 
-  const startEditFromCurrent = () => {
-    if (!currentMandato) {
-      setEditing({ ...DEFAULT_NEW, title: KIND_LABELS.mandato_all_incasso });
+  const startEditFromKind = (kind) => {
+    const current = currentByKind[kind];
+    if (!current) {
+      setEditing({ kind, title: KIND_LABELS[kind] || kind, content_html: "" });
       return;
     }
     setEditing({
-      kind: currentMandato.kind,
-      title: currentMandato.title,
-      content_html: currentMandato.content_html,
+      kind: current.kind,
+      title: current.title,
+      content_html: current.content_html,
     });
   };
 
@@ -74,89 +95,101 @@ export default function ContrattiPage() {
   return (
     <div className="space-y-8" data-testid="admin-contratti-page">
       <div>
-        <h1 className="text-3xl font-bold text-[#0A0A0A] font-[Outfit]">Contratti</h1>
+        <h1 className="text-3xl font-bold text-[#0A0A0A] font-[Outfit]">Documenti Legali</h1>
         <p className="text-[#0A0A0A]/65 mt-1">
-          Testi legali che i terapeuti devono accettare per operare sulla piattaforma. Ogni nuova versione è immutabile e tracciata.
+          Contratti, informative privacy e cookie policy che regolano la piattaforma. Ogni modifica crea una nuova versione immutabile, tracciata con hash e data di pubblicazione.
         </p>
       </div>
 
-      {/* Current mandato card */}
-      <div className="bg-white rounded-2xl border border-[#0A0A0A]/10 shadow-sm overflow-hidden" data-testid="mandato-card">
-        <div className="p-6 border-b border-[#0A0A0A]/10 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[#F58A1F]/15 flex items-center justify-center flex-shrink-0">
-              <ScrollText className="w-6 h-6 text-[#F58A1F]" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-[#0A0A0A]">{KIND_LABELS.mandato_all_incasso}</h2>
-              <p className="text-sm text-[#0A0A0A]/60 mt-1">
-                {currentMandato ? (
-                  <>Versione <strong>#{currentMandato.version}</strong> attiva dal {new Date(currentMandato.effective_date).toLocaleDateString("it-IT")}</>
-                ) : "Nessuna versione ancora pubblicata"}
-              </p>
-              {currentMandato && (
-                <p className="text-[10px] text-[#0A0A0A]/40 mt-2 font-mono break-all">
-                  hash: {currentMandato.content_hash}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2 flex-shrink-0">
-            {currentMandato && (
-              <button
-                onClick={() => openAudit(currentMandato)}
-                data-testid="view-acceptances-btn"
-                className="px-3 py-2 text-xs text-[#0A0A0A]/70 hover:bg-[#0A0A0A]/5 rounded-lg inline-flex items-center gap-1.5"
-              >
-                <ShieldCheck className="w-4 h-4" /> Accettazioni
-              </button>
-            )}
-            <button
-              onClick={startEditFromCurrent}
-              data-testid="new-version-btn"
-              className="px-4 py-2 bg-gradient-to-br from-[#F58A1F] to-[#F5D419] text-[#0A0A0A] font-medium rounded-full text-sm inline-flex items-center gap-2 hover:opacity-90"
-            >
-              <Plus className="w-4 h-4" /> Nuova versione
-            </button>
-          </div>
-        </div>
-        {currentMandato && (
-          <div className="p-6">
-            <div
-              className="prose prose-sm max-w-none text-[#0A0A0A]/85"
-              dangerouslySetInnerHTML={{ __html: currentMandato.content_html }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* History */}
-      {history.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#0A0A0A]/10 shadow-sm">
-          <div className="p-5 border-b border-[#0A0A0A]/10 flex items-center gap-2">
-            <History className="w-4 h-4 text-[#0A0A0A]/60" />
-            <h3 className="font-semibold text-[#0A0A0A]">Versioni precedenti ({history.length})</h3>
-          </div>
-          <ul className="divide-y divide-[#0A0A0A]/10">
-            {history.map(h => (
-              <li key={h.id} className="p-4 flex items-center justify-between hover:bg-[#0A0A0A]/[0.02]">
-                <div>
-                  <div className="text-sm text-[#0A0A0A]">Versione <strong>#{h.version}</strong></div>
-                  <div className="text-xs text-[#0A0A0A]/55">
-                    Pubblicata il {new Date(h.created_at).toLocaleString("it-IT")}
+      {/* Cards per ogni documento legale */}
+      <div className="space-y-6">
+        {KIND_ORDER.map(kind => {
+          const current = currentByKind[kind];
+          const history = historyByKind[kind];
+          return (
+            <div key={kind} className="bg-white rounded-2xl border border-[#0A0A0A]/10 shadow-sm overflow-hidden" data-testid={`legal-doc-card-${kind}`}>
+              <div className="p-6 border-b border-[#0A0A0A]/10 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-xl bg-[#F58A1F]/15 flex items-center justify-center flex-shrink-0">
+                    <ScrollText className="w-6 h-6 text-[#F58A1F]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg sm:text-xl font-semibold text-[#0A0A0A]">{KIND_LABELS[kind]}</h2>
+                    <p className="text-sm text-[#0A0A0A]/60 mt-1">
+                      {current ? (
+                        <>Versione <strong>#{current.version}</strong> attiva dal {new Date(current.effective_date).toLocaleDateString("it-IT")}
+                          {history.length > 0 && <span className="ml-2 text-[#0A0A0A]/45">· {history.length} versioni precedenti</span>}
+                        </>
+                      ) : "Nessuna versione ancora pubblicata"}
+                    </p>
+                    {current && (
+                      <p className="text-[10px] text-[#0A0A0A]/40 mt-2 font-mono break-all">
+                        hash: {current.content_hash}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={() => openAudit(h)}
-                  className="text-xs text-[#F58A1F] hover:underline"
-                >
-                  Accettazioni
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                <div className="flex gap-2 flex-shrink-0">
+                  {current && (
+                    <button
+                      onClick={() => openAudit(current)}
+                      data-testid={`view-acceptances-btn-${kind}`}
+                      className="px-3 py-2 text-xs text-[#0A0A0A]/70 hover:bg-[#0A0A0A]/5 rounded-lg inline-flex items-center gap-1.5"
+                    >
+                      <ShieldCheck className="w-4 h-4" /> Accettazioni
+                    </button>
+                  )}
+                  <button
+                    onClick={() => startEditFromKind(kind)}
+                    data-testid={`new-version-btn-${kind}`}
+                    className="px-4 py-2 bg-gradient-to-br from-[#F58A1F] to-[#F5D419] text-[#0A0A0A] font-medium rounded-full text-sm inline-flex items-center gap-2 hover:opacity-90"
+                  >
+                    <Plus className="w-4 h-4" /> Nuova versione
+                  </button>
+                </div>
+              </div>
+              {current && (
+                <details className="p-0">
+                  <summary className="p-4 cursor-pointer text-sm text-[#F58A1F] hover:bg-[#0A0A0A]/[0.02] font-medium">
+                    Mostra contenuto attuale
+                  </summary>
+                  <div className="p-6 pt-2 border-t border-[#0A0A0A]/10">
+                    <div
+                      className="prose prose-sm max-w-none text-[#0A0A0A]/85"
+                      dangerouslySetInnerHTML={{ __html: current.content_html }}
+                    />
+                  </div>
+                </details>
+              )}
+              {history.length > 0 && (
+                <details className="border-t border-[#0A0A0A]/10">
+                  <summary className="p-4 cursor-pointer text-sm text-[#0A0A0A]/65 hover:bg-[#0A0A0A]/[0.02] font-medium inline-flex items-center gap-2">
+                    <History className="w-4 h-4" /> Versioni precedenti ({history.length})
+                  </summary>
+                  <ul className="divide-y divide-[#0A0A0A]/10">
+                    {history.map(h => (
+                      <li key={h.id} className="p-4 flex items-center justify-between hover:bg-[#0A0A0A]/[0.02]">
+                        <div>
+                          <div className="text-sm text-[#0A0A0A]">Versione <strong>#{h.version}</strong></div>
+                          <div className="text-xs text-[#0A0A0A]/55">
+                            Pubblicata il {new Date(h.created_at).toLocaleString("it-IT")}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => openAudit(h)}
+                          className="text-xs text-[#F58A1F] hover:underline"
+                        >
+                          Accettazioni
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Editor modal */}
       {editing && (
@@ -164,9 +197,11 @@ export default function ContrattiPage() {
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-5 border-b border-[#0A0A0A]/10 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-[#0A0A0A]">Nuova versione del contratto</h3>
+                <h3 className="text-lg font-semibold text-[#0A0A0A]">
+                  Nuova versione · {KIND_LABELS[editing.kind] || editing.kind}
+                </h3>
                 <p className="text-xs text-[#0A0A0A]/60 mt-1">
-                  Alla pubblicazione, la versione corrente verrà archiviata. I terapeuti dovranno accettare la nuova versione al prossimo login.
+                  Alla pubblicazione, la versione corrente verrà archiviata. Gli utenti dovranno accettare la nuova versione al prossimo login.
                 </p>
               </div>
               <button onClick={() => setEditing(null)} className="text-[#0A0A0A]/50 hover:text-[#0A0A0A]">

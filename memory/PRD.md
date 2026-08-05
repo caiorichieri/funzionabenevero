@@ -783,3 +783,94 @@ booking_service   →  deps + daily_service + email_service
 - **P3** `refund` policy: aggiungere warning se la sessione è già completata (data futura vs passata).
 - **P3** `durata_minuti` per terapista: leggere da campo custom invece di hardcode 50.
 
+
+---
+
+## ✅ FASE 11 — Documenti Legali Editabili + Compliance GDPR (Feb 2026)
+
+### 1. Analisi Legale Comparativa Concorrente
+- Analizzati 4 documenti legali di Unobravo (Privacy Utenti, Privacy Registrati, Privacy Calendario, Cookie Policy)
+- Confronto vs GDPR (Reg. UE 2016/679) + Codice Privacy italiano (D.Lgs. 196/2003) + Codice Deontologico Psicologi
+- Decisione modello giuridico: **BIDOC SRL = marketplace tecnologico** (NON struttura sanitaria)
+- Terapeuta = Titolare autonomo dati clinici (art. 9.2.h GDPR)
+- BIDOC = Responsabile ex art. 28 GDPR per ospitalità tecnica dei dati clinici
+- **Nessun Direttore Sanitario richiesto** (validato con research su normativa italiana)
+
+### 2. 6 Documenti Legali Creati (Italiano)
+File Markdown sorgente in `/app/memory/legal/`:
+- `informativa_privacy_visitatori.md` — Privacy per visitatori sito
+- `informativa_privacy_pazienti.md` — Privacy pazienti con 3 sezioni (BIDOC titolare + Terapeuta titolare + Diritti comuni)
+- `informativa_privacy_terapeuti.md` — Privacy terapeuti + **DPA art. 28 GDPR** integrato
+- `cookie_policy.md` — Cookie policy con categorie Necessari/Statistica/Esperienza/Marketing
+- `termini_e_condizioni_pazienti.md` — T&C completi con clausole vessatorie art. 1341-1342 c.c.
+- `contratto_collaborazione.md` — Contratto Collaborazione 22 articoli con:
+  - Modello economico: **commissione BIDOC 30%**
+  - Liquidazione **mensile entro il 15 del mese successivo**
+  - Cancellazioni <24h/>24h/no-show
+  - Non sollecitazione 12 mesi + penale 3x tariffa
+  - Sospensione automatica per Ordine/P.IVA scaduta
+  - Firma elettronica (senza doppio OTP per scelta utente)
+
+### 3. Backend — Seed automatico
+- Estensione di `server.py` con `_seed_legal_documents()`:
+  - Legge i 6 file `.md` all'avvio
+  - Sostituisce placeholder `[DATA_PUBBLICAZIONE]` con "15 febbraio 2026"
+  - Converte Markdown → HTML via `markdown-it-py` (già installato)
+  - Inserisce in `db.contracts` collection come v1 pubblicata
+  - Idempotente: skip se `kind` già esistente
+- Nuovi kinds seedati: `privacy_visitatori`, `privacy_pazienti`, `privacy_terapeuti`, `cookie_policy`, `termini_pazienti`, `contratto_collaborazione`
+- Kind legacy mantenuto: `mandato_all_incasso` (v1 originale)
+
+### 4. Admin Panel — Documenti Legali Editabili
+Estensione di `/admin/contratti`:
+- Rinominato in "Documenti Legali"
+- 7 cards (una per ogni kind) con:
+  - Titolo + versione attuale + hash SHA-256
+  - Pulsante "Nuova versione" → editor modale HTML con anteprima
+  - Pulsante "Accettazioni" → audit trail immutabile
+  - Sezione espandibile "Mostra contenuto attuale"
+  - Sezione espandibile "Versioni precedenti" con storico
+- Ogni modifica salvata crea versione immutabile, la precedente resta archiviata
+
+### 5. Frontend Pubblico — Pagine Legali Dinamiche
+Nuovo componente `DynamicLegalPage.jsx` che consuma `/api/contracts/current/{kind}`:
+- `/privacy` e `/privacy-pazienti` → Informativa Privacy Pazienti
+- `/privacy-visitatori` → Informativa Privacy Visitatori
+- `/privacy-terapeuti` → Informativa Privacy Terapeuti + DPA (**restricted: solo terapeuti/admin**)
+- `/termini` e `/termini-pazienti` → Termini e Condizioni
+- `/cookie` e `/cookie-policy` → Cookie Policy (con toggle preferenze interattivo)
+- `/contratto-collaborazione` → Contratto (**restricted: solo terapeuti/admin**)
+- `/mandato-legale` → Mandato all'incasso (legacy v1)
+
+Ogni pagina:
+- Mostra title + versione + hash pubblici (trasparenza)
+- Refresh automatico se admin pubblica nuova versione
+- Data ultimo aggiornamento formattata in italiano
+
+### 6. Dati aziendali consolidati
+Aggiornato `legalInfo.js` con dati BIDOC SRL definitivi:
+- Sede: Via Mazzini 62, 33097 Spilimbergo (PN)
+- P.IVA/CF: 01985930930
+- REA: PN-377600
+- PEC: bidocsrl@pecimprese.it
+- Email: info@bidoc.it
+- Privacy: privacy@bidoc.it
+- DPO: Caio Silvestre Richieri (CF SLVCAI76D16Z602F)
+
+### File aggiuntivo
+`/app/memory/legal/PIANO_IMPLEMENTAZIONE_TECNICA.md` — Roadmap 9 fasi per implementazione completa GDPR:
+- Fase 1-2: Pagine legali + Cookie banner ✅ (parziale, banner già esistente)
+- Fase 3-4: Consensi granulari paziente + terapeuta (**Fase 12 futura**)
+- Fase 5: Diritti GDPR (portabilità, oblio, gestione consensi)
+- Fase 6: Firma elettronica del Contratto Collaborazione
+- Fase 7: Sistema aggiornamento documenti (email automatica + workflow "NON ACCETTO")
+- Fase 8: Retention automatica (36 mesi)
+- Fase 9: Registro Trattamenti art. 30 + DPIA art. 35 (documenti interni)
+
+### Backlog residuo dopo Fase 11
+- **P0** Fase 12: Firma elettronica del Contratto Collaborazione con scroll obbligatorio + digitazione nome + Ricevuta PDF via Emergent Object Storage
+- **P0** Fase 13: Workflow aggiornamento versione MAJOR → email automatica + resposta "NON ACCETTO" = disattivazione automatica entro 48h
+- **P1** Fase 14: Consensi granulari nel signup paziente (marketing/ricerca/dati sanitari)
+- **P1** Fase 15: Area "I miei consensi" per gestire e revocare
+- **P2** Fase 16: Retention automatica 36 mesi (anonimizzazione)
+- **P2** Fase 17: Registro Trattamenti (documento interno)

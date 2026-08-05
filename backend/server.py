@@ -794,6 +794,7 @@ async def startup():
     await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
     await seed_data()
     await _seed_default_contract()
+    await _seed_legal_documents()
     # Backfill: make existing self-certified therapists publicly visible under the new gate
     await db.terapisti.update_many(
         {"autocertificazione_firmata": True, "documenti_verificati": {"$exists": False}},
@@ -849,6 +850,102 @@ async def _seed_default_contract():
         "created_by": "system_seed",
     })
     logging.info("[CONTRACT] seeded default Mandato all'incasso v1")
+
+
+# ─── Legal documents seed (Privacy, Cookie, Termini, Contratto Collaborazione) ─
+LEGAL_DOCS_DIR = Path(__file__).parent.parent / "memory" / "legal"
+DATA_PUBBLICAZIONE = "15 febbraio 2026"
+
+LEGAL_DOCS_TO_SEED = [
+    {
+        "kind": "privacy_visitatori",
+        "title": "Informativa Privacy — Visitatori del Sito",
+        "filename": "informativa_privacy_visitatori.md",
+    },
+    {
+        "kind": "privacy_pazienti",
+        "title": "Informativa Privacy — Pazienti Registrati",
+        "filename": "informativa_privacy_pazienti.md",
+    },
+    {
+        "kind": "privacy_terapeuti",
+        "title": "Informativa Privacy — Terapeuti (incl. DPA art. 28 GDPR)",
+        "filename": "informativa_privacy_terapeuti.md",
+    },
+    {
+        "kind": "cookie_policy",
+        "title": "Cookie Policy",
+        "filename": "cookie_policy.md",
+    },
+    {
+        "kind": "termini_pazienti",
+        "title": "Termini e Condizioni di Utilizzo — Pazienti",
+        "filename": "termini_e_condizioni_pazienti.md",
+    },
+    {
+        "kind": "contratto_collaborazione",
+        "title": "Contratto di Collaborazione Professionale",
+        "filename": "contratto_collaborazione.md",
+    },
+]
+
+
+def _markdown_to_html(md_text: str) -> str:
+    """Convert Markdown to sanitized HTML using markdown-it-py."""
+    try:
+        from markdown_it import MarkdownIt
+        md = MarkdownIt("commonmark", {"html": False, "linkify": True, "typographer": True})
+        md.enable(["table", "strikethrough"])
+        return md.render(md_text)
+    except ImportError:
+        # Fallback: return the markdown as-is inside <pre> — should not happen since markdown-it-py is in requirements
+        logging.warning("[LEGAL SEED] markdown-it-py not available, falling back to <pre>")
+        import html as _html
+        return f"<pre>{_html.escape(md_text)}</pre>"
+
+
+async def _seed_legal_documents():
+    """Seed the 6 legal documents (Privacy Visitatori, Privacy Pazienti,
+    Privacy Terapeuti, Cookie Policy, Termini Pazienti, Contratto Collaborazione)
+    from Markdown files in /app/memory/legal/ as version 1.
+
+    Idempotent: only inserts if the kind has no existing version.
+    """
+    if not LEGAL_DOCS_DIR.exists():
+        logging.warning(f"[LEGAL SEED] directory not found: {LEGAL_DOCS_DIR}")
+        return
+
+    for doc in LEGAL_DOCS_TO_SEED:
+        kind = doc["kind"]
+        # Skip if any version already exists — admin can create new versions in-app
+        existing = await db.contracts.find_one({"kind": kind})
+        if existing:
+            continue
+        md_path = LEGAL_DOCS_DIR / doc["filename"]
+        if not md_path.exists():
+            logging.warning(f"[LEGAL SEED] file not found: {md_path}")
+            continue
+        try:
+            md_text = md_path.read_text(encoding="utf-8")
+            # Substitute the publication-date placeholder
+            md_text = md_text.replace("[DATA_PUBBLICAZIONE]", DATA_PUBBLICAZIONE)
+            html_content = _markdown_to_html(md_text)
+            now = datetime.now(timezone.utc)
+            await db.contracts.insert_one({
+                "kind": kind,
+                "title": doc["title"],
+                "content_html": html_content,
+                "content_hash": _hash_contract(html_content),
+                "version": 1,
+                "effective_date": now.isoformat(),
+                "is_current": True,
+                "created_at": now,
+                "created_by": "system_seed",
+                "source_markdown": md_text,  # kept for future markdown-based editing
+            })
+            logging.info(f"[LEGAL SEED] seeded {kind} v1 ({len(html_content)} chars HTML)")
+        except Exception as e:
+            logging.exception(f"[LEGAL SEED] failed for {kind}: {e}")
 
 async def seed_data():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@funzionabene.it")

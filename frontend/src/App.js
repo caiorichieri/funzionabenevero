@@ -51,6 +51,9 @@ import ContattiPage from "@/pages/public/ContattiPage";
 import PaymentSuccessPage from "@/pages/public/PaymentSuccessPage";
 import PaymentCancelPage from "@/pages/public/PaymentCancelPage";
 import MandatoLegalePage from "@/pages/public/MandatoLegalePage";
+import PrivacyVisitatoriPage from "@/pages/public/PrivacyVisitatoriPage";
+import PrivacyTerapeutiPage from "@/pages/public/PrivacyTerapeutiPage";
+import ContrattoCollaborazionePage from "@/pages/public/ContrattoCollaborazionePage";
 import NotFoundPage from "@/pages/public/NotFoundPage";
 
 import "@/App.css";
@@ -80,8 +83,14 @@ export default function App() {
             <Route path="/blog/:id" element={<BlogPostPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/privacy-pazienti" element={<PrivacyPage />} />
+            <Route path="/privacy-visitatori" element={<PrivacyVisitatoriPage />} />
+            <Route path="/privacy-terapeuti" element={<PrivacyTerapeutiPage />} />
             <Route path="/cookie" element={<CookiePage />} />
+            <Route path="/cookie-policy" element={<CookiePage />} />
             <Route path="/termini" element={<TerminiPage />} />
+            <Route path="/termini-pazienti" element={<TerminiPage />} />
+            <Route path="/contratto-collaborazione" element={<ContrattoCollaborazionePage />} />
             <Route path="/sedute-immersive" element={<SeduteImmersive />} />
             <Route path="/aree-intervento" element={<AreeInterventoPage />} />
             <Route path="/emergenze" element={<EmergenzePage />} />

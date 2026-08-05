@@ -6,9 +6,13 @@ export const TITOLARE = {
   nome: "BIDOC SRL",
   brand: "Funzionabene",
   via: "Via Mazzini, 62",
+  cap: "33097",
   citta: "Spilimbergo (PN)",
   pIva: "01985930930",
+  codiceFiscale: "01985930930",
+  rea: "PN-377600",
   paese: "Italia",
+  pec: "bidocsrl@pecimprese.it",
 };
 
 export const DPO = {
@@ -18,7 +22,7 @@ export const DPO = {
   via: "Via Circonvallazione Sud, 80",
   citta: "Codroipo (UD)",
   paese: "Italia",
-  email: "privacy@funzionabene.it",
+  email: "privacy@bidoc.it",
 };
 
 // E.164 international format without "+" (used by wa.me)
@@ -27,6 +31,6 @@ export const WHATSAPP_NUMBER = "393451124503";
 export const PHONE_DISPLAY = "+39 345 112 4503";
 export const PHONE_E164 = "+393451124503";
 
-export const CONTACT_EMAIL = "info@funzionabene.it";
-export const PRIVACY_EMAIL = "privacy@funzionabene.it";
-export const PARTNERSHIP_EMAIL = "partnership@funzionabene.it";
+export const CONTACT_EMAIL = "info@bidoc.it";
+export const PRIVACY_EMAIL = "privacy@bidoc.it";
+export const PARTNERSHIP_EMAIL = "partnership@bidoc.it";
