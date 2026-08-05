@@ -5,6 +5,7 @@ import { API } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar, Clock, Users, ShieldCheck, Video, FileText, MessageCircle } from "lucide-react";
 import ChatPanel from "@/components/shared/ChatPanel";
+import DiarioLinkForTherapist from "@/components/therapist/DiarioLinkForTherapist";
 
 function canJoin(dataOra, durata = 50) {
   const now = new Date();
@@ -144,6 +145,9 @@ export default function TerapistaDashboard() {
                       <div className="text-xs text-[#0A0A0A]/55">
                         {new Date(a.data_ora).toLocaleString("it-IT")} · {a.durata_minuti} min
                       </div>
+                      {a.paziente_user_id && (
+                        <div className="mt-1"><DiarioLinkForTherapist pazienteId={a.paziente_user_id} /></div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">

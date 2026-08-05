@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard, Users, UserCheck, Calendar,
-  FileText, X, Heart, ScrollText, Wallet, CalendarDays, Shield, Receipt
+  FileText, X, Heart, ScrollText, Wallet, CalendarDays, Shield, Receipt, BookHeart
 } from "lucide-react";
 
 const ADMIN_MENU = [
@@ -29,6 +29,7 @@ const THERAPIST_MENU = [
 
 const PATIENT_MENU = [
   { to: "/paziente", icon: LayoutDashboard, label: "Dashboard", exact: true },
+  { to: "/paziente/diario", icon: BookHeart, label: "Diario emozionale" },
   { to: "/paziente/fatture", icon: Receipt, label: "Le mie fatture" },
   { to: "/paziente/privacy", icon: Shield, label: "I miei dati" },
 ];

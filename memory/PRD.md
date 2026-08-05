@@ -1281,3 +1281,55 @@ Pagina admin per gestire il Registro delle attività di trattamento ex art. 30 G
 - Duplicate fetch em `download_xml`/`download_pdf` → agora `_fetch_and_serve` retorna `(doc, bytes)` em uma única query
 - Weekly email attachment cap: **NÃO endereçado** (backlog LOW)
 
+
+---
+
+## ✅ FASE 18a — PWA + Diario Emozionale (Feb 2026)
+
+### PWA Foundation (Progressive Web App)
+- `frontend/public/manifest.json` — nome, icons, theme, standalone display, shortcuts (Diario + Appuntamenti)
+- `frontend/public/sw.js` — service worker con strategie:
+  - HTML navigation: network-first + fallback offline shell
+  - Static assets: stale-while-revalidate
+  - `/api/*`: mai cache (dati dinamici)
+  - Handler `push` + `notificationclick` (pronto per Fase 18b Web Push VAPID)
+- Meta tags PWA in `index.html` (apple-mobile-web-app, theme-color)
+- Componente `PWAInstaller` con banner "Aggiungi alla schermata Home" dismissible
+
+### Diario Emozionale
+- **Backend** `/app/backend/routers/diario.py`:
+  - `POST /api/diario` (paziente crea)
+  - `GET /api/diario/mine` (paziente lista own)
+  - `PUT /api/diario/{id}` (paziente modifica — solo se non letto)
+  - `DELETE /api/diario/{id}` (paziente elimina)
+  - `GET /api/diario/paziente/{id}` (terapeuta legge + marca auto-letto)
+  - `GET /api/diario/paziente/{id}/count` (badge non letti)
+  - Solo terapisti con almeno un `appuntamento` con il paziente possono leggere
+- **Paziente frontend** `/paziente/diario`:
+  - Timeline reverse-chronological, header hero arancione
+  - Composer con 6 mood (felice/sereno/neutro/ansioso/triste/arrabbiato), textarea 1000 char, quick tags, toggle "Condividi con terapeuta"
+  - Non modificabile dopo letto dal terapeuta
+- **Terapeuta frontend** `/terapeuta/pazienti/:pazienteId/diario`:
+  - Read-only view, marca auto-letto on view
+  - Component `DiarioLinkForTherapist` con badge non-letti nel dashboard TerapistaDashboard su ogni appuntamento
+- **Privacy**: `condividi_con_terapeuta=false` → nota privata (invisible al terapeuta)
+
+### Test manuale (Feb 2026)
+- ✅ Paziente crea, elenca, elimina entries
+- ✅ Terapeuta lê + auto-marca letto (unread 1 → 0)
+- ✅ Middleware gate ainda funcional (terapeuta senza firma bloqueato)
+- ✅ Screenshot: UI hero + composer perfeitos em viewport mobile 420x900
+
+### Backlog Fase 18b (próxima)
+- **Web Push VAPID**: gerar chaves, endpoint `/api/push/subscribe`, envio via `pywebpush`, promemoria 24h/1h antes de sessão
+- **Appuntamenti mobile refinement**: card "in tre tap" con Entra/Riprogramma/Annulla
+
+### Backlog Fase 19 (Coach Sessuale)
+- Integração Claude Sonnet 5 via Emergent LLM Key
+- Endpoint `/api/coach/chat` com storage de sessões multi-turno
+- Frontend `/paziente/coach` estilo messenger
+
+### Backlog Fase 20 (Psicoeducazione)
+- Admin `/admin/psicoeducazione` curadoria de biblioteca
+- Frontend `/paziente/impara` catálogo com articoli/podcast/mini-lezioni
+

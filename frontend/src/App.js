@@ -24,6 +24,8 @@ import TerapistaCalendarioPage from "@/pages/therapist/TerapistaCalendarioPage";
 import AdminCalendarioPage from "@/pages/admin/AdminCalendarioPage";
 import RiprogrammaPage from "@/pages/RiprogrammaPage";
 import PazienteDashboard from "@/pages/patient/PazienteDashboard";
+import DiarioPage from "@/pages/patient/DiarioPage";
+import TerapeutaDiarioPazientePage from "@/pages/therapist/TerapeutaDiarioPazientePage";
 import VideoCallPage from "@/pages/VideoCallPage";
 import Layout from "@/components/shared/Layout";
 import ScrollToTop from "@/components/shared/ScrollToTop";
@@ -58,6 +60,7 @@ import ContrattoCollaborazionePage from "@/pages/public/ContrattoCollaborazioneP
 import LegalDeclinePage from "@/pages/public/LegalDeclinePage";
 import FirmaDocumentiPage from "@/pages/therapist/FirmaDocumentiPage";
 import TherapistDocsGate from "@/components/therapist/TherapistDocsGate";
+import PWAInstaller from "@/components/shared/PWAInstaller";
 import PrivacyUtentePage from "@/pages/shared/PrivacyUtentePage";
 import FatturePage from "@/pages/admin/FatturePage";
 import RegistroTrattamentiPage from "@/pages/admin/RegistroTrattamentiPage";
@@ -79,6 +82,7 @@ export default function App() {
       <BrowserRouter>
         <ScrollToTop />
         <MagicCursor />
+        <PWAInstaller />
         <Routes>
           {/* Public site */}
           <Route element={<PublicLayout />}>
@@ -144,9 +148,8 @@ export default function App() {
             <Route path="blog" element={<TerapistaBlogPage />} />
             <Route path="fatture" element={<FatturePage isAdmin={false} />} />
             <Route path="privacy" element={<PrivacyUtentePage />} />
+            <Route path="pazienti/:pazienteId/diario" element={<TerapeutaDiarioPazientePage />} />
           </Route>
-
-          {/* Standalone signature flow (no layout — full-screen guided experience) */}
           <Route path="/terapeuta/firma-documenti" element={
             <ProtectedRoute roles={THERAPIST_ROLES}>
               <FirmaDocumentiPage />
@@ -156,6 +159,7 @@ export default function App() {
           {/* Patient routes */}
           <Route path="/paziente" element={<ProtectedRoute roles={PATIENT_ROLES}><Layout /></ProtectedRoute>}>
             <Route index element={<PazienteDashboard />} />
+            <Route path="diario" element={<DiarioPage />} />
             <Route path="fatture" element={<FatturePage isAdmin={false} />} />
             <Route path="privacy" element={<PrivacyUtentePage />} />
           </Route>
