@@ -1367,3 +1367,46 @@ Decisione strategica utente: **PWA only, nessuna app store**. Tutto il download 
 - **Fase 19 Coach Sessuale AI (Claude Sonnet 5)**
 - **Fase 20 Psicoeducazione (biblioteca curada admin BIDOC)**
 
+
+---
+
+## ✅ FASE 18c — PWA Dedicated App Experience (Feb 2026)
+
+**User feedback**: PWA instalado no Android continuava mostrando o site inteiro + banner de instalação. Queria "só a área pessoal, estilo app dedicado, mockup do site".
+
+### Modo App (Standalone-Aware)
+- **`useStandalone` hook**: detecta `display-mode: standalone` (Android/Chrome/Edge) e `window.navigator.standalone` (iOS Safari)
+- **`PazienteAppShell`**: wrapper mobile-first com fundo champagne gradient + `BottomNav` fixo
+- **`BottomNav`**: 4 tabs (Home · Diario · Chat · Profilo) com highlight orange na tab ativa
+- **`PazienteLayoutSwitch`**: renderiza `PazienteAppShell` em standalone, `Layout` classico em browser
+- **`PazienteHomeSwitch`**: renderiza `PazienteHome` (mockup) em standalone, `PazienteDashboard` em browser
+- **`StandaloneRedirector`**: em modo standalone, força `/blog`, `/`, `/terapeuti` etc → `/paziente`
+
+### Nova PazienteHome (matching mockup)
+- Header "BUONGIORNO, {nome}" + mascote 🌱
+- Card preto próxima seduta com CTA "Entra" (ativo 15min antes)
+- Chip lateral "CONSIGLIATO Esercizio resp…"
+- **Coach Sessuale preview card** (placeholder, prepared for Fase 19 Claude integration)
+- Shortcut card para Diario emozionale
+
+### ChatMobilePage nova
+- Lista conversazioni + view 1:1 fullscreen (`fixed inset-0 z-50` cobre BottomNav)
+- Bubbles orange (mine) + branco (terapeuta)
+- Input com send button gradient
+
+### ProfiloPage nova
+- Info user + links "Le mie fatture" / "I miei dati (GDPR)" + logout
+
+### PWA Install Banners — hidden quando standalone
+- `PWAInstaller`: adicionado check `display-mode: standalone` → não mostra banner
+- `IOSInstallHelper`: já tinha o check
+
+### Testes Bug Testing Agent
+- Iteração 18: FIXED os checks visuais + StandaloneRedirector, MAS 2 bugs HIGH em chat
+- Iteração 19: **FIXED 100%** — payload `destinatario_id` correto + composer não sobrepõe BottomNav
+
+### Backlog residuo
+- **Subdomínio `app.funzionabene.it`**: configuração DNS + deploy secundário (Emergent Support)
+- **Fase 19 Coach Sessuale AI Claude Sonnet 5**: backend endpoint `/api/coach/chat` + substituir mock preview por integração real
+- **Fase 18b Web Push VAPID**: promemoria seduta + notifiche chat/diario
+
