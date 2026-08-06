@@ -116,14 +116,15 @@ function StandaloneRedirector() {
     const p = location.pathname;
     const allowed = (
       p.startsWith("/paziente") ||
+      p.startsWith("/terapeuti") ||    // browsing + booking a specific therapist
+      p.startsWith("/questionario") || // matching flow
       p.startsWith("/login") ||
       p.startsWith("/registrati") ||
       p.startsWith("/verifica-otp") ||
       p.startsWith("/recupera-password") ||
       p.startsWith("/reset-password") ||
-      p.startsWith("/seduta/") ||   // video call
-      p.startsWith("/payment/") ||
-      p === "/" // handled below (redirect)
+      p.startsWith("/seduta/") ||      // video call
+      p.startsWith("/payment/")
     );
     if (!allowed) {
       navigate("/paziente", { replace: true });
