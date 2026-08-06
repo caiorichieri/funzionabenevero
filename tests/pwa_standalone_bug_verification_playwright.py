@@ -1,10 +1,25 @@
 """
-Focused Playwright verification plan/script for bug: installed PWA on Android should
-open only the patient app area, hide the install prompt, hide marketing chrome, and
-keep normal browser mode unchanged.
+Iteration 19 focused bug-verification script notes.
 
-This file documents the exact selectors and flows exercised by the testing agent
-using the mcp_browser_automation tool in this verification run.
+Bug under test: installed Android PWA must behave like a dedicated patient app,
+not the full marketing site / install invitation page. Regression checks include
+standalone chat send and composer overlap with bottom nav.
+
+The executable Playwright steps were run through mcp_browser_automation using:
+- Mobile viewport: 390x844
+- Patient credentials: demo.paziente@funzionabene.it / paziente2026
+- Standalone override: window.matchMedia('(display-mode: standalone)').matches = true
+
+Direct checks covered:
+1. Standalone login lands in /paziente with paziente-app-shell and mockup home.
+2. PWA install banner remains hidden in standalone, including just-registered state.
+3. /scarica-app and /blog redirect back to /paziente in standalone.
+4. Bottom nav renders exactly 4 tabs.
+5. /paziente/chat opens conversation; elementFromPoint at chat-send center resolves
+   to the send button, not paziente-bottom-nav; POST /api/messaggi returns 200;
+   sent text is visible and present in GET /api/messaggi response.
+6. Normal browser mode still renders the public marketing home/site and the legacy
+   PazienteDashboard after login.
 """
 
 BASE_URL = "https://portugues-writer-2.preview.emergentagent.com"
@@ -17,26 +32,16 @@ STANDALONE_MATCH_MEDIA_PATCH = r'''
   Object.defineProperty(window, 'matchMedia', {
     value: (query) => {
       if (String(query).includes('display-mode') && String(query).includes('standalone')) {
-        return {
-          matches: true,
-          media: query,
-          onchange: null,
-          addEventListener: () => {},
-          removeEventListener: () => {},
-          addListener: () => {},
-          removeListener: () => {},
-          dispatchEvent: () => false,
-        };
+        return { matches: true, media: query, onchange: null,
+          addEventListener: () => {}, removeEventListener: () => {},
+          addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false };
       }
-      return originalMatchMedia
-        ? originalMatchMedia(query)
-        : { matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} };
+      return originalMatchMedia ? originalMatchMedia(query) :
+        { matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} };
     },
     writable: true,
   });
-  try {
-    Object.defineProperty(window.navigator, 'standalone', { get: () => true, configurable: true });
-  } catch (e) {}
+  try { Object.defineProperty(window.navigator, 'standalone', { get: () => true, configurable: true }); } catch (e) {}
   sessionStorage.setItem('just-registered', '1');
   localStorage.removeItem('pwa-install-dismissed');
 })();
@@ -48,26 +53,16 @@ NORMAL_BROWSER_MATCH_MEDIA_PATCH = r'''
   Object.defineProperty(window, 'matchMedia', {
     value: (query) => {
       if (String(query).includes('display-mode') && String(query).includes('standalone')) {
-        return {
-          matches: false,
-          media: query,
-          onchange: null,
-          addEventListener: () => {},
-          removeEventListener: () => {},
-          addListener: () => {},
-          removeListener: () => {},
-          dispatchEvent: () => false,
-        };
+        return { matches: false, media: query, onchange: null,
+          addEventListener: () => {}, removeEventListener: () => {},
+          addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false };
       }
-      return originalMatchMedia
-        ? originalMatchMedia(query)
-        : { matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} };
+      return originalMatchMedia ? originalMatchMedia(query) :
+        { matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} };
     },
     writable: true,
   });
-  try {
-    Object.defineProperty(window.navigator, 'standalone', { get: () => false, configurable: true });
-  } catch (e) {}
+  try { Object.defineProperty(window.navigator, 'standalone', { get: () => false, configurable: true }); } catch (e) {}
   sessionStorage.setItem('just-registered', '1');
   localStorage.removeItem('pwa-install-dismissed');
 })();

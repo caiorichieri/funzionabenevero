@@ -42,10 +42,13 @@ export default function ChatMobilePage() {
   const send = async (e) => {
     e.preventDefault();
     if (!text.trim() || !selected) return;
+    // Backend expects destinatario_id (terapeuta_id for paziente, paziente_id for terapeuta)
+    const destinatario_id = selected.terapeuta_id || selected.paziente_id;
+    if (!destinatario_id) return;
     setSending(true);
     try {
       await axios.post(`${API}/messaggi`, {
-        conversazione_id: selected.conversazione_id,
+        destinatario_id,
         testo: text.trim(),
       }, { withCredentials: true });
       setText("");
@@ -97,10 +100,10 @@ export default function ChatMobilePage() {
     );
   }
 
-  // Open conversation view
+  // Open conversation view — takes over full app (hides BottomNav so composer is tappable)
   return (
-    <div className="flex flex-col h-screen" data-testid="chat-conversation">
-      <div className="flex items-center gap-3 px-4 py-3 bg-white/70 backdrop-blur border-b border-[#0A0A0A]/8 sticky top-0 z-10">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#F4EAA8]" data-testid="chat-conversation">
+      <div className="flex items-center gap-3 px-4 py-3 bg-white/70 backdrop-blur border-b border-[#0A0A0A]/8 flex-shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 12px), 12px)" }}>
         <button onClick={() => setSelected(null)} className="p-1 rounded-lg hover:bg-[#0A0A0A]/5" data-testid="chat-back">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -113,7 +116,7 @@ export default function ChatMobilePage() {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0">
         {messages.length === 0 ? (
           <div className="text-center text-xs text-[#0A0A0A]/50 py-14">Inizia la conversazione…</div>
         ) : messages.map((m) => {
@@ -135,7 +138,11 @@ export default function ChatMobilePage() {
         })}
       </div>
 
-      <form onSubmit={send} className="p-3 bg-white/80 backdrop-blur border-t border-[#0A0A0A]/8">
+      <form
+        onSubmit={send}
+        className="p-3 bg-white/90 backdrop-blur border-t border-[#0A0A0A]/8 flex-shrink-0"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom, 12px), 12px)" }}
+      >
         <div className="flex items-center gap-2">
           <input
             type="text"

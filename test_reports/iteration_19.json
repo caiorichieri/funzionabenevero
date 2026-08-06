@@ -1,0 +1,38 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "o que vc fez transformando o site em app nao funciona direiro apos baixar no android fica na tela que te convida a baixar, e na verdade deveria ser apenas a area personal e nao o site completo, ficou confuso demais",
+  "summary": "No relevant testing skill found. Focused retest of the installed-Android-PWA flow passed: standalone mode hides the install banner, redirects /scarica-app and marketing routes to /paziente, shows the mockup patient area with 4-tab bottom nav, and standalone chat now opens, has a tappable send button, posts /api/messaggi with 200, displays the sent message, and returns it from the API. Normal browser mode still shows the public marketing site and legacy PazienteDashboard.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/pwa_standalone_bug_verification_playwright.py"
+  ],
+  "action_items": [
+    "None for the reported bug. Optional: remove QA chat messages created during verification if demo data cleanliness matters."
+  ],
+  "critical_code_review_comments": [
+    "ChatMobilePage now posts {destinatario_id, testo}; backend /api/messaggi accepted the UI request with 200 and the message was returned by GET /api/messaggi/{conversation_id}.",
+    "Chat conversation view uses fixed inset-0 z-50, while BottomNav is z-40; elementFromPoint at the send-button center resolved to chat-send, not paziente-bottom-nav."
+  ],
+  "updated_files": [
+    "/app/tests/pwa_standalone_bug_verification_playwright.py",
+    "/app/test_reports/bug_verification_19.json",
+    "/app/test_reports/iteration_19.json"
+  ],
+  "success_rate": {
+    "backend": "100% for tested auth/conversation/message endpoints in the affected flow",
+    "frontend": "100% for the focused standalone PWA and normal-browser regression checks"
+  },
+  "seed_data_creation": "No seed data created. UI testing sent persisted demo chat messages, including 'QA standalone chat send 1786011714' and 'QA standalone API proof 1786011753'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use mobile viewport 390x844 and the standalone matchMedia override. Confirmed fixed: no PWA install banner in standalone, /scarica-app and marketing paths redirect to /paziente, PazienteHome mockup shows BUONGIORNO/dark card/Coach Sessuale, bottom nav has Home/Diario/Chat/Profilo, chat send is tappable and persists via API, and normal browser mode remains marketing + legacy dashboard.",
+  "rca_of_the_issue": "Previous failures were the standalone chat POST using conversazione_id instead of destinatario_id and the composer being overlapped by the fixed BottomNav. The current code fixes the payload and makes the open chat a z-50 full-screen overlay above BottomNav. No APIs were mocked."
+}
