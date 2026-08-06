@@ -151,6 +151,7 @@ export default function App() {
             <Route path="/questionario" element={<QuestionnairePage />} />
             <Route path="/risultati" element={<MatchingResultsPage />} />
             <Route path="/terapeuti/:id" element={<TerapistaPublicPage />} />
+            <Route path="/terapeuti" element={<Navigate to="/questionario" replace />} />
             <Route path="/blog" element={<BlogPublicPage />} />
             <Route path="/blog/:id" element={<BlogPostPage />} />
             <Route path="/faq" element={<FAQPage />} />

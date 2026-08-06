@@ -46,8 +46,8 @@ export default function TerapistaPublicPage() {
   useEffect(() => {
     if (searchParams.get("prenota") !== "1") return;
     if (!user || loading) return;
-    const days = groupByDate(slots);
-    const firstAvailable = days.flatMap(d => d.slots).find(s => s.disponibile);
+    // Find first available slot from the fetched list (already flat)
+    const firstAvailable = (slots || []).find(s => s.disponibile);
     if (firstAvailable) {
       setSelectedSlot(firstAvailable);
       setBookingOpen(true);

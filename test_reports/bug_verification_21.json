@@ -1,0 +1,44 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "instalei o app quando clico para encontrar um terapeuta (estou logado como Luca) o botao nao funziona, nao me abre opcoes, e o Luca tinha um appuntamento com Maria Rossi",
+  "summary": "No relevant testing skill found. Verified the Luca standalone-PWA therapist discovery/booking flow end to end: direct /terapeuti now redirects to /questionario, MioTerapeutaCard 'Cerca un altro terapeuta' opens /questionario, 'Prenota una seduta' opens Maria Rossi's public profile with BookingSheet, and /terapeuti/:id?prenota=1 renders without any groupByDate console/page error. Regression routes also passed in standalone and normal browser modes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/bug_pwa_navigation_iteration21_api_probe.py",
+    "/app/tests/bug_pwa_navigation_iteration21_seed_toggle.py",
+    "/app/tests/bug_pwa_navigation_iteration21_seeded_playwright_steps.py",
+    "/app/test_reports/bug_verification_21.json",
+    "/app/test_reports/iteration_21.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "App.js now defines /terapeuti -> Navigate('/questionario'), so the previously observed standalone 404 is gone.",
+    "TerapistaPublicPage no longer references undefined groupByDate in the ?prenota=1 auto-open flow; browser console/pageerror monitoring found no groupByDate errors.",
+    "Unmodified preview data currently shows Luca's NextSessionCard because of future in_attesa_pagamento appointments; for click-level verification, test seed was temporarily adjusted to expose MioTerapeutaCard and one Maria Rossi slot, then restored to the original data. No APIs were mocked."
+  ],
+  "updated_files": [
+    "/app/tests/bug_pwa_navigation_iteration21_api_probe.py",
+    "/app/tests/bug_pwa_navigation_iteration21_playwright_steps.py",
+    "/app/tests/bug_pwa_navigation_iteration21_seed_toggle.py",
+    "/app/tests/bug_pwa_navigation_iteration21_seeded_playwright_steps.py",
+    "/app/test_reports/bug_verification_21.json",
+    "/app/test_reports/iteration_21.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Temporary preview seed mutation only: backed up Luca/Maria data, canceled Luca's future active appointments and added one Maria Rossi slot to expose MioTerapeutaCard/Prenota for real UI clicks, then restored the original DB state and confirmed via API probe. No persistent seed data created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use https://portugues-writer-2.preview.emergentagent.com. Login as demo.paziente@funzionabene.it / paziente2026, use /paziente?app=1 for standalone preview. Current restored seed shows NextSessionCard and no Maria slots; use the seed_toggle script only if click-level MioTerapeutaCard verification is required, and restore immediately after.",
+  "rca_of_the_issue": "Previous failures were caused by (1) TerapistaPublicPage calling undefined groupByDate during ?prenota=1 auto-open and (2) /terapeuti having no route in standalone. The fix removes the undefined call and routes /terapeuti plus the footer link to /questionario. Runtime verification confirmed both user-visible paths now open options/profile instead of crashing or showing 404."
+}

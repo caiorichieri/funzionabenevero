@@ -207,7 +207,7 @@ function MioTerapeutaCard({ mio }) {
       {/* Discreet "Cerca un altro" footer */}
       <div className="mt-4 pt-3 border-t border-white/10">
         <Link
-          to="/terapeuti"
+          to="/questionario"
           data-testid="home-cerca-altro"
           className="text-[11px] text-white/40 hover:text-white/70 inline-flex items-center gap-1"
         >
