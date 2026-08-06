@@ -21,5 +21,14 @@ function detect() {
   if (typeof window === "undefined") return false;
   if (window.matchMedia("(display-mode: standalone)").matches) return true;
   if (window.navigator.standalone === true) return true; // iOS Safari
+  // Manual preview mode: add ?app=1 to any URL to see the standalone experience
+  // without installing. Persists in the same tab via sessionStorage.
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("app") === "1") {
+      sessionStorage.setItem("__preview-app-mode", "1");
+    }
+    if (sessionStorage.getItem("__preview-app-mode") === "1") return true;
+  } catch { /* ignore */ }
   return false;
 }
