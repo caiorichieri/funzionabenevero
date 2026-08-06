@@ -1,0 +1,59 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "o que vc fez transformando o site em app nao funciona direiro apos baixar no android fica na tela que te convida a baixar, e na verdade deveria ser apenas a area personal e nao o site completo, ficou confuso demais",
+  "summary": "No relevant testing skill found. Simulated installed PWA standalone mode by overriding display-mode: standalone and tested the patient Android-app flow. The main install/marketing confusion is mostly fixed: no install banner in standalone, /paziente opens the mockup patient home, marketing routes redirect to /paziente, marketing header stays hidden, bottom nav/profile/diario work, and normal browser mode still shows the legacy dashboard plus marketing site. However the app experience is not fully fixed because standalone Chat cannot send messages correctly.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/messaggi",
+        "issue": "Message send from the new standalone ChatMobilePage returns 422 Unprocessable Entity. Code review confirms backend MessaggioInput requires destinatario_id, while ChatMobilePage posts conversazione_id + testo.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ChatMobilePage / PazienteAppShell bottom nav",
+        "issue": "The chat input/send form is physically underneath the fixed bottom nav in mobile standalone layout. elementFromPoint at the send button center returns nav-profilo, so real mobile taps can hit the bottom nav instead of Send.",
+        "selector": "[data-testid='chat-send'] overlapped by [data-testid='paziente-bottom-nav']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Standalone PWA > /paziente/chat > send message to therapist",
+        "issue": "1:1 conversation opens, but sending a message fails with /api/messaggi 422 because the frontend sends the wrong payload field and no message is persisted.",
+        "affected_selectors": ["[data-testid='nav-chat']", "[data-testid='chat-input']", "[data-testid='chat-send']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/pwa_standalone_bug_verification_playwright.py"
+  ],
+  "action_items": [
+    "Fix ChatMobilePage send payload to POST /api/messaggi with destinatario_id (selected.terapeuta_id for paziente, selected.paziente_id for therapist) instead of conversazione_id.",
+    "Move the standalone chat composer above the fixed bottom nav or add sufficient bottom padding/safe-area handling so Send is tappable on Android-sized screens.",
+    "Retest standalone chat send end-to-end and confirm the sent text appears after reload."
+  ],
+  "critical_code_review_comments": [
+    "frontend/src/pages/patient/ChatMobilePage.jsx lines 47-50 post { conversazione_id, testo }, but /app/backend/server.py lines 225-227 and 382-399 require { destinatario_id, testo }.",
+    "ChatMobilePage uses h-screen inside PazienteAppShell while BottomNav is fixed; on 390x844 viewport the send button rect is y=788-832 and bottom nav rect is y=752-844."
+  ],
+  "updated_files": [
+    "/app/tests/pwa_standalone_bug_verification_playwright.py",
+    "/app/test_reports/bug_verification_18.json",
+    "/app/test_reports/iteration_18.json"
+  ],
+  "success_rate": {
+    "backend": "N/A frontend-focused; observed /api/messaggi 422 from UI",
+    "frontend": "85%"
+  },
+  "seed_data_creation": "No seed data created. A chat send attempt was made but failed with 422, so no message was persisted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use standalone matchMedia override. Already verified: no PWA install banner in standalone even with just-registered/beforeinstallprompt; PazienteHome mockup visible; /, /blog, /chi-siamo, /terapeuti redirect to /paziente in standalone; public header hidden; tabs/profile/diario work; normal browser legacy dashboard and /blog work. Focus next retest on /paziente/chat send after fixing payload and bottom-nav overlap.",
+  "rca_of_the_issue": "Reproduction: simulate standalone, login as demo.paziente@funzionabene.it / paziente2026, open /paziente/chat, type a message, tap Send. The UI sends POST /api/messaggi with conversazione_id instead of destinatario_id, producing 422 and a runtime error overlay. Additionally, the fixed bottom nav overlaps the chat composer on mobile, so the app still does not feel like a reliable dedicated patient app. No APIs were mocked."
+}

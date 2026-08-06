@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 const ADMIN_ROLES = ["admin"];
@@ -24,6 +25,11 @@ import TerapistaCalendarioPage from "@/pages/therapist/TerapistaCalendarioPage";
 import AdminCalendarioPage from "@/pages/admin/AdminCalendarioPage";
 import RiprogrammaPage from "@/pages/RiprogrammaPage";
 import PazienteDashboard from "@/pages/patient/PazienteDashboard";
+import PazienteHome from "@/pages/patient/PazienteHome";
+import ChatMobilePage from "@/pages/patient/ChatMobilePage";
+import ProfiloPage from "@/pages/patient/ProfiloPage";
+import PazienteAppShell from "@/components/paziente/PazienteAppShell";
+import useStandalone from "@/hooks/useStandalone";
 import DiarioPage from "@/pages/patient/DiarioPage";
 import TerapeutaDiarioPazientePage from "@/pages/therapist/TerapeutaDiarioPazientePage";
 import VideoCallPage from "@/pages/VideoCallPage";
@@ -78,11 +84,64 @@ function ProtectedRoute({ children, roles }) {
   return children;
 }
 
+/**
+ * When the paziente area is opened as an installed PWA (standalone), render the
+ * dedicated mobile app shell (bottom nav, no marketing chrome). Otherwise fall
+ * back to the regular Layout used across the platform.
+ */
+function PazienteLayoutSwitch() {
+  const standalone = useStandalone();
+  return standalone ? <PazienteAppShell /> : <Layout />;
+}
+
+/**
+ * Standalone PWA gets the mockup-style Home; browser keeps the legacy dashboard.
+ */
+function PazienteHomeSwitch() {
+  const standalone = useStandalone();
+  return standalone ? <PazienteHome /> : <PazienteDashboard />;
+}
+
+/**
+ * When running as installed PWA, keep users focused inside /paziente/*.
+ * Whitelisted paths still work (login, registration flow, video session, etc).
+ * Marketing pages redirect to /paziente.
+ */
+function StandaloneRedirector() {
+  const standalone = useStandalone();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!standalone) return;
+    const p = location.pathname;
+    const allowed = (
+      p.startsWith("/paziente") ||
+      p.startsWith("/login") ||
+      p.startsWith("/registrati") ||
+      p.startsWith("/verifica-otp") ||
+      p.startsWith("/recupera-password") ||
+      p.startsWith("/reset-password") ||
+      p.startsWith("/seduta/") ||   // video call
+      p.startsWith("/payment/") ||
+      p === "/" // handled below (redirect)
+    );
+    if (!allowed) {
+      navigate("/paziente", { replace: true });
+    } else if (p === "/") {
+      navigate("/paziente", { replace: true });
+    }
+  }, [standalone, location.pathname, navigate]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <StandaloneRedirector />
         <MagicCursor />
         <PWAInstaller />
         <IOSInstallHelper />
@@ -160,10 +219,17 @@ export default function App() {
             </ProtectedRoute>
           } />
 
-          {/* Patient routes */}
-          <Route path="/paziente" element={<ProtectedRoute roles={PATIENT_ROLES}><Layout /></ProtectedRoute>}>
-            <Route index element={<PazienteDashboard />} />
+          {/* Patient routes — standalone PWA gets app shell (bottom nav, mockup style),
+              browser gets the regular Layout with sidebar */}
+          <Route path="/paziente" element={
+            <ProtectedRoute roles={PATIENT_ROLES}>
+              <PazienteLayoutSwitch />
+            </ProtectedRoute>
+          }>
+            <Route index element={<PazienteHomeSwitch />} />
             <Route path="diario" element={<DiarioPage />} />
+            <Route path="chat" element={<ChatMobilePage />} />
+            <Route path="profilo" element={<ProfiloPage />} />
             <Route path="fatture" element={<FatturePage isAdmin={false} />} />
             <Route path="privacy" element={<PrivacyUtentePage />} />
           </Route>

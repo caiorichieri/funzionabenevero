@@ -16,20 +16,24 @@ export default function PWAInstaller() {
       });
     }
 
+    // Hide when already installed / running as PWA
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+    if (isStandalone) return;
+
     const dismissed = localStorage.getItem("pwa-install-dismissed");
     if (dismissed) return;
 
     const justRegistered = sessionStorage.getItem("just-registered");
     if (justRegistered) {
       sessionStorage.removeItem("just-registered");
-      // Show banner immediately (or in ~1s so it doesn't fight the welcome screen)
       setTimeout(() => setVisible(true), 1500);
     }
 
     const handler = (e) => {
       e.preventDefault();
       setDeferred(e);
-      // Expose globally so /scarica-app can also trigger install
       window.__deferredPWAPrompt = e;
       setVisible(true);
     };
