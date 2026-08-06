@@ -68,8 +68,7 @@ export default function TerapistaPublicPage() {
   return (
     <main className="min-h-[calc(100vh-80px)] bg-transparent" data-testid="therapist-public">
       {/* Hero */}
-      <section className="relative border-b border-white/5">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0A0A0A]/10 via-[#111111] to-[#111111]" />
+      <section className="relative border-b border-[#0A0A0A]/10 bg-gradient-to-br from-[#F4F1ED] via-[#EAE4D9] to-[#F4F1ED]">
         <div className="relative max-w-7xl mx-auto px-6 lg:px-10 py-16 lg:py-24">
           <div className="grid lg:grid-cols-12 gap-10 items-start">
             <div className="lg:col-span-4">
@@ -125,7 +124,7 @@ export default function TerapistaPublicPage() {
               {Array.isArray(terapista.specializzazioni) && terapista.specializzazioni.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-2">
                   {terapista.specializzazioni.map((s) => (
-                    <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-[#6B8FA3]/10 text-[#94B2C2] border border-[#6B8FA3]/20">
+                    <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-[#0A0A0A]/5 text-[#0A0A0A]/75 border border-[#0A0A0A]/10">
                       {s}
                     </span>
                   ))}
