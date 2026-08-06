@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
@@ -28,6 +28,7 @@ function formatDayHeader(isoDate) {
 
 export default function TerapistaPublicPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [terapista, setTerapista] = useState(null);
   const [slots, setSlots] = useState([]);
@@ -40,6 +41,23 @@ export default function TerapistaPublicPage() {
     axios.get(`${API}/terapisti/${id}/slots?settimane=2`).then(r => setSlots(r.data.slots || [])).catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Auto-open the booking sheet on the first available slot when ?prenota=1 is set
+  useEffect(() => {
+    if (searchParams.get("prenota") !== "1") return;
+    if (!user || loading) return;
+    const days = groupByDate(slots);
+    const firstAvailable = days.flatMap(d => d.slots).find(s => s.disponibile);
+    if (firstAvailable) {
+      setSelectedSlot(firstAvailable);
+      setBookingOpen(true);
+    } else {
+      // No slots available → open the booking sheet with no slot so user sees the "no slots" state
+      // OR redirect to chat with the therapist. For now, keep it simple: alert-style scroll to slots.
+      const el = document.querySelector('[data-testid="therapist-slots"]');
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [searchParams, slots, loading, user]);
 
   const handleSlotClick = (slot) => {
     if (!slot.disponibile) return;

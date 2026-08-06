@@ -1410,3 +1410,44 @@ Decisione strategica utente: **PWA only, nessuna app store**. Tutto il download 
 - **Fase 19 Coach Sessuale AI Claude Sonnet 5**: backend endpoint `/api/coach/chat` + substituir mock preview por integração real
 - **Fase 18b Web Push VAPID**: promemoria seduta + notifiche chat/diario
 
+
+---
+
+## ✅ FASE 18d — Steering para Terapeuta Existente (Feb 2026)
+
+**Regra de negócio**: Quando o paziente já tem terapeuta, direcionar direto para a agenda dele — não deixar procurar outro.
+
+### Backend
+- Novo endpoint `GET /api/paziente/mio-terapeuta` que retorna:
+  - `has_terapeuta` (bool)
+  - `terapeuta` (dados + foto + specializzazioni + prezzo)
+  - `next_slot` (ISO 8601 do próximo slot disponível, exclui reservados) — pode ser `null`
+  - `slots_next_30d_count` (contagem de slots disponíveis nos próximos 30 dias)
+  - `unread_messages` (contador de mensagens não lidas desse terapeuta)
+  - `last_appuntamento_at`
+- "Meu terapeuta" = último com `stato in ['confermato', 'completato']` (ordenado por `data_ora` desc)
+
+### Frontend (só PazienteAppShell/mobile)
+- Novo componente `MioTerapeutaCard` em `PazienteHome.jsx`:
+  - Foto + Nome + specializzazione + prezzo
+  - **Se `slots_next_30d_count > 0`**: mostra próximo slot + botão "Prenota una seduta" → `/terapeuti/:id?prenota=1`
+  - **Se 0 slots**: mostra mensagem "Nessuna disponibilità nei prossimi 30 giorni" + botão "Manda un messaggio" → `/paziente/chat` (com badge unread se houver)
+  - Footer discreto "Cerca un altro terapeuta" → `/terapeuti` (não bloqueia, só steer)
+- `NoTerapeutaCard` (paziente sem terapeuta ainda) → CTA "Trova il tuo terapeuta" → `/questionario`
+
+### TerapistaPublicPage
+- Novo `useSearchParams` + `useEffect` que detecta `?prenota=1` na URL
+- Auto-abre BookingSheet no primeiro slot disponível
+- Se não há slots → scroll para a seção de slots (deixa user ver "nessuna disponibilità")
+
+### Lógica de exibição na Home
+```
+IF próxima seduta agendada  → NextSessionCard
+ELIF tem terapeuta          → MioTerapeutaCard (com Prenota OU Messaggio)
+ELSE                        → NoTerapeutaCard (questionario)
+```
+
+### Notas
+- Não bloqueio total — paziente ainda pode ir para `/terapeuti` via link discreto ou URL direta
+- Aplicado **só no PWA standalone mode** (não muda a `PazienteDashboard` browser)
+

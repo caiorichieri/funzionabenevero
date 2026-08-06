@@ -3,33 +3,38 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth, API } from "@/contexts/AuthContext";
 import {
-  Video, Sparkles, Battery, Waves, MessageSquareHeart, BookHeart, Clock,
+  Video, Sparkles, Battery, Waves, BookHeart, Clock, Calendar, MessageCircle, Search,
 } from "lucide-react";
 
 /**
- * Mobile home page for the paziente PWA — matches the site mockup:
- * - "Buongiorno {nome}" greeting
- * - Dark card with the next appointment + Entra CTA
- * - Yellow floating "Consigliato" side-card
- * - Coach Sessuale preview card (placeholder — real chat lands Fase 19)
+ * Mobile home page for the paziente PWA — matches the site mockup.
+ * If the paziente already has a therapist, we steer them toward that
+ * therapist's calendar instead of the general browse experience.
  */
 export default function PazienteHome() {
   const { user } = useAuth();
   const [next, setNext] = useState(null);
+  const [mio, setMio] = useState(null); // { has_terapeuta, terapeuta, next_slot, slots_next_30d_count, unread_messages }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const r = await axios.get(`${API}/appuntamenti`, { withCredentials: true });
+        const [appts, mine] = await Promise.all([
+          axios.get(`${API}/appuntamenti`, { withCredentials: true }),
+          axios.get(`${API}/paziente/mio-terapeuta`, { withCredentials: true }).catch(() => ({ data: { has_terapeuta: false } })),
+        ]);
         const now = new Date();
-        const upcoming = (r.data || [])
-          .filter((a) => a.stato !== "annullato" && new Date(a.data_ora) >= now)
+        const upcoming = (appts.data || [])
+          .filter((a) => a.stato !== "annullato" && a.stato !== "cancellato" && new Date(a.data_ora) >= now)
           .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora));
-        if (!cancelled) setNext(upcoming[0] || null);
+        if (!cancelled) {
+          setNext(upcoming[0] || null);
+          setMio(mine.data || null);
+        }
       } catch {
-        if (!cancelled) setNext(null);
+        if (!cancelled) { setNext(null); setMio({ has_terapeuta: false }); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -54,14 +59,16 @@ export default function PazienteHome() {
         </div>
       </header>
 
-      {/* Next session card */}
+      {/* Primary card — next session OR "il tuo terapeuta" */}
       <section className="mt-6 relative">
         {loading ? (
           <div className="h-32 rounded-3xl bg-white/40 animate-pulse" />
         ) : next ? (
           <NextSessionCard app={next} />
+        ) : mio?.has_terapeuta ? (
+          <MioTerapeutaCard mio={mio} />
         ) : (
-          <NoSessionCard />
+          <NoTerapeutaCard />
         )}
 
         {/* Side floating "Consigliato" chip */}
@@ -76,7 +83,7 @@ export default function PazienteHome() {
       {/* Coach Sessuale — placeholder */}
       <CoachPreview />
 
-      {/* Diario shortcut floating side card */}
+      {/* Diario shortcut */}
       <section className="mt-4">
         <Link
           to="/paziente/diario"
@@ -137,19 +144,93 @@ function NextSessionCard({ app }) {
   );
 }
 
-function NoSessionCard() {
+function MioTerapeutaCard({ mio }) {
+  const t = mio.terapeuta || {};
+  const hasSlots = (mio.slots_next_30d_count || 0) > 0;
+  const nextSlot = mio.next_slot ? new Date(mio.next_slot) : null;
+  const initials = `${(t.nome || "").charAt(0)}${(t.cognome || "").charAt(0)}`.toUpperCase() || "T";
+
   return (
-    <div className="rounded-3xl p-6 text-white text-center shadow-xl" style={{ background: "#0A0A0A" }}>
-      <div className="text-[10px] tracking-[0.22em] uppercase font-semibold text-[#F5D419] mb-2">Nessuna seduta in programma</div>
+    <div className="rounded-3xl p-5 text-white shadow-xl" style={{ background: "#0A0A0A" }} data-testid="home-mio-terapeuta">
+      <div className="text-[10px] tracking-[0.22em] uppercase font-semibold text-[#F5D419]">Il tuo terapeuta</div>
+      <div className="mt-3 flex items-center gap-3">
+        {t.foto_url ? (
+          <img src={t.foto_url} alt={`${t.nome} ${t.cognome}`} className="w-12 h-12 rounded-2xl object-cover flex-shrink-0" />
+        ) : (
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#F58A1F] to-[#F5D419] text-[#0A0A0A] font-bold flex items-center justify-center flex-shrink-0">
+            {initials}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-base text-white truncate">Dr. {t.nome} {t.cognome}</div>
+          <div className="text-xs text-white/60 truncate">
+            {(t.specializzazioni || [])[0] || "Sessuologo"} · € {t.prezzo_seduta}/seduta
+          </div>
+        </div>
+      </div>
+
+      {hasSlots ? (
+        <div className="mt-4">
+          {nextSlot && (
+            <div className="text-xs text-white/70 mb-2">
+              Prossimo slot: <strong className="text-white">{nextSlot.toLocaleDateString("it-IT", { day: "2-digit", month: "long" })} · {nextSlot.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</strong>
+            </div>
+          )}
+          <Link
+            to={`/terapeuti/${t.id}?prenota=1`}
+            data-testid="home-prenota-mio-terapeuta"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#F58A1F] to-[#F5D419] text-[#0A0A0A] font-semibold text-sm"
+          >
+            <Calendar className="w-4 h-4" /> Prenota una seduta
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <div className="text-xs text-white/70 mb-2 leading-relaxed">
+            Nessuna disponibilità nei prossimi 30 giorni. Contattalo per fissare un appuntamento.
+          </div>
+          <Link
+            to="/paziente/chat"
+            data-testid="home-messaggio-mio-terapeuta"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#F58A1F] to-[#F5D419] text-[#0A0A0A] font-semibold text-sm"
+          >
+            <MessageCircle className="w-4 h-4" /> Manda un messaggio
+            {mio.unread_messages > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-[#0A0A0A] text-white text-[10px] font-bold px-1">
+                {mio.unread_messages}
+              </span>
+            )}
+          </Link>
+        </div>
+      )}
+
+      {/* Discreet "Cerca un altro" footer */}
+      <div className="mt-4 pt-3 border-t border-white/10">
+        <Link
+          to="/terapeuti"
+          data-testid="home-cerca-altro"
+          className="text-[11px] text-white/40 hover:text-white/70 inline-flex items-center gap-1"
+        >
+          <Search className="w-3 h-3" /> Cerca un altro terapeuta
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function NoTerapeutaCard() {
+  return (
+    <div className="rounded-3xl p-6 text-white text-center shadow-xl" style={{ background: "#0A0A0A" }} data-testid="home-no-terapeuta">
+      <div className="text-[10px] tracking-[0.22em] uppercase font-semibold text-[#F5D419] mb-2">Inizia il tuo percorso</div>
       <p className="text-sm text-white/70 max-w-xs mx-auto leading-relaxed">
-        Puoi prenotare una nuova sessione con il tuo terapeuta.
+        Trova il terapeuta giusto per te tra i nostri professionisti verificati.
       </p>
       <Link
-        to="/terapeuti"
-        data-testid="home-book-btn"
+        to="/questionario"
+        data-testid="home-questionario-btn"
         className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#F58A1F] to-[#F5D419] text-[#0A0A0A] font-semibold text-sm"
       >
-        <Sparkles className="w-4 h-4" /> Prenota
+        <Sparkles className="w-4 h-4" /> Trova il tuo terapeuta
       </Link>
     </div>
   );

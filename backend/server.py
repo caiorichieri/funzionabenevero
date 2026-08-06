@@ -156,6 +156,94 @@ async def update_my_paziente_profile(data: PazienteProfileInput, user: dict = De
     doc["_id"] = str(doc["_id"])
     return doc
 
+
+@api_router.get("/paziente/mio-terapeuta")
+async def get_mio_terapeuta(user: dict = Depends(require_auth)):
+    """Return the paziente's current therapist (last with a confirmed/completed
+    appuntamento) along with next available slot and unread message count."""
+    if user["role"] != "paziente":
+        raise HTTPException(status_code=403, detail="Solo pazienti")
+
+    # Find last appuntamento in "confermato"/"completato"
+    last = await db.appuntamenti.find_one(
+        {"paziente_user_id": user["_id"], "stato": {"$in": ["confermato", "completato"]}},
+        sort=[("data_ora", -1)],
+    )
+    if not last:
+        return {"has_terapeuta": False}
+
+    terapeuta_id = last.get("terapeuta_id")
+    if not terapeuta_id:
+        return {"has_terapeuta": False}
+
+    try:
+        t = await db.terapisti.find_one({"_id": ObjectId(terapeuta_id)})
+    except Exception:
+        t = None
+    if not t or not t.get("documenti_verificati"):
+        return {"has_terapeuta": False, "reason": "terapeuta_non_disponibile"}
+
+    # Compute next available slot in the next 30 days (excluding booked slots)
+    now = datetime.now(timezone.utc)
+    horizon = now + timedelta(days=30)
+    booked_appts = await db.appuntamenti.find({
+        "terapeuta_id": terapeuta_id,
+        "stato": {"$nin": ["cancellato", "annullato"]},
+        "data_ora": {"$gte": now.isoformat(), "$lt": horizon.isoformat()},
+    }).to_list(500)
+    booked = {a["data_ora"][:16] for a in booked_appts}
+
+    cal = t.get("disponibilita_calendario") or {}
+    min_slot_time = now + timedelta(hours=2)
+    slots_available = 0
+    next_slot_iso = None
+    for date_key in sorted(cal.keys()):
+        try:
+            y, m, d = map(int, date_key.split("-"))
+            slot_date = datetime(y, m, d, tzinfo=timezone.utc)
+        except Exception:
+            continue
+        if slot_date < now - timedelta(days=1) or slot_date > horizon:
+            continue
+        for hhmm in cal[date_key]:
+            try:
+                slot_dt = datetime(y, m, d, int(hhmm[:2]), int(hhmm[3:5]), tzinfo=timezone.utc)
+            except Exception:
+                continue
+            if slot_dt < min_slot_time or slot_dt > horizon:
+                continue
+            if slot_dt.isoformat()[:16] in booked:
+                continue
+            slots_available += 1
+            if next_slot_iso is None:
+                next_slot_iso = slot_dt.isoformat()
+
+    # Unread messages from this terapeuta
+    unread = await db.messaggi.count_documents({
+        "destinatario_id": user["_id"],
+        "mittente_id": t.get("user_id"),
+        "letto": False,
+    })
+
+    return {
+        "has_terapeuta": True,
+        "terapeuta": {
+            "id": str(t["_id"]),
+            "user_id": t.get("user_id"),
+            "nome": t.get("nome"),
+            "cognome": t.get("cognome"),
+            "foto_url": t.get("foto_url"),
+            "specializzazioni": t.get("specializzazioni", [])[:3],
+            "prezzo_seduta": t.get("prezzo_seduta") or t.get("tariffa") or 70,
+            "durata_seduta_minuti": t.get("durata_seduta_minuti") or 50,
+        },
+        "next_slot": next_slot_iso,
+        "slots_next_30d_count": slots_available,
+        "unread_messages": unread,
+        "last_appuntamento_at": last.get("data_ora"),
+    }
+
+
 # ─── APPUNTAMENTI ─────────────────────────────────────────────────────────────
 
 
