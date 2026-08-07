@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "@/utils/safeHtml";
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
@@ -175,7 +176,7 @@ export default function ContrattiPage() {
                   <div className="p-6 pt-2 border-t border-[#0A0A0A]/10">
                     <div
                       className="prose prose-sm max-w-none text-[#0A0A0A]/85"
-                      dangerouslySetInnerHTML={{ __html: current.content_html }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(current.content_html) }}
                     />
                   </div>
                 </details>
@@ -252,7 +253,7 @@ export default function ContrattiPage() {
               <details className="text-sm">
                 <summary className="cursor-pointer text-[#F58A1F] font-medium">Anteprima</summary>
                 <div className="mt-3 p-4 bg-[#0A0A0A]/[0.03] rounded-xl prose prose-sm max-w-none"
-                     dangerouslySetInnerHTML={{ __html: editing.content_html }} />
+                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(editing.content_html) }} />
               </details>
             </div>
             <div className="p-4 border-t border-[#0A0A0A]/10 flex justify-end gap-2">

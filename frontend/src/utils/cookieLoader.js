@@ -28,7 +28,9 @@ const injectInline = (id, code) => {
   if (document.getElementById(id)) return;
   const s = document.createElement("script");
   s.id = id;
-  s.innerHTML = code;
+  // Use textContent (not innerHTML): the content is our own inline JS,
+  // never user input. textContent is the safer API for <script> injection.
+  s.textContent = code;
   document.head.appendChild(s);
 };
 

@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "@/utils/safeHtml";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
@@ -60,7 +61,7 @@ export default function DynamicLegalPage({ kind, fallbackTitle, testId }) {
           </div>
           <div
             className="text-[#0A0A0A]/85"
-            dangerouslySetInnerHTML={{ __html: doc.content_html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(doc.content_html) }}
             data-testid={`${testId}-content`}
           />
         </>

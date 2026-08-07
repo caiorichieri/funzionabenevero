@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "@/utils/safeHtml";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
@@ -62,7 +63,7 @@ export default function MandatoLegalePage() {
           </div>
           <div
             className="text-[#0A0A0A]/85"
-            dangerouslySetInnerHTML={{ __html: contract.content_html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(contract.content_html) }}
             data-testid="mandato-content-html"
           />
         </>

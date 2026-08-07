@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "@/utils/safeHtml";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
@@ -82,7 +83,7 @@ export default function BlogPostPage() {
         {isHtml ? (
           <div
             className="blog-prose mt-10"
-            dangerouslySetInnerHTML={{ __html: contenuto }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(contenuto) }}
           />
         ) : (
           <div className="mt-10">

@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "@/utils/safeHtml";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Sparkles, Heart, ShieldCheck, Award, Users, Target } from "lucide-react";
@@ -155,7 +156,7 @@ export default function ChiSiamoPage() {
                   <Icon className="w-5 h-5 text-[#0A0A0A]" />
                 </div>
                 <h3 className="font-serif text-xl text-[#0A0A0A] mb-3 leading-tight">{v.titolo}</h3>
-                <p className="text-sm text-[#0A0A0A]/65 leading-relaxed" dangerouslySetInnerHTML={{ __html: v.desc }} />
+                <p className="text-sm text-[#0A0A0A]/65 leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(v.desc) }} />
               </motion.div>
             );
           })}
