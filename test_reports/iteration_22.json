@@ -1,0 +1,34 @@
+{
+  "summary": "Verified both PWA standalone bug fixes for iteration 22. (1) StandaloneRedirector now correctly allows /terapeuta and /admin routes AND role-aware fallback destination works — terapeuta lands on /terapeuta, admin lands on /admin, paziente on /paziente. Navigation from /terapeuta to /terapeuta/calendario in standalone mode no longer redirects back to /paziente. (2) The 'CONSIGLIATO Esercizio resp…' floating chip has been removed from PazienteHome — no element with data-testid='home-consigliato-chip' present. All regressions passed: paziente primary card (NextSessionCard 'Sessione con Maria Rossi') renders, bottom nav shows Home/Diario/Chat/Profilo, marketing routes (/blog, /chi-siamo) still redirect to /paziente, and normal browser mode still works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "terapeuta_login_redirect_standalone": "PASS — lands on /terapeuta",
+    "terapeuta_calendario_nav_standalone": "PASS — /terapeuta/calendario loads without redirect",
+    "admin_login_redirect_standalone": "PASS — lands on /admin (Cruscotto page rendered)",
+    "paziente_login_redirect_standalone": "PASS — lands on /paziente",
+    "paziente_no_consigliato_chip": "PASS — chip removed",
+    "paziente_primary_card_rendered": "PASS — NextSessionCard visible",
+    "paziente_bottom_nav_visible": "PASS — Home/Diario/Chat/Profilo",
+    "paziente_blog_redirect_to_paziente": "PASS",
+    "paziente_chisiamo_redirect_to_paziente": "PASS",
+    "regression_normal_browser_terapeuta": "PASS — lands on /terapeuta without ?app=1"
+  },
+  "test_report_links": [
+    "/app/test_reports/browser_iter22_terapeuta.jpeg",
+    "/app/test_reports/browser_iter22_admin.jpeg",
+    "/app/test_reports/browser_iter22_paziente_home.jpeg"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "StandaloneRedirector implementation is clean and role-aware. Allowlist covers all necessary paths (login, register, otp, reset-password, seduta/, payment/). Consider whether /questionario should stay in the allowlist when running standalone as an admin/therapist (currently harmless but slightly odd).",
+    "The useStandalone hook's sessionStorage persistence via ?app=1 is a great test affordance."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "100%"},
+  "test_credentials": "Used credentials from /app/memory/test_credentials.md — admin@funzionabene.it/admin2026, demo.terapeuta@funzionabene.it/terapeuta2026, demo.paziente@funzionabene.it/paziente2026",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Standalone PWA mode simulated via ?app=1 query string on initial navigation (useStandalone hook persists in sessionStorage). Cookie banner blocks form submissions on first load — must click 'Accetta tutti' button before filling login form. Both bugs from user report are fully resolved as of iter 22."
+}

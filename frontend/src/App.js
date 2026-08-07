@@ -110,12 +110,15 @@ function StandaloneRedirector() {
   const standalone = useStandalone();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!standalone) return;
     const p = location.pathname;
     const allowed = (
       p.startsWith("/paziente") ||
+      p.startsWith("/terapeuta") ||    // therapist area
+      p.startsWith("/admin") ||        // admin area
       p.startsWith("/terapeuti") ||    // browsing + booking a specific therapist
       p.startsWith("/questionario") || // matching flow
       p.startsWith("/login") ||
@@ -126,12 +129,17 @@ function StandaloneRedirector() {
       p.startsWith("/seduta/") ||      // video call
       p.startsWith("/payment/")
     );
+    // Role-aware home destination when user hits blocked/root paths
+    const home =
+      user?.role === "admin" ? "/admin" :
+      user?.role === "terapeuta" ? "/terapeuta" :
+      "/paziente";
     if (!allowed) {
-      navigate("/paziente", { replace: true });
+      navigate(home, { replace: true });
     } else if (p === "/") {
-      navigate("/paziente", { replace: true });
+      navigate(home, { replace: true });
     }
-  }, [standalone, location.pathname, navigate]);
+  }, [standalone, location.pathname, navigate, user]);
 
   return null;
 }
