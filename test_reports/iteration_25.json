@@ -1,0 +1,42 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "Sto provando ad acquistare una sessione e a registrarmi contemporaneamente dal checkout pubblico, ma il backend risponde 'I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione', anche se il checkbox della privacy è spuntato.",
+  "summary": "No relevant testing skill found. Focused retest of the public therapist BookingSheet registration flow passed: the live checkbox label and local validation mention both Privacy Policy and Termini di Servizio; with the checkbox checked, POST /api/auth/register included consenso_privacy:true and consenso_termini:true, returned 200, and the UI advanced to the OTP step without the mandatory-consents backend error.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/bug_booking_consent_ui_playwright.py",
+    "/app/tests/bug_booking_consent_api.py",
+    "/app/test_reports/booking_consent_ui_result_iteration_25.json",
+    "/app/test_reports/booking_consent_ui_result.json",
+    "/app/test_reports/booking_consent_api_result.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Source inspection confirms BookingSheet.handleRegister now sends both consenso_privacy:true and consenso_termini:true, and the checkbox/local error text now references both Privacy Policy and Termini di Servizio.",
+    "No mocked API was used for the tested registration/OTP path. Downstream payment code in BookingSheet is marked MOCKED PAYMENT but was outside this consent-bug retest scope."
+  ],
+  "updated_files": [
+    "/app/test_reports/booking_consent_ui_result_iteration_25.json",
+    "/app/test_reports/booking_consent_ui_result.json",
+    "/app/test_reports/booking_consent_api_result.json",
+    "/app/test_reports/bug_verification_25.json",
+    "/app/test_reports/iteration_25.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "No therapist seed data created; used existing public therapist Alessandro Conti (id 69e5c83da585e313092bd595) with an available slot. UI test registered qa.booking.ui.1786292249@funzionabene.it and API test registered qa.booking.consents.1786292259@funzionabene.it for consent/OTP verification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Rerun /app/tests/bug_booking_consent_ui_playwright.py or the saved MCP script if needed. Latest runtime evidence: live UI payload contained both consent booleans and reached [data-testid=step-otp] with otp_dev after a 200 /api/auth/register response.",
+  "rca_of_the_issue": "The prior failure was caused by stale live frontend behavior omitting consenso_termini. After frontend restart/hot reload, the served BookingSheet matches the fixed source: unchecked submission is blocked locally with 'Devi accettare Privacy Policy e Termini di Servizio', and checked submission sends both mandatory consent fields so backend validation passes."
+}

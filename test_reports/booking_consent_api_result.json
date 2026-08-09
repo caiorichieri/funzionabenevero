@@ -83,10 +83,10 @@
       "status_code": 200,
       "body": {
         "message": "Registrazione completata. Controlla la tua email per il codice OTP.",
-        "otp_dev": "385221"
+        "otp_dev": "298027"
       },
       "persisted": {
-        "email": "qa.booking.consents.1786291878@funzionabene.it",
+        "email": "qa.booking.consents.1786292259@funzionabene.it",
         "consenso_privacy": true,
         "consents_privacy_accettata": true,
         "consents_termini_accettati": true,
