@@ -69,14 +69,16 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
-    if (!form.privacy) { setError("Devi accettare la Privacy Policy"); return; }
+    if (!form.privacy) { setError("Devi accettare Privacy Policy e Termini di Servizio"); return; }
     if (form.password.length < 8) { setError("La password deve avere almeno 8 caratteri"); return; }
     setLoading(true);
     try {
       const res = await axios.post(`${API}/auth/register`, {
         email: form.email, password: form.password,
         nome: form.nome, cognome: form.cognome,
-        role: "paziente", consenso_privacy: true,
+        role: "paziente",
+        consenso_privacy: true,
+        consenso_termini: true,
       });
       setOtpDev(res.data.otp_dev || "");
       setStep("otp");
@@ -373,7 +375,7 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
                         className="mt-1 accent-[#0A0A0A]"
                       />
                       <span>
-                        Accetto la <span className="text-[#0A0A0A] underline">Privacy Policy</span> e il trattamento dei dati ai sensi del GDPR.
+                        Accetto la <a href="/privacy" target="_blank" rel="noreferrer" className="text-[#0A0A0A] underline">Privacy Policy</a> e i <a href="/termini" target="_blank" rel="noreferrer" className="text-[#0A0A0A] underline">Termini di Servizio</a> ai sensi del GDPR.
                       </span>
                     </label>
                   )}

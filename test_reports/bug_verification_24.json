@@ -1,0 +1,69 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "Sto provando ad acquistare una sessione e a registrarmi contemporaneamente dal checkout pubblico, ma il backend risponde 'I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione', anche se il checkbox della privacy è spuntato.",
+  "summary": "No relevant testing skill found. Focused verification of the public therapist BookingSheet registration flow: direct API with both consents succeeds and returns otp_dev, but the live UI still sends only consenso_privacy=true, receives the exact backend consent error, and does not advance to OTP.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "BookingSheet",
+        "issue": "Live UI still shows the old unchecked-checkbox validation text 'Devi accettare la Privacy Policy' instead of mentioning Privacy Policy and Termini di Servizio.",
+        "selector": "[data-testid=booking-error]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "BookingSheet",
+        "issue": "Live checkbox label still says 'Privacy Policy e il trattamento dei dati' and does not mention Termini di Servizio, despite the source file diff showing the intended label change.",
+        "selector": "[data-testid=booking-privacy]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Anonymous public checkout registration after selecting a therapist slot",
+        "issue": "POST /api/auth/register from the live BookingSheet payload omitted consenso_termini. Observed payload: email/password/nome/cognome/role/consenso_privacy only. Backend returned 400 with 'I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione', so OTP step was not reached.",
+        "affected_selectors": [
+          "[data-testid=booking-privacy]",
+          "[data-testid=booking-auth-submit]",
+          "[data-testid=booking-error]",
+          "[data-testid=step-otp]"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/bug_booking_consent_api.py",
+    "/app/tests/bug_booking_consent_ui_playwright.py",
+    "/app/test_reports/booking_consent_api_result.json",
+    "/app/test_reports/booking_consent_ui_result.json"
+  ],
+  "action_items": [
+    "Ensure the live/frontend-served BookingSheet code is updated/rebuilt/restarted so handleRegister actually sends consenso_privacy=true and consenso_termini=true.",
+    "Retest the real browser flow and confirm the network payload includes consenso_termini=true, the old backend error no longer appears, and [data-testid=step-otp]/[data-testid=otp-dev] are visible.",
+    "Verify the live checkbox label and local validation message mention both Privacy Policy and Termini di Servizio."
+  ],
+  "critical_code_review_comments": [
+    "Working tree source /app/frontend/src/components/public/BookingSheet.jsx contains the intended fix, but browser automation against the preview environment loaded old runtime behavior. This indicates the served frontend bundle/component is stale or not using the modified file, so the user-visible bug is still reproducible."
+  ],
+  "updated_files": [
+    "/app/tests/bug_booking_consent_api.py",
+    "/app/tests/bug_booking_consent_ui_playwright.py",
+    "/app/test_reports/booking_consent_api_result.json",
+    "/app/test_reports/booking_consent_ui_result.json",
+    "/app/test_reports/bug_verification_24.json",
+    "/app/test_reports/iteration_24.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "0%"
+  },
+  "seed_data_creation": "No therapist seed data created; used existing public therapist Alessandro Conti (id 69e5c83da585e313092bd595) with an available slot. API test created one unverified QA patient account qa.booking.consents.*@funzionabene.it for consent persistence verification; UI failed before user creation.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Direct API POST /api/auth/register with both consenso_privacy and consenso_termini passes and returns otp_dev. The real browser flow still sends only consenso_privacy from the live BookingSheet and receives the exact user-reported 400 error. Re-run /app/tests/bug_booking_consent_ui_playwright.py logic after frontend rebuild/restart/deploy.",
+  "rca_of_the_issue": "Backend validation is working as intended. The source diff shows the frontend fix in BookingSheet.jsx, but the preview UI served stale/old BookingSheet behavior: old label, old local error, and payload missing consenso_termini. Reproduction: open /terapeuti/69e5c83da585e313092bd595, click an available slot, continue, fill registration form, tick privacy, submit; network request lacks consenso_termini and backend rejects it."
+}

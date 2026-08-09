@@ -1,0 +1,99 @@
+{
+  "base_url": "https://portugues-writer-2.preview.emergentagent.com",
+  "api": "https://portugues-writer-2.preview.emergentagent.com/api",
+  "target": {
+    "therapist": {
+      "_id": "69e5c83da585e313092bd595",
+      "user_id": "69e5c83da585e313092bd594",
+      "nome": "Alessandro",
+      "cognome": "Conti",
+      "email": "alessandro.conti@funzionabene.it",
+      "telefono": "+39 02 0000000",
+      "bio": "Psicoterapeuta e sessuologo, 28 anni di pratica clinica. Specializzato in disfunzioni sessuali legate all'ansia da prestazione e nei percorsi di coppia di lunga durata.",
+      "anni_esperienza": 28,
+      "specializzazioni": [
+        "Ansia da prestazione",
+        "Disfunzione erettile",
+        "Terapia di coppia"
+      ],
+      "formazione": [
+        {
+          "titolo": "Laurea in Medicina e Chirurgia",
+          "istituto": "Università di Bologna",
+          "anno": 1992
+        },
+        {
+          "titolo": "Specializzazione in Psichiatria",
+          "istituto": "Università di Bologna",
+          "anno": 1998
+        },
+        {
+          "titolo": "Master in Sessuologia Clinica",
+          "istituto": "IISS, Milano",
+          "anno": 2002
+        }
+      ],
+      "approccio_terapeutico": "Integrato: cognitivo-comportamentale e psicodinamico breve",
+      "genere": "M",
+      "albo_numero": "7823",
+      "albo_ordine": "Ordine degli Psicologi dell'Emilia-Romagna",
+      "albo_iscrizione_data": "2010-01-01",
+      "assicurazione_compagnia": "Generali",
+      "assicurazione_numero_polizza": "POL-7823",
+      "assicurazione_scadenza": "2026-12-31",
+      "prezzo_sessione": 79.0,
+      "lingue": [
+        "Italiano"
+      ],
+      "autocertificazione_firmata": true,
+      "autocertificazione_data": "2026-04-20T06:31:25.141000",
+      "foto_url": "/api/media/therapists/alessandro_conti.png",
+      "disponibilita": [
+        {
+          "giorno": "Martedì",
+          "ora_inizio": "14:00",
+          "ora_fine": "20:00"
+        },
+        {
+          "giorno": "Giovedì",
+          "ora_inizio": "14:00",
+          "ora_fine": "20:00"
+        }
+      ],
+      "created_at": "2026-04-20T06:31:25.141000",
+      "documenti_verificati": true
+    },
+    "slot": {
+      "data_ora": "2026-08-11T14:00:00+00:00",
+      "data_ora_fmt": "Martedì 11/08/2026 14:00",
+      "disponibile": true
+    }
+  },
+  "checks": [
+    {
+      "name": "old_payload_without_consenso_termini_rejected",
+      "status_code": 400,
+      "body": {
+        "detail": "I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione"
+      },
+      "passed": true
+    },
+    {
+      "name": "fixed_payload_with_both_consents_registers_and_returns_otp_dev",
+      "status_code": 200,
+      "body": {
+        "message": "Registrazione completata. Controlla la tua email per il codice OTP.",
+        "otp_dev": "385221"
+      },
+      "persisted": {
+        "email": "qa.booking.consents.1786291878@funzionabene.it",
+        "consenso_privacy": true,
+        "consents_privacy_accettata": true,
+        "consents_termini_accettati": true,
+        "otp_present": true
+      },
+      "passed": true
+    }
+  ],
+  "passed": true
+}

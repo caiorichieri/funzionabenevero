@@ -1,0 +1,57 @@
+{
+  "checks": [
+    {
+      "name": "profile_opened",
+      "passed": true
+    },
+    {
+      "name": "unchecked_privacy_terms_shows_local_error_and_no_api_call",
+      "passed": false,
+      "visible_error": "Devi accettare la Privacy Policy",
+      "api_call_count_before": 0,
+      "api_call_count_after": 0
+    },
+    {
+      "name": "checked_privacy_terms_registers_payload_has_both_consents_and_advances_to_otp",
+      "passed": false,
+      "payload": {
+        "email": "qa.booking.ui.1786292038@funzionabene.it",
+        "password": "Password123!",
+        "nome": "QA",
+        "cognome": "UI",
+        "role": "paziente",
+        "consenso_privacy": true
+      },
+      "otp_text": "",
+      "step_otp_count": 0,
+      "register_responses": [
+        {
+          "status": 400,
+          "body": {
+            "detail": "I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione"
+          }
+        }
+      ]
+    }
+  ],
+  "register_payloads": [
+    {
+      "email": "qa.booking.ui.1786292038@funzionabene.it",
+      "password": "Password123!",
+      "nome": "QA",
+      "cognome": "UI",
+      "role": "paziente",
+      "consenso_privacy": true
+    }
+  ],
+  "register_responses": [
+    {
+      "status": 400,
+      "body": {
+        "detail": "I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione"
+      }
+    }
+  ],
+  "email": "qa.booking.ui.1786292038@funzionabene.it",
+  "passed": false
+}
