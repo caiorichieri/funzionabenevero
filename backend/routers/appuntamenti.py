@@ -1,4 +1,5 @@
 """Appuntamenti (appointments) router: CRUD + Daily.co video token + attendance."""
+import hashlib
 import logging
 from datetime import datetime, timezone
 
@@ -10,6 +11,10 @@ from models import AppuntamentoInput, AppuntamentoStatoInput
 from daily_service import create_room_for_appointment, create_meeting_token, get_room_presenza
 
 router = APIRouter()
+
+
+def _digest(raw: str) -> str:
+    return hashlib.sha256(raw.encode("ascii")).hexdigest()
 
 
 @router.get("/appuntamenti")
@@ -156,6 +161,58 @@ async def get_video_token(app_id: str, user: dict = Depends(require_auth)):
         "data_ora": app["data_ora"],
         "durata_minuti": app.get("durata_minuti", 50),
     }
+
+
+# ─── MAGIC LINK (from 15-min-before email; no login required) ────────────────
+@router.get("/videocall-magic/{app_id}")
+async def videocall_magic(app_id: str, token: str):
+    """Public endpoint: validate a magic token from the 15-min-before reminder
+    email and return the Daily room URL + a fresh meeting token. No login
+    required. Token is valid within the appointment window (until 15 min after
+    scheduled end)."""
+    try:
+        app = await db.appuntamenti.find_one({"_id": ObjectId(app_id)})
+    except Exception:
+        raise HTTPException(404, "Appuntamento non trovato")
+    if not app:
+        raise HTTPException(404, "Appuntamento non trovato")
+    stored_hash = app.get("videocall_magic_hash")
+    if not stored_hash or _digest(token) != stored_hash:
+        raise HTTPException(403, "Link non valido")
+    expires = app.get("videocall_magic_expires")
+    if expires:
+        exp = expires if expires.tzinfo else expires.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > exp:
+            raise HTTPException(410, "Link scaduto")
+
+    room_name = app.get("daily_room_name")
+    room_url = app.get("daily_room_url")
+    if not room_name:
+        room = await create_room_for_appointment(app_id, app["data_ora"], app.get("durata_minuti", 50))
+        if not room:
+            raise HTTPException(500, "Impossibile creare la stanza video")
+        room_name = room["room_name"]
+        room_url = room["room_url"]
+        await db.appuntamenti.update_one(
+            {"_id": ObjectId(app_id)},
+            {"$set": {"daily_room_url": room_url, "daily_room_name": room_name}},
+        )
+
+    paziente = await db.pazienti.find_one({"_id": ObjectId(app["paziente_id"])})
+    user_name = f"{paziente.get('nome','')} {paziente.get('cognome','')}".strip() if paziente else "Paziente"
+    meeting_token = await create_meeting_token(room_name, user_name, False, app["data_ora"], app.get("durata_minuti", 50))
+
+    return {
+        "room_url": room_url,
+        "room_name": room_name,
+        "token": meeting_token,
+        "user_name": user_name,
+        "is_owner": False,
+        "data_ora": app["data_ora"],
+        "durata_minuti": app.get("durata_minuti", 50),
+    }
+
+
 
 
 @router.get("/appuntamenti/{app_id}/presenze")

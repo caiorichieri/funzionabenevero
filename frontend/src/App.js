@@ -250,6 +250,9 @@ export default function App() {
           {/* Reschedule (public, token-authenticated) */}
           <Route path="/riprogramma/:appuntamentoId" element={<RiprogrammaPage />} />
 
+          {/* Video call — MAGIC LINK from reminder email (public, token-authenticated) */}
+          <Route path="/videocall/:appuntamentoId" element={<VideoCallPage />} />
+
           {/* Video call (fullscreen, authenticated paziente/terapeuta/admin) */}
           <Route path="/seduta/:appuntamentoId" element={
             <ProtectedRoute roles={["paziente","terapeuta","admin"]}>

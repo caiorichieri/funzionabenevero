@@ -144,12 +144,28 @@ def _booking_template(ctx: dict, recipient: str) -> str:
 
 
 def _reminder_template(ctx: dict, when: str) -> str:
-    """when = '1-giorno' (single reminder)."""
+    """when = '1-giorno' | '1-ora' | '15-min'."""
     dt_fmt = _format_data_ora_it(ctx["data_ora"])
-    titolo = "La tua seduta è domani"
-    sottotitolo = "Ti aspettiamo. Controlla i dettagli qui sotto."
+    if when == "15-min":
+        titolo = "La tua seduta inizia tra 15 minuti"
+        sottotitolo = "Clicca il pulsante qui sotto per entrare direttamente nella stanza."
+    elif when == "1-ora":
+        titolo = "La tua seduta è tra un'ora"
+        sottotitolo = "Il link per entrare arriverà 15 minuti prima dell'inizio via email — sarà anche disponibile nella tua area personale."
+    else:  # 1-giorno
+        titolo = "La tua seduta è domani"
+        sottotitolo = "Ti aspettiamo. Controlla i dettagli qui sotto."
+
+    # Direct-join button (only for 15-min reminder with magic link)
+    join_button_html = ""
+    if when == "15-min" and ctx.get("videocall_url"):
+        join_button_html = f"""<tr><td style="padding:24px 40px 0;text-align:center;">
+    <a href="{ctx['videocall_url']}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:16px 40px;border-radius:12px;font-size:15px;letter-spacing:0.5px;">Entra nella stanza video →</a>
+    <p style="font-size:11px;color:rgba(230,226,216,0.4);margin:12px 0 0;">Il link è personale e valido solo per te fino a 15 minuti dopo l'inizio della sessione.</p>
+</td></tr>"""
+
     reschedule_html = ""
-    if ctx.get("reschedule_url"):
+    if ctx.get("reschedule_url") and when != "15-min":
         reschedule_html = f"""<p style="font-size:12px;color:rgba(230,226,216,0.5);line-height:1.6;margin:16px 0 0;text-align:center;">
       Non puoi partecipare? <a href="{ctx['reschedule_url']}" style="color:#6B8FA3;text-decoration:underline;">Riprogramma qui</a> · Per un rimborso scrivi a <a href="mailto:assistenza@funzionabene.it" style="color:#6B8FA3;text-decoration:underline;">assistenza@funzionabene.it</a>
     </p>"""
@@ -177,6 +193,7 @@ def _reminder_template(ctx: dict, when: str) -> str:
   </table>
   {reschedule_html}
 </td></tr>
+{join_button_html}
 <tr><td style="padding:28px 40px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;margin-top:20px;">
   <p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Clinica di Psicologia e Sessuologia</p>
 </td></tr>
@@ -219,10 +236,15 @@ async def send_booking_confirmation_email(ctx: dict) -> bool:
 
 
 async def send_reminder_email(ctx: dict, when: str) -> bool:
-    """Send reminder email to paziente. when = '1-giorno' | '1-ora'."""
+    """Send reminder email to paziente. when = '1-giorno' | '1-ora' | '15-min'."""
     if not ctx.get("paziente_email"):
         return False
-    subject = "Promemoria: la tua seduta è domani" if when == "1-giorno" else "La tua seduta inizia tra un'ora"
+    subjects = {
+        "1-giorno": "Promemoria: la tua seduta è domani",
+        "1-ora": "La tua seduta è tra un'ora",
+        "15-min": "🎥 La tua seduta inizia tra 15 minuti — entra qui",
+    }
+    subject = subjects.get(when, "Promemoria seduta")
     return await _send_raw({
         "from": f"FunzionaBene <{SENDER_EMAIL}>",
         "to": [ctx["paziente_email"]],

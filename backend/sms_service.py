@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 VERIFY_SERVICE_SID = os.environ.get("TWILIO_VERIFY_SERVICE_SID", "")
+# For outbound transactional SMS (reminders): either a Twilio phone number OR a Messaging Service SID
+FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
+MESSAGING_SERVICE_SID = os.environ.get("TWILIO_MESSAGING_SERVICE_SID", "")
 
 _client = None
 if ACCOUNT_SID and AUTH_TOKEN:
@@ -82,4 +85,31 @@ async def verify_sms_otp(phone: str, code: str) -> bool:
         return check.status == "approved"
     except Exception as e:
         logger.error(f"[SMS] Twilio Verify check failed: {e}")
+        return False
+
+
+async def send_sms_reminder(phone: str, body: str) -> bool:
+    """Send a transactional SMS reminder (session-related messages).
+    Requires either TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID.
+    Returns True on success, False if not configured or send fails."""
+    if not _client:
+        logger.warning("[SMS] Twilio not configured, skipping reminder")
+        return False
+    if not (FROM_NUMBER or MESSAGING_SERVICE_SID):
+        logger.warning("[SMS] No TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID set, skipping reminder")
+        return False
+    to = _normalize_phone(phone)
+    if not to or not body:
+        return False
+    try:
+        kwargs = {"to": to, "body": body}
+        if MESSAGING_SERVICE_SID:
+            kwargs["messaging_service_sid"] = MESSAGING_SERVICE_SID
+        else:
+            kwargs["from_"] = FROM_NUMBER
+        msg = await asyncio.to_thread(lambda: _client.messages.create(**kwargs))
+        logger.info(f"[SMS] Reminder sent to {to[:-4]}**** (sid={msg.sid}, status={msg.status})")
+        return True
+    except Exception as e:
+        logger.error(f"[SMS] Reminder send failed: {e}")
         return False

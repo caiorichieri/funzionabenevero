@@ -15,6 +15,7 @@ from bson import ObjectId
 from deps import db, find_user_by_id
 from daily_service import create_room_for_appointment
 from email_service import send_booking_confirmation_email, send_reminder_email
+from sms_service import send_sms_reminder
 
 # Single scheduler instance used by the whole app.
 scheduler = AsyncIOScheduler()
@@ -38,19 +39,56 @@ def stop_scheduler() -> None:
         scheduler.shutdown()
 
 
+def _format_sms_datetime(iso_str: str) -> str:
+    """Return a short IT date/time like '12/03 alle 15:30'."""
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        # Convert to Europe/Rome for user-facing display
+        try:
+            from zoneinfo import ZoneInfo
+            dt = dt.astimezone(ZoneInfo("Europe/Rome"))
+        except Exception:
+            pass
+        return dt.strftime("%d/%m alle %H:%M")
+    except Exception:
+        return iso_str
+
+
+async def _send_sms_30min_reminder(app_id: str, ctx: dict) -> None:
+    """SMS reminder 30 minutes before session (paziente only)."""
+    phone = ctx.get("paziente_phone")
+    if not phone:
+        return
+    dt_short = _format_sms_datetime(ctx["data_ora"])
+    text = (
+        f"FunzionaBene: la tua seduta con Dr. {ctx['terapista_cognome']} inizia alle {dt_short}. "
+        f"Riceverai il link di accesso via email 15 min prima. Trovi tutto anche in area personale."
+    )
+    await send_sms_reminder(phone, text)
+
+
 def schedule_reminders(app_id: str, ctx: dict) -> None:
-    """Schedule 1-day-before reminder email (single reminder per user request)."""
+    """Schedule multi-step reminders for an appointment:
+    - 24h before: email (no link)
+    - 1h before: email (announces link arrival)
+    - 30min before: SMS (paziente)
+    - 15min before: email with magic-link direct-join button
+    """
     try:
         start = datetime.fromisoformat(ctx["data_ora"].replace("Z", "+00:00"))
         if start.tzinfo is None:
             start = start.replace(tzinfo=timezone.utc)
-        one_day = start - timedelta(days=1)
         now = datetime.now(timezone.utc)
-        if one_day > now:
-            scheduler.add_job(
-                send_reminder_email, "date", run_date=one_day,
-                args=[ctx, "1-giorno"], id=f"rem1d-{app_id}", replace_existing=True,
-            )
+
+        jobs = [
+            (start - timedelta(days=1),      send_reminder_email,   [ctx, "1-giorno"], f"rem1d-{app_id}"),
+            (start - timedelta(hours=1),     send_reminder_email,   [ctx, "1-ora"],    f"rem1h-{app_id}"),
+            (start - timedelta(minutes=30),  _send_sms_30min_reminder, [app_id, ctx],  f"sms30m-{app_id}"),
+            (start - timedelta(minutes=15),  send_reminder_email,   [ctx, "15-min"],   f"rem15m-{app_id}"),
+        ]
+        for run_at, fn, args, job_id in jobs:
+            if run_at > now:
+                scheduler.add_job(fn, "date", run_date=run_at, args=args, id=job_id, replace_existing=True)
     except Exception as e:
         logging.error(f"[SCHEDULER] failed to schedule reminders: {e}")
 
@@ -90,6 +128,26 @@ async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
             }},
         )
 
+    # Generate a magic token for the direct-join videocall link (email 15 min before).
+    # Valid from 20 min before start to 30 min after start (grace).
+    raw_magic = None
+    if not appt.get("videocall_magic_hash"):
+        raw_magic = _secrets.token_urlsafe(32)
+        try:
+            start = datetime.fromisoformat(appt["data_ora"].replace("Z", "+00:00"))
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            magic_expires = start + timedelta(minutes=int(appt.get("durata_minuti", 50)) + 15)
+        except Exception:
+            magic_expires = datetime.now(timezone.utc) + timedelta(days=1)
+        await db.appuntamenti.update_one(
+            {"_id": ObjectId(appointment_id)},
+            {"$set": {
+                "videocall_magic_hash": _token_digest(raw_magic),
+                "videocall_magic_expires": magic_expires,
+            }},
+        )
+
     if appt.get("_confirmation_email_sent"):
         return appt
 
@@ -102,10 +160,14 @@ async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
             reschedule_url = (
                 f"{frontend}/riprogramma/{appointment_id}?token={raw_token}" if raw_token else None
             )
+            videocall_url = (
+                f"{frontend}/videocall/{appointment_id}?token={raw_magic}" if raw_magic else None
+            )
             ctx = {
                 "paziente_nome": paziente.get("nome", ""),
                 "paziente_cognome": paziente.get("cognome", ""),
                 "paziente_email": paziente_user.get("email"),
+                "paziente_phone": paziente_user.get("telefono") or paziente.get("telefono"),
                 "terapista_nome": terapista.get("nome", ""),
                 "terapista_cognome": terapista.get("cognome", ""),
                 "terapista_email": t_user.get("email") if t_user else None,
@@ -115,6 +177,7 @@ async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
                 "room_url": appt.get("daily_room_url"),
                 "app_id": appointment_id,
                 "reschedule_url": reschedule_url,
+                "videocall_url": videocall_url,
             }
             await send_booking_confirmation_email(ctx)
             schedule_reminders(appointment_id, ctx)

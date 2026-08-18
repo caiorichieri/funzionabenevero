@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import DailyIframe from "@daily-co/daily-js";
@@ -7,6 +7,8 @@ import { ArrowLeft, AlertCircle } from "lucide-react";
 
 export default function VideoCallPage() {
   const { appuntamentoId } = useParams();
+  const [searchParams] = useSearchParams();
+  const magicToken = searchParams.get("token");
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const callFrameRef = useRef(null);
@@ -19,11 +21,16 @@ export default function VideoCallPage() {
 
     async function start() {
       try {
-        const res = await axios.post(
-          `${API}/appuntamenti/${appuntamentoId}/video-token`,
-          {},
-          { withCredentials: true }
-        );
+        // Magic link path (no auth needed) if a ?token=xxx is present
+        const res = magicToken
+          ? await axios.get(`${API}/videocall-magic/${appuntamentoId}`, {
+              params: { token: magicToken },
+            })
+          : await axios.post(
+              `${API}/appuntamenti/${appuntamentoId}/video-token`,
+              {},
+              { withCredentials: true }
+            );
         if (cancelled) return;
 
         const { room_url, token, user_name } = res.data;
