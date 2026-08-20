@@ -34,7 +34,7 @@ export default function AreeInterventoPage() {
             Tutto quello di cui ci occupiamo.
           </h1>
           <p className="mt-6 text-[#0A0A0A]/65 text-lg leading-relaxed">
-            {AREE_INTERVENTO.length} aree cliniche, tutte nell&apos;ambito della sessuologia.
+            {AREE_INTERVENTO.length} aree cliniche, tutte nell'ambito della sessuologia.
             Se non sei sicuro in quale rientri, <Link to="/questionario" className="text-[#0A0A0A] hover:text-[#0A0A0A]/70 underline">il questionario ti aiuta a capirlo in 2 minuti</Link>.
           </p>
         </div>
