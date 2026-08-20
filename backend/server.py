@@ -1385,6 +1385,11 @@ async def seed_data():
             )
             logging.info(f"[SEED] Admin password resynced from env var for: {admin_email}")
 
+    # Skip demo data in production. Set SEED_DEMO_DATA=true to enable in dev/staging.
+    if os.environ.get("SEED_DEMO_DATA", "false").lower() != "true":
+        logging.info("[SEED] SEED_DEMO_DATA is false — skipping demo therapists/patients/payouts")
+        return
+
     # Seed demo therapist
     demo_email = "demo.terapeuta@funzionabene.it"
     demo_pwd = "terapeuta2026"
