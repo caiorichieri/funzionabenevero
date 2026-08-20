@@ -68,7 +68,7 @@ const WORLD = [
   {
     name: "peludo",
     anim: "wiggle",
-    title: "Quando l&apos;esterno non ti rappresenta",
+    title: "Quando l'esterno non ti rappresenta",
     desc: "Identità, corpo, desiderio. Qui si parla di te con rispetto — e con la competenza di chi conosce bene questi temi.",
     color: "#C8E0A8",
     href: "/aree-intervento",
@@ -77,7 +77,7 @@ const WORLD = [
     name: "embrulhado",
     anim: "breathe",
     title: "Quando hai voglia solo di un rifugio",
-    desc: "Anche solo per oggi. Il tuo spazio è qui, quando vuoi tu. Non sempre bisogna parlare: a volte serve solo sapere che c&apos;è un posto.",
+    desc: "Anche solo per oggi. Il tuo spazio è qui, quando vuoi tu. Non sempre bisogna parlare: a volte serve solo sapere che c'è un posto.",
     color: "#F5C0A8",
     href: "/sedute-immersive",
   },

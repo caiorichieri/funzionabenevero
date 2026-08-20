@@ -42,7 +42,7 @@ const STATS = [
   { n: "100%", desc: "Specialisti in sessuologia" },
   { n: "Una squadra", desc: "di terapeuti selezionati con cura" },
   { n: "50 min", desc: "Durata di ogni sessione" },
-  { n: "1ª", desc: "Piattaforma italiana con sessioni immersive" },
+  { n: "Prima", desc: "piattaforma italiana con sessioni immersive" },
 ];
 
 export default function ChiSiamoPage() {

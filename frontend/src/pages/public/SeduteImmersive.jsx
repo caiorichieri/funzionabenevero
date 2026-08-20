@@ -122,7 +122,7 @@ export default function SeduteImmersive() {
             </p>
           </div>
           <div className="brand-card !p-8">
-            <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">1ª</div>
+            <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">Prima</div>
             <p className="mt-4 text-sm text-[#0A0A0A]/75 leading-relaxed">
               piattaforma italiana di sessuologia ad adottare questo approccio in modo strutturale.
             </p>

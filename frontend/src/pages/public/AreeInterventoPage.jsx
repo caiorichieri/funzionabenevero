@@ -73,7 +73,7 @@ export default function AreeInterventoPage() {
         <PrenotaSubitoCTA
           variant="banner"
           testid="aree-prenota"
-          bannerTitle="Hai già un&apos;idea chiara?"
+          bannerTitle="Hai già un'idea chiara?"
           bannerCopy="Scegli direttamente un orario disponibile e prenota la prima sessione. Veloce, riservato, in italiano."
           mascotName="saltitante"
         />
