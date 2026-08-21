@@ -1,27 +1,21 @@
-"""Automated MongoDB backup to Backblaze B2 (or any S3-compatible bucket).
+"""Automated MongoDB backup to any S3-compatible object storage (Host.it HS3,
+Backblaze B2, AWS S3, etc.).
 
 Runs nightly at 03:00 UTC via APScheduler.
 Retention: 30 daily backups + 12 monthly (1st of each month kept).
 
 Required env vars (all optional — if any missing, backup is skipped with a warning):
-    B2_KEY_ID           — Backblaze application key ID
-    B2_APP_KEY          — Backblaze application key
-    B2_BUCKET_NAME      — target bucket (e.g. 'funzionabene-backups')
-    B2_ENDPOINT         — S3 endpoint (default: https://s3.eu-central-003.backblazeb2.com)
-
-To bootstrap:
-1. Sign up on https://www.backblaze.com/b2/cloud-storage.html (free tier: 10GB storage)
-2. Create a private bucket 'funzionabene-backups'
-3. Create an Application Key with read+write access to that bucket
-4. Add the 4 env vars in Emergent Segreti → redeploy
+    S3_ACCESS_KEY       — Access key ID
+    S3_SECRET_KEY       — Secret access key
+    S3_BUCKET_NAME      — target bucket (e.g. 'funzionabene-backups')
+    S3_ENDPOINT         — S3 endpoint URL (Host.it: https://s3-eu-it-trn-1.objecthost.it)
+    S3_REGION           — Region (optional, default: 'eu-it-trn-1')
 
 To restore:
     mongorestore --uri="$MONGO_URL" --nsInclude="funzionabene_db.*" --gzip --archive=<backup_file>
 """
-import gzip
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 from datetime import datetime, timezone
@@ -31,10 +25,11 @@ logger = logging.getLogger(__name__)
 
 def _cfg():
     return {
-        "key_id": os.environ.get("B2_KEY_ID"),
-        "app_key": os.environ.get("B2_APP_KEY"),
-        "bucket": os.environ.get("B2_BUCKET_NAME"),
-        "endpoint": os.environ.get("B2_ENDPOINT", "https://s3.eu-central-003.backblazeb2.com"),
+        "key_id": os.environ.get("S3_ACCESS_KEY") or os.environ.get("B2_KEY_ID"),
+        "app_key": os.environ.get("S3_SECRET_KEY") or os.environ.get("B2_APP_KEY"),
+        "bucket": os.environ.get("S3_BUCKET_NAME") or os.environ.get("B2_BUCKET_NAME"),
+        "endpoint": os.environ.get("S3_ENDPOINT") or os.environ.get("B2_ENDPOINT", "https://s3-eu-it-trn-1.objecthost.it"),
+        "region": os.environ.get("S3_REGION", "eu-it-trn-1"),
         "mongo_url": os.environ.get("MONGO_URL"),
         "db_name": os.environ.get("DB_NAME", "funzionabene_db"),
     }
@@ -80,6 +75,7 @@ async def run_backup() -> bool:
             s3 = boto3.client(
                 "s3",
                 endpoint_url=c["endpoint"],
+                region_name=c["region"],
                 aws_access_key_id=c["key_id"],
                 aws_secret_access_key=c["app_key"],
             )
@@ -114,6 +110,7 @@ async def cleanup_old_backups() -> int:
         s3 = boto3.client(
             "s3",
             endpoint_url=c["endpoint"],
+            region_name=c["region"],
             aws_access_key_id=c["key_id"],
             aws_secret_access_key=c["app_key"],
         )
