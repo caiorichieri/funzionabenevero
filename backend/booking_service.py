@@ -129,17 +129,8 @@ def schedule_reminders(app_id: str, ctx: dict) -> None:
         logging.error(f"[SCHEDULER] failed to schedule reminders: {e}")
 
 
-async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
-    """Provision Daily.co room + generate reschedule token + send confirmation emails + schedule reminders.
-    Called AFTER the payment succeeds. Idempotent."""
-    appt = await db.appuntamenti.find_one({"_id": ObjectId(appointment_id)})
-    if not appt:
-        return None
-
-    # Ensure the patient has a valid informed consent for THIS therapist.
-    # If missing, this call creates a pending consent + emails the magic-link.
-    # The session is still finalized (payment already succeeded) but the patient
-    # cannot enter the videocall until consent is granted (enforced elsewhere).
+async def _ensure_informed_consent(appointment_id: str, appt: dict, paziente_user: dict) -> None:
+    """Trigger informed-consent flow (creates pending + email if missing)."""
     try:
         has_consent, _ = await ensure_consent_for_booking(
             paziente_id=paziente_user["_id"],
@@ -151,88 +142,129 @@ async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
         )
     except Exception as e:
         logging.error(f"[CONSENT] ensure_consent_for_booking failed: {e}")
-    if not appt.get("daily_room_url"):
-        room = await create_room_for_appointment(appointment_id, appt["data_ora"], appt["durata_minuti"])
-        if room:
-            await db.appuntamenti.update_one(
-                {"_id": ObjectId(appointment_id)},
-                {"$set": {"daily_room_url": room.get("room_url"), "daily_room_name": room.get("room_name")}},
-            )
-            appt["daily_room_url"] = room.get("room_url")
-            appt["daily_room_name"] = room.get("room_name")
 
-    # Generate a single-use reschedule token (valid until 1 hour before appointment)
-    raw_token = None
-    if not appt.get("riprogramma_token_hash"):
-        raw_token = _secrets.token_urlsafe(32)
-        try:
-            start = datetime.fromisoformat(appt["data_ora"].replace("Z", "+00:00"))
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=timezone.utc)
-            expires = start - timedelta(hours=1)
-        except Exception:
-            expires = datetime.now(timezone.utc) + timedelta(days=RESCHEDULE_TOKEN_DAYS)
+
+async def _ensure_daily_room(appointment_id: str, appt: dict) -> None:
+    """Create Daily.co video room if not yet provisioned. Mutates `appt` in place."""
+    if appt.get("daily_room_url"):
+        return
+    room = await create_room_for_appointment(
+        appointment_id, appt["data_ora"], appt["durata_minuti"],
+    )
+    if room:
         await db.appuntamenti.update_one(
             {"_id": ObjectId(appointment_id)},
-            {"$set": {
-                "riprogramma_token_hash": _token_digest(raw_token),
-                "riprogramma_token_expires": expires,
-            }},
+            {"$set": {"daily_room_url": room.get("room_url"), "daily_room_name": room.get("room_name")}},
         )
+        appt["daily_room_url"] = room.get("room_url")
+        appt["daily_room_name"] = room.get("room_name")
 
-    # Generate a magic token for the direct-join videocall link (email 15 min before).
-    # Valid from 20 min before start to 30 min after start (grace).
-    raw_magic = None
-    if not appt.get("videocall_magic_hash"):
-        raw_magic = _secrets.token_urlsafe(32)
-        try:
-            start = datetime.fromisoformat(appt["data_ora"].replace("Z", "+00:00"))
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=timezone.utc)
-            magic_expires = start + timedelta(minutes=int(appt.get("durata_minuti", 50)) + 15)
-        except Exception:
-            magic_expires = datetime.now(timezone.utc) + timedelta(days=1)
-        await db.appuntamenti.update_one(
-            {"_id": ObjectId(appointment_id)},
-            {"$set": {
-                "videocall_magic_hash": _token_digest(raw_magic),
-                "videocall_magic_expires": magic_expires,
-            }},
-        )
 
+def _parse_start(appt: dict) -> datetime:
+    """Parse ISO data_ora into an aware UTC datetime. Falls back to now()."""
+    try:
+        start = datetime.fromisoformat(appt["data_ora"].replace("Z", "+00:00"))
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        return start
+    except Exception:
+        return datetime.now(timezone.utc)
+
+
+async def _ensure_reschedule_token(appointment_id: str, appt: dict) -> str | None:
+    """Generate a single-use reschedule token (expires 1h before appt). Returns raw or None."""
+    if appt.get("riprogramma_token_hash"):
+        return None
+    raw = _secrets.token_urlsafe(32)
+    expires = _parse_start(appt) - timedelta(hours=1)
+    await db.appuntamenti.update_one(
+        {"_id": ObjectId(appointment_id)},
+        {"$set": {
+            "riprogramma_token_hash": _token_digest(raw),
+            "riprogramma_token_expires": expires,
+        }},
+    )
+    return raw
+
+
+async def _ensure_videocall_magic_token(appointment_id: str, appt: dict) -> str | None:
+    """Generate a magic token for direct-join videocall link. Returns raw or None."""
+    if appt.get("videocall_magic_hash"):
+        return None
+    raw = _secrets.token_urlsafe(32)
+    magic_expires = _parse_start(appt) + timedelta(minutes=int(appt.get("durata_minuti", 50)) + 15)
+    await db.appuntamenti.update_one(
+        {"_id": ObjectId(appointment_id)},
+        {"$set": {
+            "videocall_magic_hash": _token_digest(raw),
+            "videocall_magic_expires": magic_expires,
+        }},
+    )
+    return raw
+
+
+async def _build_notification_ctx(
+    appointment_id: str, appt: dict, paziente_user: dict,
+    raw_reschedule_token: str | None, raw_magic_token: str | None,
+) -> dict | None:
+    """Assemble the ctx dict passed to email templates + reminder scheduler."""
+    terapista = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
+    paziente = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])})
+    if not terapista or not paziente:
+        return None
+    t_user = await find_user_by_id(terapista.get("user_id"))
+    frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+    reschedule_url = f"{frontend}/riprogramma/{appointment_id}?token={raw_reschedule_token}" if raw_reschedule_token else None
+    videocall_url = f"{frontend}/videocall/{appointment_id}?token={raw_magic_token}" if raw_magic_token else None
+    return {
+        "paziente_nome": paziente.get("nome", ""),
+        "paziente_cognome": paziente.get("cognome", ""),
+        "paziente_email": paziente_user.get("email"),
+        "paziente_phone": paziente_user.get("telefono") or paziente.get("telefono"),
+        "terapista_nome": terapista.get("nome", ""),
+        "terapista_cognome": terapista.get("cognome", ""),
+        "terapista_email": t_user.get("email") if t_user else None,
+        "data_ora": appt["data_ora"],
+        "durata_minuti": appt["durata_minuti"],
+        "prezzo": terapista.get("prezzo_sessione", 90),
+        "room_url": appt.get("daily_room_url"),
+        "app_id": appointment_id,
+        "reschedule_url": reschedule_url,
+        "videocall_url": videocall_url,
+    }
+
+
+async def _send_confirmation_and_schedule(appointment_id: str, ctx: dict) -> None:
+    """Send booking confirmation email + register the reminder jobs."""
+    await send_booking_confirmation_email(ctx)
+    schedule_reminders(appointment_id, ctx)
+
+
+async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
+    """Provision Daily.co room + generate tokens + send confirmation emails + schedule reminders.
+    Called AFTER the payment succeeds. Idempotent — safe to call multiple times."""
+    appt = await db.appuntamenti.find_one({"_id": ObjectId(appointment_id)})
+    if not appt:
+        return None
+
+    # 1. Kick off informed consent flow (patient ↔ therapist) if missing
+    await _ensure_informed_consent(appointment_id, appt, paziente_user)
+
+    # 2. Provision the Daily.co video room
+    await _ensure_daily_room(appointment_id, appt)
+
+    # 3. Generate single-use tokens (reschedule + videocall magic link)
+    raw_reschedule = await _ensure_reschedule_token(appointment_id, appt)
+    raw_magic = await _ensure_videocall_magic_token(appointment_id, appt)
+
+    # 4. Skip email/reminders if already sent (idempotency)
     if appt.get("_confirmation_email_sent"):
         return appt
 
     try:
-        terapista = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
-        paziente = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])})
-        if terapista and paziente:
-            t_user = await find_user_by_id(terapista.get("user_id"))
-            frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
-            reschedule_url = (
-                f"{frontend}/riprogramma/{appointment_id}?token={raw_token}" if raw_token else None
-            )
-            videocall_url = (
-                f"{frontend}/videocall/{appointment_id}?token={raw_magic}" if raw_magic else None
-            )
-            ctx = {
-                "paziente_nome": paziente.get("nome", ""),
-                "paziente_cognome": paziente.get("cognome", ""),
-                "paziente_email": paziente_user.get("email"),
-                "paziente_phone": paziente_user.get("telefono") or paziente.get("telefono"),
-                "terapista_nome": terapista.get("nome", ""),
-                "terapista_cognome": terapista.get("cognome", ""),
-                "terapista_email": t_user.get("email") if t_user else None,
-                "data_ora": appt["data_ora"],
-                "durata_minuti": appt["durata_minuti"],
-                "prezzo": terapista.get("prezzo_sessione", 90),
-                "room_url": appt.get("daily_room_url"),
-                "app_id": appointment_id,
-                "reschedule_url": reschedule_url,
-                "videocall_url": videocall_url,
-            }
-            await send_booking_confirmation_email(ctx)
-            schedule_reminders(appointment_id, ctx)
+        ctx = await _build_notification_ctx(appointment_id, appt, paziente_user, raw_reschedule, raw_magic)
+        if ctx:
+            await _send_confirmation_and_schedule(appointment_id, ctx)
         await db.appuntamenti.update_one(
             {"_id": ObjectId(appointment_id)},
             {"$set": {"_confirmation_email_sent": True}},

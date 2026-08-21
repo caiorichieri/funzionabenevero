@@ -1,0 +1,32 @@
+{
+  "summary": "Backend-only testing of the finalize_confirmed_booking() refactor. Used the direct-injection approach recommended by main agent (bypassed Stripe LIVE). Created /app/backend/tests/test_finalize_refactor.py with 5 tests covering: (a) import + async-signature checks for all 7 helper functions, (b) _parse_start utility, (c) end-to-end call on a seeded confermato appointment verifying daily_room_url, riprogramma_token_hash, videocall_magic_hash, _confirmation_email_sent flag, informed_consent creation, (d) idempotency (2nd call does not rotate tokens nor resend confirmation), (e) HTTP 412 with 'Consenso Informato' message on POST /api/appuntamenti/{id}/video-token when patient has no granted consent. All 5 new tests PASS. Smoke suite (tests/test_iteration18_consent_reviews.py + tests/test_public_routes.py smoke subset) passes 18/18 when ADMIN_EMAIL=hr@funzionabene.it/@Bidoc2026! are exported (matches user's expectation).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "N/A (test infra)", "issue": "TestReviewsAdminE2E in test_iteration18_consent_reviews.py defaults to admin@funzionabene.it, but real admin is hr@funzionabene.it. When run through run_smoke_tests.sh without setting ADMIN_EMAIL/ADMIN_PASSWORD env vars, 3 admin-authenticated tests get skipped (fixture pytest.skip). Cosmetic — no functional bug; user reports 18/18 requires the env override."},
+      {"endpoint": "POST /api/auth/register", "issue": "tests/test_public_routes.py::test_full_booking_flow (NOT in smoke suite) is stale — sends register payload without consenso_privacy/consenso_termini and fails 400. Pre-existing issue unrelated to the refactor."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_finalize_refactor.py",
+    "/app/test_reports/pytest/iter26_finalize_refactor.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Update tests/test_iteration18_consent_reviews.py TestReviewsAdminE2E fixture to default to 'hr@funzionabene.it' or export ADMIN_EMAIL in run_smoke_tests.sh so the E2E admin block runs by default.",
+    "OPTIONAL: Fix tests/test_public_routes.py::test_full_booking_flow to include consenso_privacy=true/consenso_termini=true in the register payload (pre-existing regression, not related to this refactor)."
+  ],
+  "critical_code_review_comments": [
+    "booking_service.py refactor is CLEAN: each helper has a single responsibility, all async I/O is properly awaited, no ObjectId serialization leaks. Idempotency guards are correct (early returns on hash presence + _confirmation_email_sent flag). Token digest uses sha256(ascii) consistently between generator (booking_service._token_digest) and validator (routers/appuntamenti._digest and informed_consents._digest). Good.",
+    "MINOR: _ensure_daily_room mutates the passed-in appt dict AND updates DB, while _ensure_reschedule_token / _ensure_videocall_magic_token only update DB and return the raw token. Slightly inconsistent contract — consider making all three helpers behave the same way (either all mutate + DB write, or all return values + let caller reconcile). Not a bug, just readability.",
+    "MINOR: finalize_confirmed_booking() calls _ensure_daily_room BEFORE checking the _confirmation_email_sent idempotency flag. This is correct (daily room may not exist even after email was sent, e.g. Daily.co outage on first call) but worth documenting. Same for token generation — they run before the idempotency short-circuit so partial state can self-heal.",
+    "MINOR: schedule_reminders() re-adds jobs with replace_existing=True on every call — good for self-healing but note that if _confirmation_email_sent=True the whole block is skipped, so idempotency prevents reminder duplication anyway."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5 refactor tests, 18/18 smoke with correct admin creds)", "frontend": "N/A"},
+  "test_credentials": "Admin: hr@funzionabene.it / @Bidoc2026! (confirmed working). Smoke suite needs ADMIN_EMAIL=hr@funzionabene.it ADMIN_PASSWORD='@Bidoc2026!' env vars for the E2E admin tests to run instead of skip.",
+  "seed_data_creation": "Test creates its own TEST_finalize_* + TEST_vt_* users/pazienti/terapisti/appuntamenti/informed_consents docs directly in Mongo and cleans them up in finally blocks. No persistent seed data added.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Refactored finalize_confirmed_booking() is fully validated. To rerun: cd /app/backend && REACT_APP_BACKEND_URL=<url> MONGO_URL=mongodb://localhost:27017 DB_NAME=funzionabene_db python3 -m pytest tests/test_finalize_refactor.py -v --asyncio-mode=auto. Requires pytest-asyncio (installed). The tests monkeypatch email + daily.co so no real external calls are made. Stripe LIVE is still configured in .env — if you need to test the Stripe webhook path end-to-end, ask main agent to swap to test keys first."
+}
