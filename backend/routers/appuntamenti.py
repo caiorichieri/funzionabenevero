@@ -128,6 +128,17 @@ async def get_video_token(app_id: str, user: dict = Depends(require_auth)):
         paziente = await db.pazienti.find_one({"user_id": user["_id"]})
         if not paziente or str(paziente["_id"]) != app.get("paziente_id"):
             raise HTTPException(403, "Non autorizzato")
+        # Block patient access if informed consent is not granted for this therapist
+        consent = await db.informed_consents.find_one({
+            "paziente_id": user["_id"],
+            "terapista_id": app.get("terapeuta_id"),
+            "status": "granted",
+        })
+        if not consent:
+            raise HTTPException(
+                412,
+                "Devi prestare il Consenso Informato al Trattamento prima di partecipare alla seduta. Controlla la tua email."
+            )
     elif user["role"] == "terapeuta":
         terapista = await db.terapisti.find_one({"user_id": user["_id"]})
         if not terapista or str(terapista["_id"]) != app.get("terapeuta_id"):

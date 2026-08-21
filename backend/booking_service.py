@@ -16,6 +16,7 @@ from deps import db, find_user_by_id
 from daily_service import create_room_for_appointment
 from email_service import send_booking_confirmation_email, send_reminder_email
 from sms_service import send_sms_reminder
+from routers.informed_consents import ensure_consent_for_booking
 
 # Single scheduler instance used by the whole app.
 scheduler = AsyncIOScheduler()
@@ -99,6 +100,22 @@ async def finalize_confirmed_booking(appointment_id: str, paziente_user: dict):
     appt = await db.appuntamenti.find_one({"_id": ObjectId(appointment_id)})
     if not appt:
         return None
+
+    # Ensure the patient has a valid informed consent for THIS therapist.
+    # If missing, this call creates a pending consent + emails the magic-link.
+    # The session is still finalized (payment already succeeded) but the patient
+    # cannot enter the videocall until consent is granted (enforced elsewhere).
+    try:
+        has_consent, _ = await ensure_consent_for_booking(
+            paziente_id=paziente_user["_id"],
+            terapista_id=appt["terapeuta_id"],
+        )
+        await db.appuntamenti.update_one(
+            {"_id": ObjectId(appointment_id)},
+            {"$set": {"consenso_informato_ok": has_consent}},
+        )
+    except Exception as e:
+        logging.error(f"[CONSENT] ensure_consent_for_booking failed: {e}")
     if not appt.get("daily_room_url"):
         room = await create_room_for_appointment(appointment_id, appt["data_ora"], appt["durata_minuti"])
         if room:

@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
-import { TITOLARE } from "@/data/legalInfo";
+import { TITOLARE, DPO } from "@/data/legalInfo";
 
 const NAV = [
   { to: "/", label: "Home" },
@@ -179,9 +179,14 @@ function Footer() {
         </div>
       </div>
       <div className="border-t border-[#0A0A0A]/10">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-[#0A0A0A]/50">
-          <span>© {new Date().getFullYear()} funzionabene.it — Marchio di {TITOLARE.nome}</span>
-          <span>P.IVA {TITOLARE.pIva} · {TITOLARE.citta}</span>
+        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-6 space-y-3">
+          <p className="text-[11px] text-[#0A0A0A]/55 leading-relaxed text-center md:text-left">
+            <strong>BIDOC SRL</strong> opera come <strong>piattaforma tecnologica di intermediazione</strong> per l&apos;incontro tra pazienti e professionisti sanitari. Le prestazioni psicologiche/sessuologiche sono erogate autonomamente dai singoli professionisti iscritti al proprio Albo, che ne sono i responsabili clinici e i Titolari autonomi del trattamento dei dati sanitari (artt. 6 e 9 GDPR). Bidoc SRL riscuote i compensi in nome e per conto dei professionisti in forza di Mandato all&apos;Incasso con Rappresentanza.
+          </p>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-[#0A0A0A]/50">
+            <span>© {new Date().getFullYear()} funzionabene.it — Marchio di {TITOLARE.nome}</span>
+            <span>P.IVA {TITOLARE.pIva} · {TITOLARE.citta} · <Link to="/privacy" className="underline hover:text-[#0A0A0A]">DPO: {DPO.email}</Link></span>
+          </div>
         </div>
       </div>
     </footer>

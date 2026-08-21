@@ -884,6 +884,7 @@ from routers.legal_signature import router as _legal_signature_router
 from routers.fatture import router as _fatture_router
 from routers.registro_trattamenti import router as _registro_router
 from routers.diario import router as _diario_router
+from routers.informed_consents import router as _informed_consents_router
 app.include_router(_build_admin_analytics_router(db, require_admin), prefix="/api")
 app.include_router(_appuntamenti_router, prefix="/api")
 app.include_router(_terapisti_router, prefix="/api")
@@ -895,6 +896,7 @@ app.include_router(_legal_signature_router, prefix="/api")
 app.include_router(_fatture_router, prefix="/api")
 app.include_router(_registro_router, prefix="/api")
 app.include_router(_diario_router, prefix="/api")
+app.include_router(_informed_consents_router, prefix="/api")
 # CORS — supports multiple frontend origins (preview, production, custom domains) via ALLOWED_ORIGINS env var
 _extra_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 _cors_origins = list({
