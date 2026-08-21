@@ -68,6 +68,40 @@ async def _send_sms_30min_reminder(app_id: str, ctx: dict) -> None:
     await send_sms_reminder(phone, text)
 
 
+async def _send_review_invite_email(app_id: str, ctx: dict) -> None:
+    """Post-session email inviting the patient to leave a review."""
+    try:
+        from email_service import _send_raw, SENDER_EMAIL
+        if not ctx.get("paziente_email"):
+            return
+        frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+        link = f"{frontend}/recensione/{app_id}"
+        html = f"""<!DOCTYPE html><html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial;color:#F4F1ED;">
+<table width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#6B8FA3;margin-top:6px;">GRAZIE PER LA SEDUTA</div>
+</td></tr>
+<tr><td style="padding:32px 40px;text-align:center;">
+<h1 style="font-family:Georgia,serif;font-size:26px;color:#D4A017;margin:0 0 14px;font-weight:500;">Com'è andata, {ctx.get('paziente_nome','')}?</h1>
+<p style="color:rgba(230,226,216,0.8);font-size:15px;line-height:1.6;margin:0 0 24px;">
+Il tuo parere aiuta altri pazienti a trovare il/la professionista giusto/a. Lascia una recensione in 30 secondi — sarà pubblicata dopo una breve verifica dell'amministrazione.
+</p>
+<a href="{link}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;">Lascia una recensione →</a>
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene</p>
+</td></tr></table></body></html>"""
+        await _send_raw({
+            "from": f"FunzionaBene <{SENDER_EMAIL}>",
+            "to": [ctx["paziente_email"]],
+            "subject": f"Com'è andata con Dr. {ctx.get('terapista_cognome','')}?",
+            "html": html,
+        })
+    except Exception as e:
+        logging.error(f"[REVIEW-INVITE] failed: {e}")
+
+
 def schedule_reminders(app_id: str, ctx: dict) -> None:
     """Schedule multi-step reminders for an appointment:
     - 24h before: email (no link)
@@ -86,6 +120,7 @@ def schedule_reminders(app_id: str, ctx: dict) -> None:
             (start - timedelta(hours=1),     send_reminder_email,   [ctx, "1-ora"],    f"rem1h-{app_id}"),
             (start - timedelta(minutes=30),  _send_sms_30min_reminder, [app_id, ctx],  f"sms30m-{app_id}"),
             (start - timedelta(minutes=15),  send_reminder_email,   [ctx, "15-min"],   f"rem15m-{app_id}"),
+            (start + timedelta(minutes=int(ctx.get("durata_minuti", 50)) + 30), _send_review_invite_email, [app_id, ctx], f"review-{app_id}"),
         ]
         for run_at, fn, args, job_id in jobs:
             if run_at > now:

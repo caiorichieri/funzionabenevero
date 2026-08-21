@@ -25,6 +25,7 @@ import TerapistaCalendarioPage from "@/pages/therapist/TerapistaCalendarioPage";
 import AdminCalendarioPage from "@/pages/admin/AdminCalendarioPage";
 import RiprogrammaPage from "@/pages/RiprogrammaPage";
 import ConsensoInformatoPage from "@/pages/public/ConsensoInformatoPage";
+import ReviewPage from "@/pages/patient/ReviewPage";
 import PazienteDashboard from "@/pages/patient/PazienteDashboard";
 import PazienteHome from "@/pages/patient/PazienteHome";
 import ChatMobilePage from "@/pages/patient/ChatMobilePage";
@@ -253,6 +254,9 @@ export default function App() {
 
           {/* Informed consent (public magic-link — patient signs consent for a specific therapist) */}
           <Route path="/consenso-informato/:consentId" element={<ConsensoInformatoPage />} />
+
+          {/* Review submission (authenticated patient after a completed session) */}
+          <Route path="/recensione/:appuntamentoId" element={<ReviewPage />} />
 
           {/* Video call — MAGIC LINK from reminder email (public, token-authenticated) */}
           <Route path="/videocall/:appuntamentoId" element={<VideoCallPage />} />
