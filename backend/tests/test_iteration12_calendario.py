@@ -14,7 +14,7 @@ load_dotenv("/app/frontend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 API = f"{BASE_URL}/api"
 
-ADMIN = ("admin@funzionabene.it", "admin2026")
+ADMIN = (os.environ.get("ADMIN_EMAIL", "admin@funzionabene.it"), os.environ.get("ADMIN_PASSWORD", "admin2026"))
 TERA = ("demo.terapeuta@funzionabene.it", "terapeuta2026")
 PAZ = ("demo.paziente@funzionabene.it", "paziente2026")
 

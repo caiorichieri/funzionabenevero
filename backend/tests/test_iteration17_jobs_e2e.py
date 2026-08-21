@@ -20,8 +20,8 @@ BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _read_env("/app/frontend/
 MONGO_URL = _read_env("/app/backend/.env", "MONGO_URL")
 DB_NAME = _read_env("/app/backend/.env", "DB_NAME")
 
-ADMIN_EMAIL = "admin@funzionabene.it"
-ADMIN_PASSWORD = "admin2026"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@funzionabene.it")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin2026")
 
 
 @pytest.fixture(scope="module")

@@ -107,7 +107,7 @@ export default function AdminCalendarioPage() {
         ) : (
           <div className="grid grid-cols-7 gap-1">
             {cells.map((d, i) => {
-              if (!d) return <div key={i} className="aspect-square" />;
+              if (!d) return <div key={`empty-${i}`} className="aspect-square" />;
               const y = d.getFullYear();
               const mm = String(d.getMonth() + 1).padStart(2, "0");
               const dd = String(d.getDate()).padStart(2, "0");

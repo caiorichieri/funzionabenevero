@@ -19,8 +19,8 @@ def _read_frontend_env(key):
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _read_frontend_env("REACT_APP_BACKEND_URL") or "").rstrip("/")
 assert BASE_URL, "REACT_APP_BACKEND_URL required"
 
-ADMIN_EMAIL = "admin@funzionabene.it"
-ADMIN_PASSWORD = "admin2026"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@funzionabene.it")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin2026")
 TEST_PREFIX = "test-fase13-"
 
 

@@ -211,7 +211,7 @@ export default function TerapistaCalendarioPage() {
 
         <div className="grid grid-cols-7 gap-1 flex-1 min-h-0">
           {cells.map((d, i) => {
-            if (!d) return <div key={i} className="bg-[#0A0A0A]/[0.02] rounded-lg" />;
+            if (!d) return <div key={`empty-${i}`} className="bg-[#0A0A0A]/[0.02] rounded-lg" />;
             const key = isoDate(d);
             const slots = calendario[key] || [];
             const appts = appuntamenti[key] || [];

@@ -66,9 +66,11 @@ export function setCookiePreferences(prefs) {
         page_url: typeof window !== "undefined" ? window.location.pathname : null,
       }),
       keepalive: true,
-    }).catch(() => {});
-  } catch {
-    // never throw from consent handler
+    }).catch((err) => {
+      if (typeof console !== "undefined") console.warn("[consent] fetch failed:", err?.message || err);
+    });
+  } catch (err) {
+    if (typeof console !== "undefined") console.warn("[consent] handler error:", err?.message || err);
   }
 }
 

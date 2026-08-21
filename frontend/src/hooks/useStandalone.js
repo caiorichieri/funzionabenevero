@@ -29,6 +29,8 @@ function detect() {
       sessionStorage.setItem("__preview-app-mode", "1");
     }
     if (sessionStorage.getItem("__preview-app-mode") === "1") return true;
-  } catch { /* ignore */ }
+  } catch (err) {
+    if (typeof console !== "undefined") console.warn("[useStandalone] URL/sessionStorage access failed:", err?.message || err);
+  }
   return false;
 }
