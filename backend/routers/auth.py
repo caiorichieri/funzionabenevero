@@ -16,7 +16,7 @@ from deps import (
     create_access_token, create_refresh_token, generate_otp,
 )
 from models import RegisterInput, OTPInput, LoginInput, ForgotPasswordRequest, ResetPasswordRequest
-from email_service import send_otp_email, send_password_reset_email
+from email_service import send_otp_email, send_password_reset_email, send_new_therapist_admin_alert
 
 router = APIRouter()
 
@@ -126,6 +126,16 @@ async def register(data: RegisterInput, response: Response):
             "autocertificazione_firmata": False,
             "created_at": datetime.now(timezone.utc),
         })
+        # Notify admin(s) of new therapist awaiting approval
+        try:
+            await send_new_therapist_admin_alert({
+                "nome": data.nome,
+                "cognome": data.cognome,
+                "email": email,
+                "created_at": now.strftime("%d/%m/%Y %H:%M"),
+            })
+        except Exception as e:
+            logging.error(f"[EMAIL] admin new-therapist alert failed: {e}")
 
     logging.info(f"[OTP] {email}: {otp_code}")
     email_sent = await send_otp_email(email, otp_code, data.nome)

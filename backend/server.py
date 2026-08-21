@@ -1358,19 +1358,34 @@ async def _seed_registro_trattamenti():
 async def seed_data():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@funzionabene.it")
     admin_pwd = os.environ.get("ADMIN_PASSWORD", "admin2026")
+
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
-        await db.users.insert_one({
-            "email": admin_email,
-            "password_hash": hash_password(admin_pwd),
-            "nome": "Amministratore",
-            "cognome": "FunzionaBene",
-            "role": "admin",
-            "is_verified": True,
-            "is_active": True,
-            "created_at": datetime.now(timezone.utc)
-        })
-        logging.info(f"[SEED] Admin creato: {admin_email}")
+        # Look for an existing admin under a different email (email rename via ADMIN_EMAIL env var)
+        legacy_admin = await db.users.find_one({"role": "admin"})
+        if legacy_admin:
+            await db.users.update_one(
+                {"_id": legacy_admin["_id"]},
+                {"$set": {
+                    "email": admin_email,
+                    "password_hash": hash_password(admin_pwd),
+                    "is_verified": True,
+                    "is_active": True,
+                }},
+            )
+            logging.info(f"[SEED] Admin email renamed to: {admin_email}")
+        else:
+            await db.users.insert_one({
+                "email": admin_email,
+                "password_hash": hash_password(admin_pwd),
+                "nome": "Amministratore",
+                "cognome": "FunzionaBene",
+                "role": "admin",
+                "is_verified": True,
+                "is_active": True,
+                "created_at": datetime.now(timezone.utc)
+            })
+            logging.info(f"[SEED] Admin creato: {admin_email}")
     else:
         # Always keep admin password in sync with env var ADMIN_PASSWORD.
         # Ensures password reset is possible via redeploy when forgotten.

@@ -579,3 +579,83 @@ BIDOC SRL · P.IVA 01985930930 · fatturazione@funzionabene.it
     except Exception as e:
         logger.error(f"[EMAIL ERROR] Weekly fatture digest to {email} failed: {e}")
         return False
+
+
+# ─── Therapist approval workflow emails ───────────────────────────────────────
+async def send_new_therapist_admin_alert(therapist: dict) -> bool:
+    """Notify admin(s) that a new therapist has registered and awaits approval."""
+    admin_email = os.environ.get("ADMIN_EMAIL", "hr@funzionabene.it")
+    if not admin_email:
+        return False
+    frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+    review_url = f"{frontend}/admin/terapisti"
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#F58A1F;margin-top:6px;">NUOVA RICHIESTA TERAPEUTA</div>
+</td></tr>
+<tr><td style="padding:32px 40px 12px;">
+<h1 style="font-family:Georgia,serif;font-size:26px;color:#D4A017;margin:0 0 12px;font-weight:500;">Un nuovo terapeuta si è registrato</h1>
+<p style="color:rgba(230,226,216,0.75);font-size:14px;line-height:1.6;margin:0 0 20px;">Attende la tua approvazione prima di essere visibile pubblicamente sul sito.</p>
+</td></tr>
+<tr><td style="padding:0 40px 20px;">
+<table width="100%" style="background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.25);border-radius:14px;">
+<tr><td style="padding:16px 20px;">
+<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#6B8FA3;padding-bottom:6px;">Dati anagrafici</div>
+<div style="font-family:Georgia,serif;font-size:18px;color:#D4A017;">{therapist.get('nome','')} {therapist.get('cognome','')}</div>
+<div style="font-size:13px;color:rgba(230,226,216,0.7);margin-top:4px;">{therapist.get('email','')}</div>
+<div style="font-size:12px;color:rgba(230,226,216,0.5);margin-top:8px;">Registrazione: {therapist.get('created_at','')}</div>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:0 40px 28px;text-align:center;">
+<a href="{review_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Rivedi profilo e documenti →</a>
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Backoffice Admin</p>
+</td></tr>
+</table></body></html>"""
+    return await _send_raw({
+        "from": f"FunzionaBene Admin <{SENDER_EMAIL}>",
+        "to": [admin_email],
+        "subject": f"Nuovo terapeuta da approvare: Dr. {therapist.get('nome','')} {therapist.get('cognome','')}",
+        "html": html,
+    })
+
+
+async def send_therapist_approved_email(email: str, nome: str) -> bool:
+    """Notify a therapist that they have been approved and are now publicly visible."""
+    if not email:
+        return False
+    frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+    dashboard_url = f"{frontend}/terapeuta"
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#84B57A;margin-top:6px;">PROFILO APPROVATO</div>
+</td></tr>
+<tr><td style="padding:32px 40px 12px;">
+<h1 style="font-family:Georgia,serif;font-size:28px;color:#84B57A;margin:0 0 14px;font-weight:500;">Benvenuto/a in FunzionaBene, {nome} 🎉</h1>
+<p style="color:rgba(230,226,216,0.85);font-size:15px;line-height:1.6;margin:0 0 12px;">
+Il tuo profilo è stato <strong style="color:#84B57A;">approvato</strong> dall'amministrazione. Da questo momento sei visibile pubblicamente sul sito e i pazienti possono prenotare sessioni con te.
+</p>
+<p style="color:rgba(230,226,216,0.65);font-size:13px;line-height:1.6;margin:12px 0 0;">
+Verifica di aver completato: biografia, disponibilità settimanale, prezzo sessione, foto profilo. Più il tuo profilo è completo, più pazienti troverai.
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px 28px;text-align:center;">
+<a href="{dashboard_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Vai alla dashboard →</a>
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Clinica di Psicologia e Sessuologia</p>
+</td></tr>
+</table></body></html>"""
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [email],
+        "subject": "Il tuo profilo è stato approvato — Benvenuto/a in FunzionaBene",
+        "html": html,
+    })

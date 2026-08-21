@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 
 from deps import db, require_auth, require_admin, find_user_by_id
 from models import TerapistaProfileInput
+from email_service import send_therapist_approved_email
 
 router = APIRouter()
 
@@ -376,6 +377,7 @@ async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = D
     t = await db.terapisti.find_one({"_id": ObjectId(terapista_id)})
     if not t:
         raise HTTPException(404, "Terapeuta non trovato")
+    was_verified = bool(t.get("documenti_verificati"))
     now = datetime.now(timezone.utc)
     await db.terapisti.update_one(
         {"_id": ObjectId(terapista_id)},
@@ -385,4 +387,17 @@ async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = D
             "documenti_verificati_by": user["_id"] if verificato else None,
         }},
     )
+    # If newly approved (transition from unverified → verified), notify therapist by email
+    if verificato and not was_verified and t.get("user_id"):
+        try:
+            u = await find_user_by_id(t["user_id"])
+            if u and u.get("email"):
+                await send_therapist_approved_email(u["email"], t.get("nome", ""))
+                # Also update user.approval_status for consistency with legacy field
+                await db.users.update_one(
+                    {"_id": ObjectId(t["user_id"])},
+                    {"$set": {"approval_status": "approvato"}},
+                )
+        except Exception as e:
+            logging.error(f"[EMAIL] therapist approved notification failed: {e}")
     return {"message": "Aggiornato", "documenti_verificati": verificato}

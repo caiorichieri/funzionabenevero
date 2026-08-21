@@ -57,6 +57,19 @@ export default function TerapistaDashboard() {
         <p className="text-[#0A0A0A]/65 mt-1">Ecco il riepilogo della tua attività</p>
       </div>
 
+      {/* Approval pending banner — shown when documents verified but public visibility not yet enabled by admin */}
+      {profilo && profilo.autocertificazione_firmata && !profilo.documenti_verificati && (
+        <div className="bg-sky-50 border border-sky-200 rounded-2xl p-5 flex items-start gap-4" data-testid="banner-in-approvazione">
+          <ShieldCheck className="w-6 h-6 text-sky-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-semibold text-sky-800">In attesa di approvazione</div>
+            <div className="text-sm text-sky-700 mt-1">
+              Grazie! Il tuo profilo e i documenti sono in fase di verifica dall&apos;amministrazione. Riceverai una email di conferma appena sarai visibile pubblicamente. Nel frattempo puoi continuare a completare il profilo.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Autocertificazione alert */}
       {profilo && !profilo.autocertificazione_firmata && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
