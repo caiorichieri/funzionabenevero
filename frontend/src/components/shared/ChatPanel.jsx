@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Send, MessageCircle, ArrowLeft } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
+import ConversationList from "@/components/shared/chat/ConversationList";
+import MessageThread from "@/components/shared/chat/MessageThread";
 
 /**
  * ChatPanel — private 1:1 chat between paziente and terapista.
- * Usable for both roles (paziente sees therapist list, therapist sees patient list).
- * Props: role ('paziente' | 'terapeuta'), currentUserId.
+ * Orchestrates conversations + messages state; delegates rendering to
+ * ConversationList and MessageThread. Usable for both roles.
  */
 export default function ChatPanel({ role }) {
   const [conversazioni, setConversazioni] = useState([]);
@@ -16,7 +17,6 @@ export default function ChatPanel({ role }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const bottomRef = useRef(null);
   const pollRef = useRef(null);
 
   const loadConversazioni = useCallback(async () => {
@@ -35,7 +35,6 @@ export default function ChatPanel({ role }) {
     try {
       const res = await axios.get(`${API}/messaggi/${convId}`, { withCredentials: true });
       setMessaggi(res.data || []);
-      // Mark as read by reloading list
       loadConversazioni();
     } catch (err) {
       console.warn("[ChatPanel] loadMessaggi failed:", err);
@@ -45,14 +44,9 @@ export default function ChatPanel({ role }) {
   useEffect(() => {
     if (!activeConv) return;
     loadMessaggi(activeConv.conversazione_id);
-    // Poll every 5s while chat open
     pollRef.current = setInterval(() => loadMessaggi(activeConv.conversazione_id), 5000);
     return () => pollRef.current && clearInterval(pollRef.current);
   }, [activeConv, loadMessaggi]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messaggi]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -60,7 +54,11 @@ export default function ChatPanel({ role }) {
     setSending(true);
     try {
       const destinatario_id = role === "paziente" ? activeConv.terapeuta_id : activeConv.paziente_id;
-      await axios.post(`${API}/messaggi`, { destinatario_id, testo: input.trim() }, { withCredentials: true });
+      await axios.post(
+        `${API}/messaggi`,
+        { destinatario_id, testo: input.trim() },
+        { withCredentials: true }
+      );
       setInput("");
       await loadMessaggi(activeConv.conversazione_id);
     } finally {
@@ -91,111 +89,34 @@ export default function ChatPanel({ role }) {
   }
 
   return (
-    <div className="grid md:grid-cols-[280px_1fr] h-[540px] border border-[#0A0A0A]/10 rounded-2xl overflow-hidden bg-white" data-testid="chat-panel">
-      {/* Conversations list */}
-      <div className={`border-r border-[#0A0A0A]/10 bg-[#FAF8F3]/60 overflow-y-auto ${activeConv ? "hidden md:block" : ""}`}>
-        <div className="px-4 py-3 border-b border-[#0A0A0A]/10 text-xs tracking-[0.2em] uppercase text-[#0A0A0A]/55">
-          Conversazioni
-        </div>
-        {conversazioni.map((c) => {
-          const nome = role === "paziente" ? `Dr. ${c.terapeuta_nome}` : c.paziente_nome;
-          const isActive = activeConv?.conversazione_id === c.conversazione_id;
-          return (
-            <button
-              key={c.conversazione_id}
-              data-testid={`conv-${c.conversazione_id}`}
-              onClick={() => setActiveConv(c)}
-              className={`w-full text-left px-4 py-3 border-b border-[#0A0A0A]/8 hover:bg-white/20 transition-colors ${isActive ? "bg-white/30 border-l-2 border-l-[#0A0A0A]" : ""}`}
-            >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="font-medium text-[#0A0A0A] text-sm truncate">{nome}</span>
-                {c.non_letti > 0 && (
-                  <span className="bg-[#0A0A0A] text-white text-[10px] font-bold min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center">{c.non_letti}</span>
-                )}
-              </div>
-              <div className="text-xs text-[#0A0A0A]/55 truncate">
-                {c.ultimo_messaggio || "Nessun messaggio"}
-              </div>
-            </button>
-          );
-        })}
+    <div
+      className="grid md:grid-cols-[280px_1fr] h-[540px] border border-[#0A0A0A]/10 rounded-2xl overflow-hidden bg-white"
+      data-testid="chat-panel"
+    >
+      <div
+        className={`border-r border-[#0A0A0A]/10 bg-[#FAF8F3]/60 overflow-y-auto ${
+          activeConv ? "hidden md:block" : ""
+        }`}
+      >
+        <ConversationList
+          conversazioni={conversazioni}
+          activeConv={activeConv}
+          onSelect={setActiveConv}
+          role={role}
+        />
       </div>
 
-      {/* Messages */}
       <div className={`flex flex-col ${!activeConv ? "hidden md:flex" : "flex"}`}>
-        {!activeConv ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-[#0A0A0A]/50">
-            Seleziona una conversazione
-          </div>
-        ) : (
-          <>
-            <div className="px-5 py-3 border-b border-[#0A0A0A]/10 flex items-center gap-3">
-              <button
-                className="md:hidden p-1 text-[#0A0A0A]/55 hover:text-[#0A0A0A]"
-                onClick={() => setActiveConv(null)}
-                data-testid="chat-back"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <div className="w-9 h-9 rounded-full bg-[#6B8FA3]/10 flex items-center justify-center">
-                <span className="text-xs font-medium text-[#6B8FA3]">
-                  {(role === "paziente" ? activeConv.terapeuta_nome : activeConv.paziente_nome || "?")[0]}
-                </span>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-[#0A0A0A]">
-                  {role === "paziente" ? `Dr. ${activeConv.terapeuta_nome}` : activeConv.paziente_nome}
-                </div>
-                <div className="text-xs text-[#0A0A0A]/50">Conversazione privata</div>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-[#FAF8F3]/30">
-              {messaggi.length === 0 ? (
-                <div className="text-center text-xs text-[#0A0A0A]/50 py-8">
-                  Nessun messaggio. Inizia la conversazione.
-                </div>
-              ) : (
-                messaggi.map((m, i) => {
-                  const isMe = m.mittente_ruolo === role;
-                  return (
-                    <div key={m._id || i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                        isMe
-                          ? "bg-[#0A0A0A] text-white rounded-br-sm"
-                          : "bg-white border border-[#0A0A0A]/10 text-[#0A0A0A] rounded-bl-sm"
-                      }`}>
-                        {m.testo}
-                        <div className={`text-[10px] mt-1 ${isMe ? "text-white/70" : "text-[#0A0A0A]/50"}`}>
-                          {new Date(m.created_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={bottomRef} />
-            </div>
-
-            <form onSubmit={sendMessage} className="p-3 border-t border-[#0A0A0A]/10 bg-white flex gap-2">
-              <input
-                data-testid="chat-input"
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Scrivi un messaggio..."
-                className="flex-1 px-4 py-2.5 bg-[#FAF8F3] border border-[#0A0A0A]/10 rounded-full text-sm text-[#0A0A0A] focus:outline-none focus:border-[#0A0A0A]"
-              />
-              <button
-                data-testid="chat-send"
-                type="submit" disabled={sending || !input.trim()}
-                className="px-4 py-2.5 bg-[#0A0A0A] hover:bg-[#1C1C1C] disabled:opacity-40 text-white rounded-full flex items-center gap-2 text-sm font-medium"
-              >
-                <Send className="w-4 h-4" /> Invia
-              </button>
-            </form>
-          </>
-        )}
+        <MessageThread
+          activeConv={activeConv}
+          messaggi={messaggi}
+          role={role}
+          input={input}
+          onInputChange={setInput}
+          onSend={sendMessage}
+          onBack={() => setActiveConv(null)}
+          sending={sending}
+        />
       </div>
     </div>
   );

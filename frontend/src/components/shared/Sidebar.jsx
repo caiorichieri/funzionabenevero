@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import axios from "axios";
+import { useAuth, API } from "@/contexts/AuthContext";
 import {
   LayoutDashboard, Users, UserCheck, Calendar,
-  FileText, X, Heart, ScrollText, Wallet, CalendarDays, Shield, Receipt, BookHeart
+  FileText, X, Heart, ScrollText, Wallet, CalendarDays, Shield, Receipt, BookHeart, Star
 } from "lucide-react";
 
 const ADMIN_MENU = [
@@ -13,6 +15,7 @@ const ADMIN_MENU = [
   { to: "/admin/appuntamenti", icon: Calendar, label: "Appuntamenti" },
   { to: "/admin/pagamenti", icon: Wallet, label: "Pagamenti" },
   { to: "/admin/fatture", icon: Receipt, label: "Fatture" },
+  { to: "/admin/recensioni", icon: Star, label: "Recensioni", badgeKey: "reviews" },
   { to: "/admin/blog", icon: FileText, label: "Blog" },
   { to: "/admin/contratti", icon: ScrollText, label: "Documenti Legali" },
   { to: "/admin/registro-trattamenti", icon: Shield, label: "Registro Trattamenti" },
@@ -37,6 +40,26 @@ const PATIENT_MENU = [
 export default function Sidebar({ onClose }) {
   const { user } = useAuth();
   const location = useLocation();
+  const [badges, setBadges] = useState({ reviews: 0 });
+
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    let cancelled = false;
+    const fetchBadges = () => {
+      axios
+        .get(`${API}/admin/reviews/count-pending`, { withCredentials: true })
+        .then((r) => {
+          if (!cancelled) setBadges((b) => ({ ...b, reviews: r.data?.count || 0 }));
+        })
+        .catch(() => {});
+    };
+    fetchBadges();
+    const id = setInterval(fetchBadges, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [user?.role, location.pathname]);
 
   const menu = user?.role === "admin" ? ADMIN_MENU :
                user?.role === "terapeuta" ? THERAPIST_MENU : PATIENT_MENU;
@@ -82,7 +105,17 @@ export default function Sidebar({ onClose }) {
               `}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.badgeKey && badges[item.badgeKey] > 0 && (
+                <span
+                  data-testid={`badge-${item.badgeKey}`}
+                  className={`ml-auto min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                    active ? "bg-[#0A0A0A] text-[#E9D628]" : "bg-red-500 text-white"
+                  }`}
+                >
+                  {badges[item.badgeKey]}
+                </span>
+              )}
             </Link>
           );
         })}
