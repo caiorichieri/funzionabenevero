@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -61,9 +61,20 @@ export default function QuestionnairePage() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(false);
+  const topRef = useRef(null);
 
   const current = STEPS[step];
   const progress = ((step + 1) / STEPS.length) * 100;
+
+  // Scroll to top of the question when step changes (avoids landing on the
+  // options list on mobile after picking a previous answer).
+  useEffect(() => {
+    if (topRef.current) {
+      topRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [step]);
 
   const selectSingle = (opt) => {
     const next = { ...answers, [current.key]: opt };
@@ -121,7 +132,7 @@ export default function QuestionnairePage() {
         />
       </div>
 
-      <div className="max-w-xl mx-auto px-6 py-16 lg:py-24">
+      <div ref={topRef} className="max-w-5xl mx-auto px-6 py-12 lg:py-20 scroll-mt-24">
         <div className="mb-8 flex items-center justify-between text-xs tracking-[0.2em] uppercase text-[#0A0A0A]/50">
           <span>Passo {step + 1} di {STEPS.length}</span>
           {step > 0 && (
@@ -143,59 +154,75 @@ export default function QuestionnairePage() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
             data-testid={`step-${current.key}`}
+            className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-8 lg:gap-14 items-start"
           >
-            <div className="mb-6 flex justify-center">
+            {/* Mascotte column — hidden on mobile (shown at bottom below), sticky on desktop */}
+            <div className="hidden lg:flex lg:sticky lg:top-32 items-center justify-center">
               <Mascotte
                 name={STEP_MASCOTS[step % STEP_MASCOTS.length]}
                 theme="light"
-                size={90}
+                size={200}
                 animation={step === STEPS.length - 1 ? "wiggle" : "float"}
               />
             </div>
-            <h1 className="font-serif text-3xl lg:text-4xl text-[#0A0A0A] leading-tight text-center">
-              {current.label}
-            </h1>
-            <p className="mt-3 text-[#0A0A0A]/65 text-center">{current.helper}</p>
 
-            <div className="mt-10 space-y-3">
-              {current.options.map((opt) => {
-                const isSelected =
-                  current.type === "single"
-                    ? answers[current.key] === opt
-                    : (answers[current.key] || []).includes(opt);
-                return (
-                  <button
-                    key={opt}
-                    data-testid={`opt-${current.key}-${opt.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
-                    onClick={() => current.type === "single" ? selectSingle(opt) : toggleMulti(opt)}
-                    className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl border transition-all text-left ${
-                      isSelected
-                        ? "border-[#0A0A0A] bg-white/30 text-[#0A0A0A]"
-                        : "border-[#0A0A0A]/10 bg-white/30 text-[#0A0A0A]/75 hover:border-[#6B8FA3]/60 hover:bg-white/60"
-                    }`}
-                  >
-                    <span className="text-base">{opt}</span>
-                    {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-[#0A0A0A] flex items-center justify-center">
-                        <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+            {/* Question + options column */}
+            <div>
+              <h1 className="font-serif text-3xl lg:text-4xl text-[#0A0A0A] leading-tight text-left">
+                {current.label}
+              </h1>
+              <p className="mt-3 text-[#0A0A0A]/65 text-left">{current.helper}</p>
+
+              <div className="mt-8 space-y-3">
+                {current.options.map((opt) => {
+                  const isSelected =
+                    current.type === "single"
+                      ? answers[current.key] === opt
+                      : (answers[current.key] || []).includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      data-testid={`opt-${current.key}-${opt.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
+                      onClick={() => current.type === "single" ? selectSingle(opt) : toggleMulti(opt)}
+                      className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl border transition-all text-left ${
+                        isSelected
+                          ? "border-[#0A0A0A] bg-white/30 text-[#0A0A0A]"
+                          : "border-[#0A0A0A]/10 bg-white/30 text-[#0A0A0A]/75 hover:border-[#6B8FA3]/60 hover:bg-white/60"
+                      }`}
+                    >
+                      <span className="text-base">{opt}</span>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-[#0A0A0A] flex items-center justify-center">
+                          <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(current.type === "multi" || step === STEPS.length - 1) && (
+                <button
+                  data-testid="questionnaire-next"
+                  onClick={() => goNext()}
+                  disabled={!canProceed() || loading}
+                  className="mt-10 w-full inline-flex items-center justify-center gap-3 px-8 py-4 disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-br from-[#F58A1F] to-[#F5D419] hover:from-[#E07A0F] hover:to-[#E5C419] text-[#0A0A0A] font-bold rounded-2xl shadow-md hover:shadow-lg tracking-wide transition-all"
+                >
+                  {loading ? "Analisi in corso..." : step === STEPS.length - 1 ? "Trova i miei match" : "Continua"}
+                  {!loading && <ArrowRight className="w-4 h-4" />}
+                </button>
+              )}
+
+              {/* Mascotte — mobile only, shown at bottom */}
+              <div className="mt-10 flex justify-center lg:hidden">
+                <Mascotte
+                  name={STEP_MASCOTS[step % STEP_MASCOTS.length]}
+                  theme="light"
+                  size={100}
+                  animation={step === STEPS.length - 1 ? "wiggle" : "float"}
+                />
+              </div>
             </div>
-
-            {(current.type === "multi" || step === STEPS.length - 1) && (
-              <button
-                data-testid="questionnaire-next"
-                onClick={() => goNext()}
-                disabled={!canProceed() || loading}
-                className="mt-10 w-full inline-flex items-center justify-center gap-3 px-8 py-4 disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-br from-[#F58A1F] to-[#F5D419] hover:from-[#E07A0F] hover:to-[#E5C419] text-[#0A0A0A] font-bold rounded-2xl shadow-md hover:shadow-lg tracking-wide transition-all"
-              >
-                {loading ? "Analisi in corso..." : step === STEPS.length - 1 ? "Trova i miei match" : "Continua"}
-                {!loading && <ArrowRight className="w-4 h-4" />}
-              </button>
-            )}
           </motion.div>
         </AnimatePresence>
       </div>
