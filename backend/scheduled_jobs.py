@@ -196,7 +196,24 @@ def register_jobs(scheduler, db):
         args=[db], id="monthly_generate_commissioni", replace_existing=True,
         max_instances=1, coalesce=True,
     )
-    logger.info("[SCHEDULER] registered retention_anonymize (weekly) + process_legal_declines (hourly) + weekly_fatture_email + monthly_generate_commissioni")
+    # Daily 03:00 UTC — MongoDB backup to Backblaze B2 (skipped if not configured)
+    try:
+        from backup_service import run_backup, cleanup_old_backups
+        scheduler.add_job(
+            run_backup, "cron", hour=3, minute=0,
+            id="db_backup_daily", replace_existing=True,
+            max_instances=1, coalesce=True,
+        )
+        # Weekly Sunday 04:00 UTC — cleanup old backups (retention)
+        scheduler.add_job(
+            cleanup_old_backups, "cron",
+            day_of_week="sun", hour=4, minute=0,
+            id="db_backup_cleanup", replace_existing=True,
+            max_instances=1, coalesce=True,
+        )
+    except Exception as e:
+        logger.warning(f"[SCHEDULER] backup jobs not registered: {e}")
+    logger.info("[SCHEDULER] registered retention_anonymize (weekly) + process_legal_declines (hourly) + weekly_fatture_email + monthly_generate_commissioni + db_backup_daily")
 
 
 async def weekly_fatture_email(db) -> dict:

@@ -227,7 +227,7 @@ export default function PazienteDashboard() {
           <div className="flex-1 text-center sm:text-left">
             <h3 className="font-semibold text-[#0A0A0A] font-[Outfit] text-lg mb-2">Ancora nessuna sessione</h3>
             <p className="text-sm text-[#0A0A0A]/65 mb-5 max-w-md">
-              Quando inizi un percorso, le tue prossime sedute compariranno qui. Non c'è fretta — fai un passo alla volta.
+              Quando inizi un percorso, le tue prossime sedute compariranno qui. Non c&apos;è fretta — fai un passo alla volta.
             </p>
             <a href="/questionario" className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0A0A0A] hover:bg-[#1C1C1C] text-white rounded-full text-sm font-medium transition-colors">
               Trova il tuo specialista →

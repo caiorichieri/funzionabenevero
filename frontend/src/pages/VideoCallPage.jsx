@@ -105,8 +105,7 @@ export default function VideoCallPage() {
         callFrameRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appuntamentoId]);
+  }, [appuntamentoId, magicToken, navigate]);
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0A0A0A] flex flex-col" data-testid="video-call-page">
@@ -152,7 +151,7 @@ export default function VideoCallPage() {
               <h2 className="font-serif text-2xl text-[#F4F1ED]">Impossibile entrare</h2>
               <p className="mt-3 text-sm text-[#E6E2D8]/60">{error}</p>
               <p className="mt-2 text-xs text-[#E6E2D8]/40">
-                La stanza è disponibile 15 minuti prima dell'orario della seduta.
+                La stanza è disponibile 15 minuti prima dell&apos;orario della seduta.
               </p>
               <button
                 onClick={() => navigate(-1)}
