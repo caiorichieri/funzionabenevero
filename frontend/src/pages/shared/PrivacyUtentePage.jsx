@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +26,7 @@ export default function PrivacyUtentePage() {
   const [deleteReason, setDeleteReason] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [c, s] = await Promise.all([
@@ -40,9 +40,9 @@ export default function PrivacyUtentePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { if (user) load(); }, [user]);
+  useEffect(() => { if (user) load(); }, [user, load]);
 
   const toggleConsent = async (type, granted) => {
     setBusyConsent(type);

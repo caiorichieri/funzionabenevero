@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { Download, FileText, Search, RefreshCw, Play, Loader2 } from "lucide-react";
@@ -23,7 +23,7 @@ export default function FatturePage({ isAdmin = true }) {
   const [search, setSearch] = useState("");
   const [busyJob, setBusyJob] = useState(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const url = isAdmin
@@ -34,9 +34,9 @@ export default function FatturePage({ isAdmin = true }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin, filterKind]);
 
-  useEffect(() => { load(); }, [filterKind, isAdmin]);
+  useEffect(() => { load(); }, [load]);
 
   const runJob = async (endpoint, label) => {
     if (!confirm(`Esegui: ${label}?`)) return;
