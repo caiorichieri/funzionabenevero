@@ -108,11 +108,30 @@ async def update_my_calendario(body: CalendarioUpdate, user: dict = Depends(requ
     Filtra silenziosamente gli slot passati o entro 2 ore da adesso."""
     if user["role"] != "terapeuta":
         raise HTTPException(403, "Accesso negato")
+    cleaned, dropped = _clean_calendar_payload(body.calendario or {})
+    now = datetime.now(timezone.utc)
+    update = {
+        "disponibilita_calendario": cleaned,
+        "calendario_updated_at": now,
+        "calendario_bozza": not body.pubblica,
+    }
+    if body.pubblica:
+        update["calendario_pubblicato_at"] = now
+    await db.terapisti.update_one({"user_id": user["_id"]}, {"$set": update})
+    return {
+        "calendario": cleaned,
+        "calendario_bozza": not body.pubblica,
+        "calendario_pubblicato_at": now.isoformat() if body.pubblica else None,
+        "dropped_past_slots": dropped,
+    }
 
+
+def _clean_calendar_payload(raw: Dict[str, List[str]]) -> tuple:
+    """Validate + drop past slots. Returns (cleaned_dict, dropped_count)."""
     min_slot_time = datetime.now(timezone.utc) + timedelta(hours=2)
     cleaned: Dict[str, List[str]] = {}
     dropped = 0
-    for date_key, slots in (body.calendario or {}).items():
+    for date_key, slots in (raw or {}).items():
         if not _valid_iso_date(date_key):
             raise HTTPException(400, f"Formato data invalido: {date_key}")
         if not isinstance(slots, list):
@@ -129,11 +148,19 @@ async def update_my_calendario(body: CalendarioUpdate, user: dict = Depends(requ
                 raise HTTPException(400, f"Data/ora invalida: {date_key} {s}")
             if slot_dt < min_slot_time:
                 dropped += 1
-                continue  # silently drop
+                continue
             valid_slots.append(s)
         if valid_slots:
             cleaned[date_key] = sorted(set(valid_slots))
+    return cleaned, dropped
 
+
+@router.put("/admin/terapisti/{terapista_id}/calendario")
+async def admin_update_calendario(terapista_id: str, body: CalendarioUpdate, user: dict = Depends(require_admin)):
+    """Admin: override any therapist's calendar (support/onboarding tool).
+    Applies the same slot validation and past-slot filtering as the therapist self endpoint.
+    Note: therapist `_id` in DB may be stored as string OR ObjectId — try both."""
+    cleaned, dropped = _clean_calendar_payload(body.calendario or {})
     now = datetime.now(timezone.utc)
     update = {
         "disponibilita_calendario": cleaned,
@@ -142,9 +169,23 @@ async def update_my_calendario(body: CalendarioUpdate, user: dict = Depends(requ
     }
     if body.pubblica:
         update["calendario_pubblicato_at"] = now
-    await db.terapisti.update_one({"user_id": user["_id"]}, {"$set": update})
+    # Try ObjectId first, then string _id (some seeded docs use string)
+    result = None
+    try:
+        result = await db.terapisti.update_one({"_id": ObjectId(terapista_id)}, {"$set": update})
+        matched = result.matched_count
+    except Exception:
+        matched = 0
+    if matched == 0:
+        result = await db.terapisti.update_one({"_id": terapista_id}, {"$set": update})
+        matched = result.matched_count
+    if matched == 0:
+        raise HTTPException(404, "Terapista non trovato")
     return {
-        "calendario": cleaned,
+        "message": "Calendario aggiornato",
+        "terapista_id": terapista_id,
+        "date_count": len(cleaned),
+        "slot_count": sum(len(v) for v in cleaned.values()),
         "calendario_bozza": not body.pubblica,
         "calendario_pubblicato_at": now.isoformat() if body.pubblica else None,
         "dropped_past_slots": dropped,
