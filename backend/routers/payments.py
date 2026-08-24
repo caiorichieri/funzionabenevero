@@ -217,31 +217,39 @@ async def stripe_webhook(request: Request):
         event = _stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
     except _stripe.error.SignatureVerificationError:
         raise HTTPException(400, "Invalid signature")
-    obj, t = event["data"]["object"], event["type"]
-    if t == "checkout.session.completed":
-        if obj.get("payment_status") == "paid":
-            await _mark_payment_paid(obj["id"], obj.get("payment_intent"))
-    elif t == "checkout.session.async_payment_succeeded":
-        await _mark_payment_paid(obj["id"], obj.get("payment_intent"))
-    elif t in ("checkout.session.async_payment_failed", "checkout.session.expired"):
-        new_status = "failed" if "failed" in t else "expired"
-        await db.payment_transactions.update_one(
-            {"session_id": obj["id"]},
-            {"$set": {"status": new_status, "payment_status": new_status, "updated_at": datetime.now(timezone.utc)}},
-        )
-        tx = await db.payment_transactions.find_one({"session_id": obj["id"]})
-        if tx and tx.get("appointment_id"):
-            await db.appuntamenti.update_one(
-                {"_id": ObjectId(tx["appointment_id"]), "stato": "in_attesa_pagamento"},
-                {"$set": {"stato": "annullato", "annullato_motivo": f"payment_{new_status}"}},
-            )
-    elif t == "charge.refunded":
-        pi = obj.get("payment_intent")
-        if pi:
+    # Normalize Stripe object → plain dict so `.get` never crashes on unexpected shapes
+    raw = event["data"]["object"]
+    obj = raw.to_dict_recursive() if hasattr(raw, "to_dict_recursive") else (dict(raw) if hasattr(raw, "keys") else {})
+    t = event["type"]
+    try:
+        if t == "checkout.session.completed":
+            if obj.get("payment_status") == "paid":
+                await _mark_payment_paid(obj.get("id"), obj.get("payment_intent"))
+        elif t == "checkout.session.async_payment_succeeded":
+            await _mark_payment_paid(obj.get("id"), obj.get("payment_intent"))
+        elif t in ("checkout.session.async_payment_failed", "checkout.session.expired"):
+            new_status = "failed" if "failed" in t else "expired"
             await db.payment_transactions.update_one(
-                {"stripe_payment_intent_id": pi},
-                {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": datetime.now(timezone.utc)}},
+                {"session_id": obj.get("id")},
+                {"$set": {"status": new_status, "payment_status": new_status, "updated_at": datetime.now(timezone.utc)}},
             )
+            tx = await db.payment_transactions.find_one({"session_id": obj.get("id")})
+            if tx and tx.get("appointment_id"):
+                await db.appuntamenti.update_one(
+                    {"_id": ObjectId(tx["appointment_id"]), "stato": "in_attesa_pagamento"},
+                    {"$set": {"stato": "annullato", "annullato_motivo": f"payment_{new_status}"}},
+                )
+        elif t == "charge.refunded":
+            pi = obj.get("payment_intent")
+            if pi:
+                await db.payment_transactions.update_one(
+                    {"stripe_payment_intent_id": pi},
+                    {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": datetime.now(timezone.utc)}},
+                )
+    except Exception as e:
+        # Never 500 to Stripe — log and ack so it won't retry aggressively
+        import logging as _lg
+        _lg.error(f"[STRIPE][WEBHOOK] handler error for event={t}: {e}", exc_info=True)
     return {"status": "ok"}
 
 
