@@ -27,7 +27,7 @@ def _otp_template(otp_code: str, nome: str = "") -> str:
         <tr><td style="padding:40px 40px 20px 40px;text-align:center;">
           <div style="display:inline-block;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#D4A017 0%,#6B8FA3 100%);line-height:56px;color:#111111;font-weight:bold;font-size:18px;">FB</div>
           <div style="margin-top:16px;font-family:Georgia,serif;font-size:22px;color:#F4F1ED;letter-spacing:-0.3px;">funzionabene</div>
-          <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#6B8FA3;margin-top:4px;">clinica psicologica</div>
+          <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#6B8FA3;margin-top:4px;">psicologi e sessuologi</div>
         </td></tr>
         <tr><td style="padding:20px 40px 0 40px;">
           <h1 style="font-family:Georgia,serif;font-size:28px;font-weight:500;color:#F4F1ED;margin:0 0 16px 0;line-height:1.3;">Verifica la tua email</h1>
@@ -112,7 +112,7 @@ def _booking_template(ctx: dict, recipient: str) -> str:
 <table width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:20px;overflow:hidden;">
 <tr><td style="padding:40px 40px 20px;text-align:center;">
   <div style="font-family:Georgia,serif;font-size:26px;color:#F4F1ED;">funzionabene</div>
-  <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#6B8FA3;margin-top:4px;">clinica psicologica</div>
+  <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#6B8FA3;margin-top:4px;">psicologi e sessuologi</div>
 </td></tr>
 <tr><td style="padding:10px 40px 0;">
   <h1 style="font-family:Georgia,serif;font-size:28px;font-weight:500;margin:0 0 16px;color:#F4F1ED;">Prenotazione confermata</h1>
