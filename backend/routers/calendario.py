@@ -2,6 +2,7 @@
 import hashlib
 import logging
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,11 @@ from typing import Dict, List
 from deps import db, require_auth, require_admin, find_user_by_id
 
 router = APIRouter()
+
+# All calendar slots authored by therapists/admin are expressed in Italian local
+# time (Europe/Rome). They are stored as naive "HH:MM" strings per day, and
+# converted to timezone-aware UTC datetimes at read time.
+ROME_TZ = ZoneInfo("Europe/Rome")
 
 
 # ─── Models ───────────────────────────────────────────────────────────────────
@@ -127,7 +133,8 @@ async def update_my_calendario(body: CalendarioUpdate, user: dict = Depends(requ
 
 
 def _clean_calendar_payload(raw: Dict[str, List[str]]) -> tuple:
-    """Validate + drop past slots. Returns (cleaned_dict, dropped_count)."""
+    """Validate + drop past slots. Slots are interpreted as Europe/Rome local time.
+    Returns (cleaned_dict, dropped_count)."""
     min_slot_time = datetime.now(timezone.utc) + timedelta(hours=2)
     cleaned: Dict[str, List[str]] = {}
     dropped = 0
@@ -143,7 +150,8 @@ def _clean_calendar_payload(raw: Dict[str, List[str]]) -> tuple:
             try:
                 y, m, d = date_key.split("-")
                 h, mn = s.split(":")
-                slot_dt = datetime(int(y), int(m), int(d), int(h), int(mn), tzinfo=timezone.utc)
+                # Author-intent: HH:MM is Europe/Rome wall time
+                slot_dt = datetime(int(y), int(m), int(d), int(h), int(mn), tzinfo=ROME_TZ).astimezone(timezone.utc)
             except Exception:
                 raise HTTPException(400, f"Data/ora invalida: {date_key} {s}")
             if slot_dt < min_slot_time:
@@ -343,7 +351,9 @@ async def public_terapista_calendario(terapista_id: str, anno: int, mese: int):
         raw_slots = cal.get(date_key, [])
         slots_out = []
         for hhmm in raw_slots:
-            slot_dt = datetime(d.year, d.month, d.day, int(hhmm[:2]), int(hhmm[3:5]), tzinfo=timezone.utc)
+            # Interpret "HH:MM" as Europe/Rome local time (author intent), then normalize to UTC.
+            slot_dt_local = datetime(d.year, d.month, d.day, int(hhmm[:2]), int(hhmm[3:5]), tzinfo=ROME_TZ)
+            slot_dt = slot_dt_local.astimezone(timezone.utc)
             if slot_dt < min_slot_time:
                 continue
             key = slot_dt.isoformat()[:16]

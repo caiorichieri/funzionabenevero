@@ -91,15 +91,34 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
     if prezzo <= 0:
         raise HTTPException(400, "Prezzo sessione non configurato per questo terapista")
 
-    # Defense-in-depth: reject if slot is already booked by anyone (even a still-pending checkout).
-    # The frontend calendar filters booked slots too, but a stale UI or concurrent bookings could bypass.
-    conflict = await db.appuntamenti.find_one({
+    # Defense-in-depth: reject if slot conflicts with any active booking for the same therapist.
+    # Compares as UTC datetimes with duration overlap, not string match, to catch cases where
+    # the same wall-clock time was stored with different ISO offsets.
+    try:
+        new_start = datetime.fromisoformat(req.data_ora.replace("Z", "+00:00"))
+    except Exception:
+        raise HTTPException(400, "Formato data_ora non valido")
+    if new_start.tzinfo is None:
+        new_start = new_start.replace(tzinfo=timezone.utc)
+    new_end = new_start + timedelta(minutes=req.durata_minuti)
+
+    day_start = new_start.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+    day_end = day_start + timedelta(days=3)
+    same_day_bookings = await db.appuntamenti.find({
         "terapeuta_id": req.terapeuta_id,
-        "data_ora": req.data_ora,
         "stato": {"$nin": ["cancellato", "annullato", "payment_failed", "payment_expired"]},
-    })
-    if conflict:
-        raise HTTPException(409, "Questo orario non è più disponibile. Scegli un altro slot.")
+        "data_ora": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()},
+    }).to_list(200)
+    for existing in same_day_bookings:
+        try:
+            ex_start = datetime.fromisoformat(existing["data_ora"].replace("Z", "+00:00"))
+        except Exception:
+            continue
+        if ex_start.tzinfo is None:
+            ex_start = ex_start.replace(tzinfo=timezone.utc)
+        ex_end = ex_start + timedelta(minutes=existing.get("durata_minuti", 60))
+        if new_start < ex_end and ex_start < new_end:
+            raise HTTPException(409, "Questo orario non è più disponibile. Scegli un altro slot.")
 
     amount_cents = int(round(prezzo * 100))
     platform_fee_cents = int(round(amount_cents * PLATFORM_FEE_PERCENT / 100))
