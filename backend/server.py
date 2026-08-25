@@ -277,20 +277,27 @@ async def dashboard_stats(user: dict = Depends(require_auth)):
 
     scadenze = []
     terapisti_docs = await db.terapisti.find({"assicurazione_scadenza": {"$exists": True}}).to_list(100)
+    now_utc = datetime.now(timezone.utc)
     for t in terapisti_docs:
         scad = t.get("assicurazione_scadenza")
-        if scad:
-            try:
-                scad_date = datetime.fromisoformat(scad.replace("Z", "+00:00"))
-                giorni = (scad_date - datetime.now(timezone.utc)).days
-                if giorni <= 60:
-                    scadenze.append({
-                        "terapeuta": f"{t.get('nome','')} {t.get('cognome','')}".strip(),
-                        "scadenza": scad,
-                        "giorni_rimanenti": giorni
-                    })
-            except Exception as e:
-                logging.warning(f"[DASHBOARD] bad scadenza for terapeuta {t.get('_id')}: {e}")
+        if not scad:
+            continue
+        try:
+            if isinstance(scad, datetime):
+                scad_date = scad
+            else:
+                scad_date = datetime.fromisoformat(str(scad).replace("Z", "+00:00"))
+            if scad_date.tzinfo is None:
+                scad_date = scad_date.replace(tzinfo=timezone.utc)
+            giorni = (scad_date - now_utc).days
+            if giorni <= 60:
+                scadenze.append({
+                    "terapeuta": f"{t.get('nome','')} {t.get('cognome','')}".strip(),
+                    "scadenza": scad_date.date().isoformat(),
+                    "giorni_rimanenti": giorni
+                })
+        except (ValueError, TypeError, AttributeError) as e:
+            logging.warning(f"[DASHBOARD] bad scadenza for terapeuta {t.get('_id')}: {e}")
 
     return {
         "terapisti": n_terapisti,
