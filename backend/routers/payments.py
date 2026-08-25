@@ -90,6 +90,17 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
     prezzo = terapista.get("prezzo_sessione") or 0
     if prezzo <= 0:
         raise HTTPException(400, "Prezzo sessione non configurato per questo terapista")
+
+    # Defense-in-depth: reject if slot is already booked by anyone (even a still-pending checkout).
+    # The frontend calendar filters booked slots too, but a stale UI or concurrent bookings could bypass.
+    conflict = await db.appuntamenti.find_one({
+        "terapeuta_id": req.terapeuta_id,
+        "data_ora": req.data_ora,
+        "stato": {"$nin": ["cancellato", "annullato", "payment_failed", "payment_expired"]},
+    })
+    if conflict:
+        raise HTTPException(409, "Questo orario non è più disponibile. Scegli un altro slot.")
+
     amount_cents = int(round(prezzo * 100))
     platform_fee_cents = int(round(amount_cents * PLATFORM_FEE_PERCENT / 100))
     therapist_amount_cents = amount_cents - platform_fee_cents
