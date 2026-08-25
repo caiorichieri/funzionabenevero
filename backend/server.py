@@ -113,10 +113,125 @@ async def update_paziente(paziente_id: str, data: PazienteProfileInput, user: di
 
 @api_router.delete("/pazienti/{paziente_id}")
 async def delete_paziente(paziente_id: str, user: dict = Depends(require_admin)):
-    result = await db.pazienti.delete_one({"_id": ObjectId(paziente_id)})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Paziente non trovato")
-    return {"message": "Paziente eliminato"}
+    """Blocked. Direct deletion of a paziente removes personal data that we are legally
+    required to retain (Codice Civile art. 2220 — 10 anni fiscali, GDPR art. 17.3.b —
+    obbligo di conservazione). Use POST /pazienti/{id}/anonimizza for a controlled,
+    audited erasure that preserves fiscal / audit records while removing PII.
+    """
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "Eliminazione diretta non consentita. I dati anagrafici sono soggetti a "
+            "conservazione fiscale obbligatoria (10 anni). Per una richiesta di "
+            "cancellazione da parte del paziente (art. 17 GDPR), usa l'endpoint di "
+            "anonimizzazione controllata."
+        ),
+    )
+
+
+class AnonimizzaPazienteInput(BaseModel):
+    motivo: str = Field(min_length=20, max_length=500)
+    conferma: str  # must equal exactly "ANONIMIZZA"
+
+
+@api_router.post("/pazienti/{paziente_id}/anonimizza")
+async def anonimizza_paziente(paziente_id: str, body: AnonimizzaPazienteInput, user: dict = Depends(require_admin)):
+    """GDPR-compliant erasure: replaces PII with hashed placeholders while preserving
+    fiscal / audit records (appointments, payments, invoices, refunds).
+
+    Requirements:
+    - `motivo` explaining the reason (>=20 chars, saved to audit log)
+    - `conferma` must be exactly "ANONIMIZZA" (prevents accidental clicks)
+    - No pending future confirmed appointments (must be cancelled first)
+    """
+    if body.conferma != "ANONIMIZZA":
+        raise HTTPException(400, "Conferma non valida. Devi digitare esattamente ANONIMIZZA.")
+
+    from bson import ObjectId as _OID
+    try:
+        oid = _OID(paziente_id)
+    except Exception:
+        raise HTTPException(400, "ID paziente non valido")
+
+    paziente = await db.pazienti.find_one({"_id": oid})
+    if not paziente:
+        raise HTTPException(404, "Paziente non trovato")
+    if paziente.get("anonimizzato"):
+        raise HTTPException(409, "Paziente già anonimizzato")
+
+    # Refuse if any future confirmed sessions exist — must be cancelled + refunded first
+    now = datetime.now(timezone.utc)
+    future_bookings = await db.appuntamenti.count_documents({
+        "paziente_id": str(oid),
+        "stato": {"$in": ["confermato", "in_attesa_pagamento", "prenotato"]},
+        "data_ora": {"$gt": now.isoformat()},
+    })
+    if future_bookings > 0:
+        raise HTTPException(
+            409,
+            f"Impossibile anonimizzare: esistono {future_bookings} appuntamenti futuri attivi. "
+            "Annullare o rimborsare prima di procedere."
+        )
+
+    # Build anonymized placeholder using a hash of the original _id (auditable, unique, irreversible)
+    import hashlib as _hl
+    tag = _hl.sha256(str(oid).encode()).hexdigest()[:8]
+    placeholder = {
+        "nome": "Anonimizzato",
+        "cognome": f"#{tag}",
+        "email": f"anon-{tag}@erased.funzionabene.it",
+        "telefono": None,
+        "codice_fiscale": None,
+        "indirizzo": None,
+        "citta": None,
+        "cap": None,
+        "note_admin": None,
+        "anonimizzato": True,
+        "anonimizzato_at": now,
+        "anonimizzato_by": user.get("_id"),
+        "anonimizzato_motivo": body.motivo,
+    }
+    await db.pazienti.update_one({"_id": oid}, {"$set": placeholder})
+
+    # Also anonymize the linked user account so login/PII lookups are broken
+    user_id = paziente.get("user_id")
+    if user_id:
+        try:
+            uoid = _OID(user_id) if not isinstance(user_id, _OID) else user_id
+            await db.users.update_one(
+                {"_id": uoid},
+                {"$set": {
+                    "nome": "Anonimizzato",
+                    "cognome": f"#{tag}",
+                    "email": f"anon-{tag}@erased.funzionabene.it",
+                    "telefono": None,
+                    "password_hash": "!anonymized!",   # unusable hash → cannot login
+                    "is_active": False,
+                    "anonimizzato": True,
+                    "anonimizzato_at": now,
+                }},
+            )
+        except Exception as e:
+            logging.warning(f"[GDPR] anonimizza user linked failed: {e}")
+
+    # Audit log for traceability (immutable append-only pattern)
+    await db.gdpr_audit_log.insert_one({
+        "action": "paziente_anonimizzato",
+        "paziente_id": str(oid),
+        "user_id_linked": str(user_id) if user_id else None,
+        "eseguito_da": user.get("_id"),
+        "eseguito_da_email": user.get("email"),
+        "motivo": body.motivo,
+        "tag": tag,
+        "future_bookings_at_time": future_bookings,
+        "timestamp": now,
+    })
+
+    return {
+        "message": "Paziente anonimizzato correttamente",
+        "tag": tag,
+        "note": "I dati fiscali (appuntamenti, pagamenti, fatture) sono conservati per obbligo di legge."
+    }
 
 @api_router.get("/pazienti/profilo/me")
 async def get_my_paziente_profile(user: dict = Depends(require_auth)):

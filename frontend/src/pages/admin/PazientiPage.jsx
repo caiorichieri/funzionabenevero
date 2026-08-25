@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Plus, Search, Edit2, Trash2, X } from "lucide-react";
+import { Plus, Search, Edit2, X, ShieldOff, AlertTriangle } from "lucide-react";
 
 const GENERI = ["M", "F", "Non binario", "Preferisco non specificare"];
 const EMPTY = {
@@ -19,6 +19,12 @@ export default function PazientiPage() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const [anonimizzaTarget, setAnonimizzaTarget] = useState(null);
+  const [anonMotivo, setAnonMotivo] = useState("");
+  const [anonConferma, setAnonConferma] = useState("");
+  const [anonBusy, setAnonBusy] = useState(false);
+  const [anonError, setAnonError] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -58,10 +64,33 @@ export default function PazientiPage() {
     } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Eliminare questo paziente?")) return;
-    await axios.delete(`${API}/pazienti/${id}`, { withCredentials: true });
-    load();
+  const handleAnonimizza = async () => {
+    if (!anonimizzaTarget) return;
+    setAnonError("");
+    if (anonMotivo.trim().length < 20) {
+      setAnonError("Il motivo deve contenere almeno 20 caratteri.");
+      return;
+    }
+    if (anonConferma !== "ANONIMIZZA") {
+      setAnonError("Devi digitare esattamente ANONIMIZZA per confermare.");
+      return;
+    }
+    setAnonBusy(true);
+    try {
+      await axios.post(
+        `${API}/pazienti/${anonimizzaTarget._id}/anonimizza`,
+        { motivo: anonMotivo.trim(), conferma: anonConferma },
+        { withCredentials: true }
+      );
+      setAnonimizzaTarget(null);
+      setAnonMotivo("");
+      setAnonConferma("");
+      load();
+    } catch (err) {
+      setAnonError(err.response?.data?.detail || "Errore nell'anonimizzazione");
+    } finally {
+      setAnonBusy(false);
+    }
   };
 
   const filtered = pazienti.filter(p =>
@@ -128,13 +157,24 @@ export default function PazientiPage() {
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1">
                       <button data-testid={`edit-paziente-${p._id}`} onClick={() => openEdit(p)}
-                        className="p-2 rounded-lg hover:bg-[#0A0A0A]/5 text-[#0A0A0A]/55">
+                        className="p-2 rounded-lg hover:bg-[#0A0A0A]/5 text-[#0A0A0A]/55"
+                        title="Modifica dati">
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button data-testid={`delete-paziente-${p._id}`} onClick={() => handleDelete(p._id)}
-                        className="p-2 rounded-lg hover:bg-red-50 text-[#0A0A0A]/55 hover:text-red-600">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {!p.anonimizzato && (
+                        <button data-testid={`anonimizza-paziente-${p._id}`}
+                          onClick={() => { setAnonimizzaTarget(p); setAnonMotivo(""); setAnonConferma(""); setAnonError(""); }}
+                          className="p-2 rounded-lg hover:bg-orange-50 text-[#0A0A0A]/55 hover:text-orange-600"
+                          title="Anonimizza dati (richiesta GDPR)">
+                          <ShieldOff className="w-4 h-4" />
+                        </button>
+                      )}
+                      {p.anonimizzato && (
+                        <span data-testid={`badge-anon-${p._id}`}
+                          className="text-[10px] uppercase tracking-wide font-semibold bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                          Anonimizzato
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -229,6 +269,105 @@ export default function PazientiPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Anonimizza modal (GDPR erasure) */}
+      {anonimizzaTarget && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div
+            data-testid="modal-anonimizza"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-[#0A0A0A]/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                  <ShieldOff className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#0A0A0A] font-[Outfit]">Anonimizza paziente</h2>
+                  <div className="text-xs text-[#0A0A0A]/55">
+                    {anonimizzaTarget.nome} {anonimizzaTarget.cognome}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setAnonimizzaTarget(null)}
+                className="p-2 rounded-xl hover:bg-[#0A0A0A]/5"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold mb-1">Operazione irreversibile</div>
+                  <ul className="list-disc pl-4 space-y-0.5 text-xs">
+                    <li>I dati personali (nome, email, telefono, CF, indirizzo) verranno sostituiti con placeholder anonimi.</li>
+                    <li>L&apos;account non potrà più accedere alla piattaforma.</li>
+                    <li>Appuntamenti, pagamenti e fatture <strong>vengono conservati</strong> per obbligo di legge (10 anni).</li>
+                    <li>Non è possibile anonimizzare se ci sono sedute future non annullate.</li>
+                  </ul>
+                </div>
+              </div>
+
+              {anonError && (
+                <div data-testid="anon-error" className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                  {anonError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">
+                  Motivo <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  data-testid="anon-motivo"
+                  value={anonMotivo}
+                  onChange={(e) => setAnonMotivo(e.target.value.slice(0, 500))}
+                  rows={3}
+                  placeholder="Es. richiesta scritta del paziente ricevuta il gg/mm/aaaa via email a hr@..."
+                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                />
+                <div className="text-xs text-[#0A0A0A]/45 text-right mt-1">
+                  {anonMotivo.length}/500 · minimo 20 caratteri
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">
+                  Digita <code className="bg-[#0A0A0A]/5 px-1.5 py-0.5 rounded font-mono">ANONIMIZZA</code> per confermare
+                </label>
+                <input
+                  data-testid="anon-conferma"
+                  type="text"
+                  value={anonConferma}
+                  onChange={(e) => setAnonConferma(e.target.value)}
+                  placeholder="ANONIMIZZA"
+                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm font-mono uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t border-[#0A0A0A]/10">
+              <button
+                onClick={() => setAnonimizzaTarget(null)}
+                className="px-5 py-2.5 border border-[#0A0A0A]/15 rounded-full text-[#0A0A0A] hover:bg-[#0A0A0A]/5"
+              >
+                Annulla
+              </button>
+              <button
+                data-testid="anon-conferma-btn"
+                onClick={handleAnonimizza}
+                disabled={anonBusy || anonMotivo.trim().length < 20 || anonConferma !== "ANONIMIZZA"}
+                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-full font-medium disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                <ShieldOff className="w-4 h-4" /> Conferma anonimizzazione
+              </button>
+            </div>
           </div>
         </div>
       )}
