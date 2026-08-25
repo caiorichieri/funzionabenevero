@@ -1,17 +1,98 @@
 """Terapisti (therapists) router: CRUD + profile + slots + documents + admin verification."""
 import logging
+import os
+import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, EmailStr, Field
 
 from deps import db, require_auth, require_admin, find_user_by_id
 from models import TerapistaProfileInput
-from email_service import send_therapist_approved_email
+from email_service import send_therapist_approved_email, send_new_therapist_admin_alert
 
 router = APIRouter()
+
+
+# ─── Public: therapist application (lead capture) ─────────────────────────
+class CandidaturaTerapistaInput(BaseModel):
+    nome: str = Field(min_length=1, max_length=80)
+    cognome: str = Field(min_length=1, max_length=80)
+    email: EmailStr
+    telefono: str = Field(min_length=6, max_length=32)
+    messaggio: str | None = Field(default=None, max_length=800)
+
+
+def _normalize_phone(raw: str) -> str:
+    s = re.sub(r"[^\d+]", "", raw or "")
+    return s
+
+
+@router.post("/terapeuti/candidatura")
+async def submit_terapeuta_candidatura(body: CandidaturaTerapistaInput, request: Request):
+    """Public endpoint: capture therapist lead. No account is created; the record lives
+    in the `terapisti` collection with approval_status='lead' and is invisible to
+    patients (documenti_verificati=False, calendario_bozza=True). Admin is notified
+    via email and will contact the applicant manually to onboard them.
+    """
+    email = body.email.lower().strip()
+    telefono = _normalize_phone(body.telefono)
+    if len(telefono) < 6:
+        raise HTTPException(400, "Numero di telefono non valido")
+
+    # Avoid duplicates (case-insensitive) among leads or existing terapisti users
+    now = datetime.now(timezone.utc)
+    existing_lead = await db.terapisti.find_one({"email": email, "approval_status": "lead"})
+    if existing_lead:
+        # Update timestamp to reflect re-submission but don't create a second row
+        await db.terapisti.update_one(
+            {"_id": existing_lead["_id"]},
+            {"$set": {
+                "nome": body.nome.strip(),
+                "cognome": body.cognome.strip(),
+                "telefono": telefono,
+                "messaggio": (body.messaggio or "").strip() or None,
+                "last_submitted_at": now,
+            }},
+        )
+    else:
+        existing_user = await db.users.find_one({"email": email, "role": "terapeuta"})
+        if existing_user:
+            raise HTTPException(409, "Esiste già un profilo terapeuta con questa email")
+        await db.terapisti.insert_one({
+            "nome": body.nome.strip(),
+            "cognome": body.cognome.strip(),
+            "email": email,
+            "telefono": telefono,
+            "messaggio": (body.messaggio or "").strip() or None,
+            "approval_status": "lead",
+            "documenti_verificati": False,
+            "calendario_bozza": True,
+            "user_id": None,
+            "source": "candidatura_form",
+            "source_ip": (request.client.host if request.client else None),
+            "source_ua": (request.headers.get("user-agent") or "")[:400],
+            "created_at": now,
+            "last_submitted_at": now,
+        })
+
+    # Notify admin (best-effort)
+    try:
+        await send_new_therapist_admin_alert({
+            "nome": body.nome.strip(),
+            "cognome": body.cognome.strip(),
+            "email": email,
+            "telefono": telefono,
+            "messaggio": (body.messaggio or "").strip() or None,
+            "created_at": now.strftime("%d/%m/%Y %H:%M"),
+        })
+    except Exception as e:
+        logging.error(f"[EMAIL] admin candidatura alert failed: {e}")
+
+    return {"message": "Candidatura ricevuta. Ti contatteremo a breve."}
 
 # ─── Local constants (docs storage) ────────────────────────────────────────
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"

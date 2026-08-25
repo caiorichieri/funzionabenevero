@@ -7,7 +7,7 @@ import Mascotte from "@/components/shared/Mascotte";
 
 const ROLES = [
   { id: "paziente", label: "Sono un Paziente", desc: "Cerco supporto psicologico/sessuologico" },
-  { id: "terapeuta", label: "Sono un Terapeuta", desc: "Voglio offrire i miei servizi professionali" }
+  { id: "terapeuta", label: "Sono un Terapeuta", desc: "Voglio candidarmi per offrire i miei servizi" }
 ];
 
 export default function RegisterPage() {
@@ -27,7 +27,15 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleRoleSelect = (r) => { setRole(r); setStep(2); };
+  const handleRoleSelect = (r) => {
+    // Terapeuta cannot self-register — always redirect to the application form.
+    if (r === "terapeuta") {
+      navigate("/candidatura-terapeuta");
+      return;
+    }
+    setRole(r);
+    setStep(2);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

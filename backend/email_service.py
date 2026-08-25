@@ -195,7 +195,7 @@ def _reminder_template(ctx: dict, when: str) -> str:
 </td></tr>
 {join_button_html}
 <tr><td style="padding:28px 40px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;margin-top:20px;">
-  <p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Clinica di Psicologia e Sessuologia</p>
+  <p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Psicologi e Sessuologi</p>
 </td></tr>
 </table></td></tr></table></body></html>"""
 
@@ -606,6 +606,8 @@ async def send_new_therapist_admin_alert(therapist: dict) -> bool:
 <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#6B8FA3;padding-bottom:6px;">Dati anagrafici</div>
 <div style="font-family:Georgia,serif;font-size:18px;color:#D4A017;">{therapist.get('nome','')} {therapist.get('cognome','')}</div>
 <div style="font-size:13px;color:rgba(230,226,216,0.7);margin-top:4px;">{therapist.get('email','')}</div>
+{f'<div style="font-size:13px;color:rgba(230,226,216,0.7);margin-top:4px;">Tel: {therapist.get("telefono")}</div>' if therapist.get("telefono") else ''}
+{f'<div style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:13px;color:rgba(230,226,216,0.75);line-height:1.5;"><em>«{therapist.get("messaggio")}»</em></div>' if therapist.get("messaggio") else ''}
 <div style="font-size:12px;color:rgba(230,226,216,0.5);margin-top:8px;">Registrazione: {therapist.get('created_at','')}</div>
 </td></tr></table>
 </td></tr>
@@ -650,7 +652,7 @@ Verifica di aver completato: biografia, disponibilità settimanale, prezzo sessi
 <a href="{dashboard_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Vai alla dashboard →</a>
 </td></tr>
 <tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
-<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Clinica di Psicologia e Sessuologia</p>
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Psicologi e Sessuologi</p>
 </td></tr>
 </table></body></html>"""
     return await _send_raw({

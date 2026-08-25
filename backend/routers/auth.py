@@ -48,6 +48,14 @@ async def register(data: RegisterInput, response: Response):
         raise HTTPException(status_code=400, detail="Password deve avere almeno 8 caratteri")
     if data.role not in ["paziente", "terapeuta"]:
         raise HTTPException(status_code=400, detail="Ruolo non valido")
+    if data.role == "terapeuta":
+        # Direct therapist registration is disabled. New therapists must submit a
+        # candidatura via POST /api/terapeuti/candidatura and be manually onboarded
+        # by an admin (data-collection flow, not self-service signup).
+        raise HTTPException(
+            status_code=403,
+            detail="La registrazione diretta dei terapeuti non è più disponibile. Compila il modulo di candidatura e verrai contattato dal nostro team.",
+        )
 
     otp_code = generate_otp()
     otp_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
@@ -202,6 +210,14 @@ async def login(data: LoginInput, response: Response):
         raise HTTPException(status_code=403, detail="Account non verificato. Controlla la tua email per il codice OTP.")
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account disattivato")
+    # Therapists must be explicitly approved by an admin before they can access the platform.
+    # Legacy `approval_status` value is "approvato" (see admin approve endpoint); newer flow may
+    # use "verified" — accept either. Anything else (pending, lead, missing) is blocked.
+    if user.get("role") == "terapeuta" and user.get("approval_status") not in ("approvato", "verified"):
+        raise HTTPException(
+            status_code=403,
+            detail="Il tuo profilo è in fase di valutazione. Ti contatteremo dopo la verifica.",
+        )
 
     user_id = str(user["_id"])
     access_token = create_access_token(user_id, email, user["role"])

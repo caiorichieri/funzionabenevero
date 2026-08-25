@@ -199,14 +199,26 @@ export default function TerapistiPage() {
                   <div>
                     <div className="font-semibold text-[#0A0A0A] flex items-center gap-2">
                       {t.nome} {t.cognome}
+                      {t.approval_status === "lead" && (
+                        <span data-testid={`badge-candidatura-${t._id}`} className="text-[10px] uppercase tracking-wide font-semibold bg-[#F58A1F]/15 text-[#F58A1F] px-2 py-0.5 rounded-full">
+                          Candidatura
+                        </span>
+                      )}
                       {t.sospeso && (
                         <span data-testid={`badge-sospeso-${t._id}`} className="text-[10px] uppercase tracking-wide font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Sospeso</span>
                       )}
                     </div>
                     <div className="text-sm text-[#0A0A0A]/55">
-                      {t.albo_numero ? `Albo n. ${t.albo_numero}` : "Albo non inserito"} ·{" "}
-                      {t.prezzo_sessione ? `€${t.prezzo_sessione}/sessione` : "Tariffa n.d."}
+                      {t.approval_status === "lead"
+                        ? <><a href={`mailto:${t.email}`} className="underline">{t.email}</a> · <a href={`tel:${t.telefono}`} className="underline">{t.telefono}</a></>
+                        : <>{t.albo_numero ? `Albo n. ${t.albo_numero}` : "Albo non inserito"} · {t.prezzo_sessione ? `€${t.prezzo_sessione}/sessione` : "Tariffa n.d."}</>
+                      }
                     </div>
+                    {t.approval_status === "lead" && t.messaggio && (
+                      <div data-testid={`lead-messaggio-${t._id}`} className="mt-2 text-xs text-[#0A0A0A]/70 italic bg-white/40 border border-[#0A0A0A]/8 rounded-lg px-2.5 py-1.5 max-w-md">
+                        «{t.messaggio}»
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

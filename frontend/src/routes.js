@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // Auth / onboarding
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
+import CandidaturaTerapeutaPage from "@/pages/CandidaturaTerapeutaPage";
 import OTPPage from "@/pages/OTPPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -132,6 +133,7 @@ export function StandaloneRedirector() {
       p.startsWith("/questionario") ||
       p.startsWith("/login") ||
       p.startsWith("/registrati") ||
+      p.startsWith("/candidatura-terapeuta") ||
       p.startsWith("/verifica-otp") ||
       p.startsWith("/recupera-password") ||
       p.startsWith("/reset-password") ||
@@ -192,6 +194,8 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registrati" element={<RegisterPage />} />
       <Route path="/register" element={<Navigate to="/registrati" replace />} />
+      <Route path="/candidatura-terapeuta" element={<CandidaturaTerapeutaPage />} />
+      <Route path="/lavora-con-noi" element={<Navigate to="/candidatura-terapeuta" replace />} />
       <Route path="/verifica-otp" element={<OTPPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
