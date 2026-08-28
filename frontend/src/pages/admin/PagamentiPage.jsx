@@ -10,6 +10,7 @@ const STATUS_BADGE = {
   pending: "bg-amber-100 text-amber-800",
   paid: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
+  refunded: "bg-red-100 text-red-700",
 };
 
 export default function PagamentiPage() {
@@ -213,22 +214,44 @@ export default function PagamentiPage() {
             </thead>
             <tbody>
               {items.map(it => (
-                <tr key={it.id} className="border-t border-[#0A0A0A]/10 hover:bg-[#0A0A0A]/[0.02]">
+                <tr
+                  key={it.id}
+                  data-testid={`payment-row-${it.id}`}
+                  className={`border-t border-[#0A0A0A]/10 hover:bg-[#0A0A0A]/[0.02] ${it.is_refunded ? "bg-red-50/50 opacity-90" : ""}`}
+                >
                   <td className="p-3">
-                    {it.payout_status === "pending" && (
+                    {!it.is_refunded && it.payout_status === "pending" && (
                       <input type="checkbox" checked={selected.has(it.id)} onChange={() => toggle(it.id)} data-testid={`select-${it.id}`}/>
                     )}
                   </td>
                   <td className="p-3">{it.paid_at ? new Date(it.paid_at).toLocaleDateString("it-IT") : "—"}</td>
                   <td className="p-3">Dr. {it.terapeuta.nome} {it.terapeuta.cognome}</td>
                   <td className="p-3">{it.paziente_initials}</td>
-                  <td className="p-3 text-right">{eur(it.amount)}</td>
-                  <td className="p-3 text-right text-[#0A0A0A]/70">{eur(it.platform_fee_amount)}</td>
-                  <td className="p-3 text-right font-semibold">{eur(it.therapist_amount)}</td>
+                  <td className={`p-3 text-right ${it.is_refunded ? "line-through text-[#0A0A0A]/50" : ""}`}>{eur(it.amount)}</td>
+                  <td className={`p-3 text-right text-[#0A0A0A]/70 ${it.is_refunded ? "line-through" : ""}`}>{eur(it.platform_fee_amount)}</td>
+                  <td className={`p-3 text-right font-semibold ${it.is_refunded ? "line-through text-[#0A0A0A]/50" : ""}`}>{eur(it.therapist_amount)}</td>
                   <td className="p-3 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_BADGE[it.payout_status] || "bg-gray-100"}`}>
-                      {it.payout_status === "paid" ? "Pagato" : "In attesa"}
-                    </span>
+                    {it.is_refunded ? (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span data-testid={`badge-refund-${it.id}`} className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_BADGE.refunded}`}>
+                          Rimborsato
+                        </span>
+                        {it.refunded_at && (
+                          <span className="text-[10px] text-[#0A0A0A]/50">
+                            {new Date(it.refunded_at).toLocaleDateString("it-IT")}
+                          </span>
+                        )}
+                        {it.refund_reason && (
+                          <span className="text-[10px] text-red-700 italic max-w-[140px] truncate" title={it.refund_reason}>
+                            {it.refund_reason}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_BADGE[it.payout_status] || "bg-gray-100"}`}>
+                        {it.payout_status === "paid" ? "Pagato" : "In attesa"}
+                      </span>
+                    )}
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
@@ -240,7 +263,7 @@ export default function PagamentiPage() {
                       >
                         <FileText className="w-3.5 h-3.5" /> Sanitaria
                       </button>
-                      {it.payout_status === "pending" && (
+                      {!it.is_refunded && it.payout_status === "pending" && (
                         <button
                           data-testid={`refund-btn-${it.id}`}
                           onClick={() => refund(it.id)}

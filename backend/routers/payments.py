@@ -324,8 +324,10 @@ async def list_admin_payouts(
     terapeuta_id: Optional[str] = None,
     user: dict = Depends(require_admin),
 ):
-    """List paid payment_transactions to help admin plan bonifici to therapists."""
-    q = {"payment_status": "paid"}
+    """List payment_transactions to help admin plan bonifici to therapists.
+    Includes BOTH paid AND refunded transactions so that refunds remain visible
+    in the ledger (compliance / audit trail)."""
+    q = {"payment_status": {"$in": ["paid", "refunded"]}}
     if payout_status in ("pending", "paid"):
         q["payout_status"] = payout_status
     if terapeuta_id:
@@ -335,6 +337,7 @@ async def list_admin_payouts(
     async for tx in db.payment_transactions.find(q).sort("paid_at", -1).limit(500):
         t = await db.terapisti.find_one({"_id": ObjectId(tx["terapeuta_id"])})
         p = await db.pazienti.find_one({"_id": ObjectId(tx["paziente_id"])})
+        is_refunded = tx.get("payment_status") == "refunded"
         items.append({
             "id": str(tx["_id"]),
             "session_id": tx.get("session_id"),
@@ -348,6 +351,12 @@ async def list_admin_payouts(
             "payout_date": (tx.get("payout_date").isoformat() if tx.get("payout_date") else None),
             "payout_reference": tx.get("payout_reference"),
             "paid_at": (tx.get("paid_at").isoformat() if tx.get("paid_at") else None),
+            "payment_status": tx.get("payment_status"),
+            "is_refunded": is_refunded,
+            "refunded_at": (tx.get("refunded_at").isoformat() if tx.get("refunded_at") else None),
+            "refund_reason": tx.get("refund_reason"),
+            "refund_admin_note": tx.get("refund_admin_note"),
+            "stripe_refund_id": tx.get("stripe_refund_id"),
             "terapeuta": {
                 "id": tx.get("terapeuta_id"),
                 "nome": t.get("nome") if t else "—",
@@ -361,6 +370,8 @@ async def list_admin_payouts(
 
     summary = {}
     for it in items:
+        if it["is_refunded"]:
+            continue  # refunded rows never count toward payout summary
         tid = it["terapeuta"]["id"]
         s = summary.setdefault(tid, {
             "terapeuta": it["terapeuta"],
