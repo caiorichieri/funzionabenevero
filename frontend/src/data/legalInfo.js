@@ -22,7 +22,7 @@ export const DPO = {
   via: "Via Circonvallazione Sud, 80",
   citta: "Codroipo (UD)",
   paese: "Italia",
-  email: "caio@friulion.it",
+  email: "privacy@bidoc.it",
 };
 
 // E.164 international format without "+" (used by wa.me)

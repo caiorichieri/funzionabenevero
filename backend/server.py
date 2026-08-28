@@ -1313,6 +1313,40 @@ async def _seed_legal_documents():
             logging.exception(f"[LEGAL SEED] failed for {kind}: {e}")
 
 
+@app.post("/api/admin/legal/{kind}/repubblica")
+async def admin_repubblica_legal_doc(kind: str, user: dict = Depends(require_admin)):
+    """Regenerate a legal document from its markdown source and republish as the
+    current version. Bumps `version`, sets a fresh `effective_date`, marks old
+    versions as `is_current=False`. Useful when the source markdown was updated
+    (e.g. to fix inconsistent dates)."""
+    doc_meta = next((d for d in LEGAL_DOCS_TO_SEED if d["kind"] == kind), None)
+    if not doc_meta:
+        raise HTTPException(404, f"Kind non valido: {kind}")
+    md_path = LEGAL_DOCS_DIR / doc_meta["filename"]
+    if not md_path.exists():
+        raise HTTPException(500, f"Markdown sorgente non trovato: {doc_meta['filename']}")
+    md_text = md_path.read_text(encoding="utf-8")
+    md_text = md_text.replace("[DATA_PUBBLICAZIONE]", DATA_PUBBLICAZIONE)
+    html_content = _markdown_to_html(md_text)
+    now = datetime.now(timezone.utc)
+    latest = await db.contracts.find({"kind": kind}).sort("version", -1).limit(1).to_list(1)
+    next_version = (latest[0]["version"] + 1) if latest else 1
+    await db.contracts.update_many({"kind": kind}, {"$set": {"is_current": False}})
+    await db.contracts.insert_one({
+        "kind": kind,
+        "title": doc_meta["title"],
+        "content_html": html_content,
+        "content_hash": _hash_contract(html_content),
+        "version": next_version,
+        "effective_date": now.isoformat(),
+        "is_current": True,
+        "created_at": now,
+        "created_by": user.get("email", "admin"),
+        "source_markdown": md_text,
+    })
+    return {"message": "Documento ripubblicato", "kind": kind, "version": next_version, "effective_date": now.isoformat()}
+
+
 
 async def _seed_registro_trattamenti():
     """Seed initial GDPR Art. 30 register entries if collection is empty."""

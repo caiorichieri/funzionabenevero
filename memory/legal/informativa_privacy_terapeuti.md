@@ -2,8 +2,6 @@
 
 _Ai sensi e per gli effetti degli artt. 13 e 14 del Regolamento UE 2016/679 ("GDPR")_
 
-**Ultimo aggiornamento:** [DATA_PUBBLICAZIONE]
-
 ---
 
 ## PREMESSA
@@ -178,4 +176,3 @@ Foro di Pordenone.
 
 ---
 
-_Data di ultimo aggiornamento: [DATA_PUBBLICAZIONE]_

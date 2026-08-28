@@ -5,7 +5,7 @@ import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 
 const STORAGE_KEY = "funzionabene_cookie_consent_v1";
-const COOKIE_POLICY_URL = "/cookie-policy";
+const COOKIE_POLICY_URL = "/cookie";
 
 const DEFAULT_PREFS = {
   necessari: true,       // always on

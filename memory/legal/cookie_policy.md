@@ -2,8 +2,6 @@
 
 _Redatta in conformità alle Linee Guida del Garante Privacy del 10 giugno 2021 (Provv. 231/2021) e all'art. 122 del Codice Privacy_
 
-**Ultimo aggiornamento:** [DATA_PUBBLICAZIONE]
-
 ---
 
 ## 1. Titolare del trattamento
@@ -119,4 +117,3 @@ La presente Cookie Policy può essere soggetta a modifiche. La versione aggiorna
 
 ---
 
-_Data di ultimo aggiornamento: [DATA_PUBBLICAZIONE]_

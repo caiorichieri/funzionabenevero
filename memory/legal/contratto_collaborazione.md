@@ -10,7 +10,6 @@ il **Professionista** (di seguito "Terapeuta"), i cui dati anagrafici, fiscali e
 
 _(Individualmente "Parte", congiuntamente "Parti")_
 
-**Ultimo aggiornamento:** [DATA_PUBBLICAZIONE]
 **Versione:** 1.0
 
 ---
@@ -430,5 +429,4 @@ _Ricevuta di Sottoscrizione: [RICEVUTA_URL]_
 
 ---
 
-_Data di ultimo aggiornamento: [DATA_PUBBLICAZIONE]_
 _Versione: 1.0_

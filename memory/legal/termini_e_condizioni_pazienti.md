@@ -2,7 +2,6 @@
 
 _Applicabili ai servizi della piattaforma "Funzionabene" (www.funzionabene.it) gestita da BIDOC S.R.L._
 
-**Ultimo aggiornamento:** [DATA_PUBBLICAZIONE]
 **Versione:** 1.0
 
 ---
@@ -316,5 +315,4 @@ c) Con richiesta di **conferma di accettazione** al primo accesso successivo all
 
 ---
 
-_Data di ultimo aggiornamento: [DATA_PUBBLICAZIONE]_
 _Versione: 1.0_

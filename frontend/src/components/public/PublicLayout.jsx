@@ -185,7 +185,7 @@ function Footer() {
           </p>
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-[#0A0A0A]/50">
             <span>© {new Date().getFullYear()} funzionabene.it — Marchio di {TITOLARE.nome}</span>
-            <span>P.IVA {TITOLARE.pIva} · {TITOLARE.citta} · <Link to="/privacy" className="underline hover:text-[#0A0A0A]">DPO: {DPO.email}</Link></span>
+            <span>P.IVA {TITOLARE.pIva} · {TITOLARE.citta} · <a href={`mailto:${DPO.email}`} className="underline hover:text-[#0A0A0A]">DPO: {DPO.email}</a></span>
           </div>
         </div>
       </div>

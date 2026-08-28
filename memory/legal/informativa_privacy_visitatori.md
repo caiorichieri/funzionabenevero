@@ -2,8 +2,6 @@
 
 _Ai sensi e per gli effetti dell'art. 13 del Regolamento UE 2016/679 ("GDPR")_
 
-**Ultimo aggiornamento:** [DATA_PUBBLICAZIONE]
-
 La presente informativa descrive il trattamento dei dati personali degli utenti che visitano il sito **www.funzionabene.it** ("Sito") senza registrarsi al servizio. Per il trattamento dei dati degli utenti registrati (Pazienti) si rimanda all'apposita [Informativa Privacy Pazienti](/privacy-pazienti); per il trattamento dei dati dei professionisti si rimanda alla [Informativa Privacy Terapeuti](/privacy-terapeuti).
 
 ---
@@ -111,4 +109,3 @@ La presente informativa può essere soggetta a modifiche. Le versioni aggiornate
 
 ---
 
-_Data di ultimo aggiornamento: [DATA_PUBBLICAZIONE]_
