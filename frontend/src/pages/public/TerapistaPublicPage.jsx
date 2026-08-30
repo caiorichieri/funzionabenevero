@@ -5,6 +5,7 @@ import { API, useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Award, BookOpen, Calendar, Clock, Globe, GraduationCap, MapPin, Star } from "lucide-react";
 import BookingSheet from "@/components/public/BookingSheet";
+import SEO from "@/components/shared/SEO";
 
 const GIORNI_IT = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
 
@@ -82,9 +83,32 @@ export default function TerapistaPublicPage() {
 
   const grouped = groupSlotsByDay(slots);
   const genderLabel = terapista.genere === "F" ? "Psicologa" : "Psicologo";
+  const fullName = `${terapista.nome || ""} ${terapista.cognome || ""}`.trim();
+  const seoDesc = terapista.bio
+    ? terapista.bio.replace(/\s+/g, " ").trim().slice(0, 160)
+    : `${genderLabel} sessuologa/o online. ${terapista.anni_esperienza ? `${terapista.anni_esperienza} anni di esperienza. ` : ""}Prenota online su FunzionaBene.`;
 
   return (
     <main className="min-h-[calc(100vh-80px)] bg-transparent" data-testid="therapist-public">
+      <SEO
+        title={`${fullName} — ${genderLabel} sessuologo/a`}
+        description={seoDesc}
+        path={`/terapeuti/${terapista._id || id}`}
+        image={terapista.foto_url || undefined}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": fullName,
+          "jobTitle": genderLabel,
+          "image": terapista.foto_url || undefined,
+          "worksFor": { "@type": "Organization", "name": "FunzionaBene", "url": "https://funzionabene.it" },
+          "knowsLanguage": Array.isArray(terapista.lingue) ? terapista.lingue : undefined,
+          "hasCredential": terapista.albo_numero
+            ? { "@type": "EducationalOccupationalCredential", "credentialCategory": "License", "name": `Albo ${terapista.albo_ordine || ""} n. ${terapista.albo_numero}` }
+            : undefined,
+          "url": `https://funzionabene.it/terapeuti/${terapista._id || id}`
+        }}
+      />
       {/* Hero */}
       <section className="relative border-b border-[#0A0A0A]/10 bg-gradient-to-br from-[#F4F1ED] via-[#EAE4D9] to-[#F4F1ED]">
         <div className="relative max-w-7xl mx-auto px-6 lg:px-10 py-16 lg:py-24">

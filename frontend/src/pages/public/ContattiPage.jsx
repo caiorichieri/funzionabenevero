@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Mail, MessageCircle, Briefcase, HeartHandshake, FileText, MapPin } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
 import { TITOLARE, DPO, WHATSAPP_NUMBER, PHONE_DISPLAY } from "@/data/legalInfo";
+import SEO from "@/components/shared/SEO";
 
 const CONTATTI = [
   {
@@ -34,6 +35,11 @@ const CONTATTI = [
 export default function ContattiPage() {
   return (
     <main className="min-h-[calc(100vh-80px)] relative bg-transparent overflow-hidden" data-testid="contatti-page">
+      <SEO
+        title="Contatti — Supporto, professionisti, stampa"
+        description="Tre indirizzi, tre persone reali che leggono. Supporto pazienti, professionisti, stampa. Rispondiamo entro 24 ore. Per le urgenze, scrivici su WhatsApp."
+        path="/contatti"
+      />
       <section className="relative max-w-5xl mx-auto px-6 lg:px-10 py-20 lg:py-28">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#0A0A0A]/60 hover:text-[#0A0A0A] mb-10 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Torna alla home

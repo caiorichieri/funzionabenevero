@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /api/sitemap.xml
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /paziente
+Disallow: /paziente/
+Disallow: /terapeuta
+Disallow: /terapeuta/
+Disallow: /login
+Disallow: /registrati
+Disallow: /verifica-otp
+Disallow: /candidatura-terapeuta
+Disallow: /*?token=
+Disallow: /*?magic=
+
+Sitemap: https://funzionabene.it/api/sitemap.xml
+Sitemap: https://funzionabene.it/sitemap.xml

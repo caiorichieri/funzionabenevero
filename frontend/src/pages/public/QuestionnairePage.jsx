@@ -5,6 +5,7 @@ import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
+import SEO from "@/components/shared/SEO";
 
 // One mascot per step — gentle visual narrative
 const STEP_MASCOTS = ["embrulhado", "ovo", "pensativo", "curioso", "saltitante"];
@@ -122,6 +123,11 @@ export default function QuestionnairePage() {
 
   return (
     <main className="min-h-[calc(100vh-80px)] bg-transparent" data-testid="questionnaire">
+      <SEO
+        title="Questionario — Trova il tuo sessuologo in 2 minuti"
+        description="5 domande riservate, in 2 minuti. Il nostro algoritmo ti presenta i 3 sessuologi più affini al tuo profilo. Riservato, senza giudizio."
+        path="/questionario"
+      />
       <div className="sticky top-20 z-30 h-1 bg-white/5">
         <motion.div
           data-testid="progress-bar"

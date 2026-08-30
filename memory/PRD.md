@@ -1451,3 +1451,27 @@ ELSE                        → NoTerapeutaCard (questionario)
 - Não bloqueio total — paziente ainda pode ir para `/terapeuti` via link discreto ou URL direta
 - Aplicado **só no PWA standalone mode** (não muda a `PazienteDashboard` browser)
 
+
+
+---
+
+## ✅ SEO — Pilar 3 (Feb 2026)
+**Goal:** rank the site on Google for high-intent Italian queries (sessuologia, disfunzione erettile, terapia coppia, sessualità e disabilità, etc.).
+
+### Implemented
+1. **Meta tags per page** (`<SEO>` component / `react-helmet-async`): every public page now emits a unique `<title>`, `<meta description>`, `<link canonical>`, Open Graph and Twitter Card. Wraps every public page (`/`, `/aree-intervento`, `/blog`, `/blog/:id`, `/terapeuti/:id`, `/chi-siamo`, `/faq`, `/contatti`, `/sedute-immersive`, `/il-nostro-mondo`, `/questionario`, `/sessualita-e-disabilita`).
+2. **JSON-LD Schema** — structured data per page type:
+   - Home → `MedicalBusiness` (name, priceRange, medicalSpecialty).
+   - Blog post → `Article` (headline, image, dates, author, publisher).
+   - Therapist profile → `Person` (name, jobTitle, credential Albo, image).
+   - FAQ + Sessualità e Disabilità → `FAQPage`.
+   - Global (in `index.html`) → `Organization` + `MedicalBusiness` + `WebSite`.
+3. **Dynamic sitemap** at `/api/sitemap.xml` (backend generates XML from Mongo: 20 static pages + verified therapists + published blog posts). Replaces the earlier static `/sitemap.xml` that couldn't be updated automatically.
+4. **robots.txt** references both `/api/sitemap.xml` (primary) and `/sitemap.xml` (fallback).
+
+### Backlog SEO (P2)
+- Add category pages `/aree-intervento/[slug]` per area with dedicated LP (currently a single grid page).
+- Blog: OG image dedicata per articolo, taxonomia categorie, RSS feed.
+- Structured markup per Recensioni (Review, AggregateRating) sul profilo terapeuta.
+- Sitemap index if list grows beyond 50k URLs.
+- Add Google Search Console verification tag.

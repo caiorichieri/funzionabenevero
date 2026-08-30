@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
 import Scintilla from "@/components/shared/Scintilla";
+import SEO from "@/components/shared/SEO";
 
 const NEEDS = [
   { n: "01", icon: Heart, key: "per-me", title: "Per me",
@@ -83,6 +84,20 @@ export default function SessualitaDisabilitaPage() {
 
   return (
     <div data-testid="sessualita-disabilita-page" className="relative bg-transparent text-[#0A0A0A] overflow-hidden">
+      <SEO
+        title="Sessualità e Disabilità"
+        description="Uno spazio competente per parlare di sessualità e disabilità: percorsi individuali, di coppia e per genitori. Consulenza online riservata con psicologi e sessuologi iscritti all'Albo."
+        path="/sessualita-e-disabilita"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": FAQS.map((f) => ({
+            "@type": "Question",
+            "name": f.q,
+            "acceptedAnswer": { "@type": "Answer", "text": f.a },
+          })),
+        }}
+      />
       {/* Decorative background blur (matches ChiSiamoPage aesthetic) */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full bg-[#F58A1F]/10 blur-3xl" />

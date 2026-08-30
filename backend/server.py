@@ -62,16 +62,33 @@ async def get_therapist_photo(filename: str):
 
 @api_router.get("/media/ambassadors/{filename}")
 async def get_ambassador_photo(filename: str):
-    """Serve ambassador photos (jpg/png/webp)."""
+    """Serve ambassador photos (jpg/png/webp). Reads from Emergent Object Storage,
+    with legacy fallback to pod-local disk for pre-migration files."""
     if "/" in filename or ".." in filename:
         raise HTTPException(400, "Invalid filename")
+    ct_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+    ext = filename.rsplit(".", 1)[-1].lower()
+    media_type = ct_map.get(ext, "application/octet-stream")
+
+    # Preferred: Object Storage lookup via foto_filename → foto_storage_path in Mongo.
+    doc = await db.ambassadors.find_one({"foto_filename": filename}, {"foto_storage_path": 1})
+    if doc and doc.get("foto_storage_path"):
+        from storage_service import get_object
+        try:
+            data, ct = get_object(doc["foto_storage_path"])
+        except Exception as e:
+            logging.warning(f"[STORAGE] ambassador photo fetch failed: {e}")
+            raise HTTPException(404, "Photo not found")
+        return Response(content=data, media_type=ct or media_type,
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+    # Legacy fallback: pre-migration file still on the pod disk.
     path = UPLOADS_DIR / "ambassadors" / filename
     if not path.exists():
         raise HTTPException(404, "Photo not found")
-    ct = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
-    ext = filename.rsplit(".", 1)[-1].lower()
-    return FileResponse(path, media_type=ct.get(ext, "application/octet-stream"),
+    return FileResponse(path, media_type=media_type,
                         headers={"Cache-Control": "public, max-age=86400"})
+
 
 # ─── AUTH ROUTES ─────────────────────────────────────────────────────────────
 
@@ -456,6 +473,82 @@ class FAQInput(BaseModel):
     ordine: Optional[int] = 0
 
 # ─── PUBLIC ROUTES (no auth) ──────────────────────────────────────────────────
+@api_router.get("/sitemap.xml")
+async def dynamic_sitemap():
+    """Dynamic SEO sitemap: static public pages + verified therapists + published blog posts.
+    Served under /api because only /api/* is routed to the backend at the edge.
+    robots.txt points crawlers to https://funzionabene.it/api/sitemap.xml.
+    """
+    site = "https://funzionabene.it"
+    today = datetime.now(timezone.utc).date().isoformat()
+
+    static_pages = [
+        ("/", "1.0", "weekly"),
+        ("/sessualita-e-disabilita", "0.9", "monthly"),
+        ("/aree-intervento", "0.8", "monthly"),
+        ("/questionario", "0.8", "monthly"),
+        ("/sedute-immersive", "0.7", "monthly"),
+        ("/chi-siamo", "0.7", "monthly"),
+        ("/blog", "0.7", "daily"),
+        ("/faq", "0.6", "monthly"),
+        ("/contatti", "0.6", "monthly"),
+        ("/il-nostro-mondo", "0.6", "monthly"),
+        ("/scarica-app", "0.5", "monthly"),
+        ("/lavora-con-noi", "0.5", "monthly"),
+        ("/candidatura-terapeuta", "0.5", "monthly"),
+        ("/privacy-visitatori", "0.3", "yearly"),
+        ("/privacy", "0.3", "yearly"),
+        ("/cookie", "0.3", "yearly"),
+        ("/termini", "0.3", "yearly"),
+        ("/consenso-informato", "0.3", "yearly"),
+        ("/mandato-legale", "0.3", "yearly"),
+        ("/emergenze", "0.4", "yearly"),
+    ]
+
+    urls_xml = []
+    for path, prio, freq in static_pages:
+        urls_xml.append(
+            f"<url><loc>{site}{path}</loc><lastmod>{today}</lastmod>"
+            f"<changefreq>{freq}</changefreq><priority>{prio}</priority></url>"
+        )
+
+    # Verified therapists
+    try:
+        terapisti = await db.terapisti.find(
+            {"documenti_verificati": True, "sospeso": {"$ne": True}}
+        ).to_list(500)
+        for t in terapisti:
+            tid = str(t.get("_id"))
+            urls_xml.append(
+                f"<url><loc>{site}/terapeuti/{tid}</loc><lastmod>{today}</lastmod>"
+                f"<changefreq>weekly</changefreq><priority>0.7</priority></url>"
+            )
+    except Exception as e:
+        logging.warning(f"[SITEMAP] terapisti fetch failed: {e}")
+
+    # Published blog posts
+    try:
+        articoli = await db.articoli.find({"pubblicato": True}).to_list(500)
+        for a in articoli:
+            aid = str(a.get("_id"))
+            lm = a.get("updated_at") or a.get("created_at")
+            lm_iso = lm.date().isoformat() if hasattr(lm, "date") else today
+            urls_xml.append(
+                f"<url><loc>{site}/blog/{aid}</loc><lastmod>{lm_iso}</lastmod>"
+                f"<changefreq>monthly</changefreq><priority>0.6</priority></url>"
+            )
+    except Exception as e:
+        logging.warning(f"[SITEMAP] blog fetch failed: {e}")
+
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls_xml)
+        + "\n</urlset>\n"
+    )
+    return Response(content=body, media_type="application/xml")
+
+
 @api_router.get("/public/terapisti")
 async def public_list_terapisti():
     docs = await db.terapisti.find({"documenti_verificati": True, "sospeso": {"$ne": True}}).to_list(100)
@@ -1190,6 +1283,13 @@ async def startup():
     await _seed_default_contract()
     await _seed_legal_documents()
     await _seed_registro_trattamenti()
+
+    # Initialize Emergent Object Storage (used for therapist verification documents)
+    try:
+        from storage_service import init_storage
+        init_storage()
+    except Exception as e:
+        logging.warning(f"[STORAGE] init failed at startup (will retry on demand): {e}")
 
     # Start scheduled background jobs (retention, legal decline processor)
     try:

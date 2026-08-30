@@ -47,3 +47,34 @@
 - **Refactor `ChatPanel.jsx`** (203 → 108 lines): extracted `chat/ConversationList.jsx` (list) and `chat/MessageThread.jsx` (thread + composer). Pure structural split, same behavior; parent still owns state and polling.
 - **Refactor `OnboardingSection.jsx`** (324 → 205 lines): extracted `onboarding/StepHeader.jsx`, `onboarding/DocumentsStep.jsx`, `onboarding/PhoneVerifyStep.jsx`, `onboarding/DprStep.jsx`. Step components are presentational; parent owns state and API calls.
 - **Tests**: Smoke tests still pass 15/15. Backend E2E validated via curl (login, list pending, count, approve, unauth 401). Frontend validated via Playwright screenshot flow (badge appears, approve removes row).
+
+## 2026-02-22 — SEO Pilar 3: Full page-level meta tags + Dynamic Sitemap
+- **Dynamic sitemap** (backend): new `GET /api/sitemap.xml` in `server.py` returns XML with 20 static public pages + every verified therapist (`/terapeuti/{id}`) + every published blog post (`/blog/{id}`) with proper `lastmod`, `changefreq`, `priority`. Replaces the static frontend `sitemap.xml` (which is kept as fallback).
+- **robots.txt**: updated to reference both `/api/sitemap.xml` (primary, dynamic) and `/sitemap.xml` (fallback, static). Added explicit `Allow: /api/sitemap.xml` despite the general `Disallow: /api/`.
+- **`<SEO>` component** applied to every public page:
+  - **HomePage** — MedicalBusiness JSON-LD (name, priceRange €49-€90, medicalSpecialty Psychology/Sexology, availableLanguage it/en).
+  - **BlogPostPage** — Article JSON-LD (headline, image, datePublished, dateModified, author, publisher, mainEntityOfPage) — fully dynamic per post.
+  - **TerapistaPublicPage** — Person JSON-LD (name, jobTitle, image, worksFor, knowsLanguage, hasCredential albo) — fully dynamic per therapist.
+  - **FAQPage** — FAQPage JSON-LD (dynamic from `/api/public/faq` + fallback).
+  - **AreeInterventoPage, ChiSiamoPage, ContattiPage, SeduteImmersive, IlNostroMondoPage, BlogPublicPage, QuestionnairePage** — unique `<title>`, `<meta description>`, `<link canonical>`, Open Graph + Twitter Card tags.
+- **Tests**: E2E Playwright verified: every page has unique title + description; dynamic pages emit correct JSON-LD schema; 15/15 backend smoke tests pass. Dynamic sitemap validated via `curl` (returns 20 static + 1 therapist).
+- **Files touched**:
+  - `/app/backend/server.py` — `@api_router.get("/sitemap.xml")` (~60 LOC).
+  - `/app/frontend/public/robots.txt` — sitemap references.
+  - `/app/frontend/src/pages/public/HomePage.jsx`, `AreeInterventoPage.jsx`, `BlogPublicPage.jsx`, `BlogPostPage.jsx`, `TerapistaPublicPage.jsx`, `ChiSiamoPage.jsx`, `FAQPage.jsx`, `ContattiPage.jsx`, `SeduteImmersive.jsx`, `IlNostroMondoPage.jsx`, `QuestionnairePage.jsx` — added `<SEO>` wrappers.
+- **Fix (`sw.js`)**: `clients.openWindow(url)` → `self.clients.openWindow(url)` to satisfy `no-undef`.
+
+
+## 2026-02-22 — Emergent Object Storage migration (deploy blocker fix)
+- **New**: `/app/backend/storage_service.py` — thin wrapper around Emergent Object Storage (`INTEGRATION_PROXY_URL` + `EMERGENT_LLM_KEY`). Session-scoped `storage_key` initialized once at FastAPI startup, then reused globally.
+- **Therapist verification documents** (CV/Assicurazione/Laurea):
+  - `POST /api/terapisti/me/documenti/{tipo}` now uploads to `funzionabene/terapisti_docs/{user_id}/{tipo}-{uuid}{ext}` in Object Storage and persists `storage_path` in Mongo (`documenti.{tipo}.storage_path`).
+  - `GET /api/admin/terapisti/{id}/documenti/{tipo}/download` reads from Object Storage with legacy on-disk fallback for pre-migration files.
+- **Ambassador photos** (public landing "Sessualità e Disabilità"):
+  - `POST /api/admin/ambassadors/{id}/foto` now uploads to `funzionabene/ambassadors/{amb_id}-{uuid}{ext}` and stores `foto_storage_path` in Mongo.
+  - `GET /api/media/ambassadors/{filename}` reads from Object Storage with legacy on-disk fallback.
+  - E2E validated: upload 322-byte JPG → 200 OK on public URL → identical bytes retrieved.
+- **Google Search Console verification** — added `<meta name="google-site-verification" content="%REACT_APP_GSC_VERIFICATION%">` in `public/index.html`. Value driven by `REACT_APP_GSC_VERIFICATION` env var (currently empty; user fills it in when claiming the domain in GSC).
+- **Deploy blocker resolved**: the `ephemeral-upload-storage` lint rule no longer fires — all user uploads now survive pod restarts. Legacy on-disk fallback preserved for the (empty in prod) demo assets.
+- **Tests**: 15/15 backend smoke tests pass; E2E flow validated via curl (admin login → create ambassador → upload photo → fetch public URL → delete). SEO pages still render correctly (verified via Playwright).
+

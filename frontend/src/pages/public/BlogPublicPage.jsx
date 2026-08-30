@@ -6,6 +6,7 @@ import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
 import { motion } from "framer-motion";
 import { ArrowRight, Calendar, User } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
+import SEO from "@/components/shared/SEO";
 
 function formatDate(d) {
   if (!d) return "";
@@ -34,6 +35,11 @@ export default function BlogPublicPage() {
 
   return (
     <main className="min-h-[calc(100vh-80px)] bg-transparent py-16 lg:py-24" data-testid="blog-page">
+      <SEO
+        title="Rivista — Sessuologia, coppia, benessere"
+        description="Articoli e ricerche dai nostri sessuologi e psicologi: intimità, desiderio, coppia, disfunzioni, identità e piacere. Sempre rigorosi, mai sensazionalisti."
+        path="/blog"
+      />
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
         <div className="mb-16 max-w-2xl">
           <span className="text-[#0A0A0A] text-xs tracking-[0.25em] uppercase">Rivista</span>

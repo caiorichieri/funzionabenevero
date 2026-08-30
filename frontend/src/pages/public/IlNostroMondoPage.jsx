@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
+import SEO from "@/components/shared/SEO";
 
 /**
  * "Il nostro mondo" — interactive section showcasing the brand mascots.
@@ -88,6 +89,11 @@ export default function IlNostroMondoPage() {
 
   return (
     <main className="relative min-h-[calc(100vh-80px)] overflow-hidden" data-testid="il-nostro-mondo">
+      <SEO
+        title="Il nostro mondo — Nove personaggi, nove modi di sentirsi"
+        description="Ogni emozione ha la sua voce. Scopri le mascotte di FunzionaBene: nove personaggi che raccontano nove modi diversi di stare, sentirsi e chiedere aiuto."
+        path="/il-nostro-mondo"
+      />
       {/* soft warm halos */}
       <div className="absolute -top-32 -left-32 w-[700px] h-[700px] rounded-full bg-white/25 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-[800px] h-[800px] rounded-full bg-[#F58A1F]/10 blur-3xl pointer-events-none" />

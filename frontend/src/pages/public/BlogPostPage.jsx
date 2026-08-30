@@ -5,6 +5,7 @@ import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { ArrowLeft, Calendar, User } from "lucide-react";
 import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
+import SEO from "@/components/shared/SEO";
 
 function formatDate(d) {
   if (!d) return "";
@@ -48,9 +49,35 @@ export default function BlogPostPage() {
 
   const contenuto = articolo.contenuto || "";
   const isHtml = hasHtmlMarkup(contenuto);
+  const plainExcerpt = (isHtml ? contenuto.replace(/<[^>]+>/g, " ") : contenuto)
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
 
   return (
     <main className="min-h-[calc(100vh-80px)] bg-transparent py-16 lg:py-24" data-testid="blog-post">
+      <SEO
+        title={articolo.titolo}
+        description={plainExcerpt || `Articolo di ${articolo.autore_nome || "FunzionaBene"}`}
+        path={`/blog/${articolo._id}`}
+        image={articolo.immagine_url || undefined}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          "headline": articolo.titolo,
+          "description": plainExcerpt,
+          "image": articolo.immagine_url ? [articolo.immagine_url] : undefined,
+          "datePublished": articolo.created_at,
+          "dateModified": articolo.updated_at || articolo.created_at,
+          "author": { "@type": "Person", "name": articolo.autore_nome || "FunzionaBene" },
+          "publisher": {
+            "@type": "Organization",
+            "name": "FunzionaBene",
+            "logo": { "@type": "ImageObject", "url": "https://funzionabene.it/assets/logo.png" }
+          },
+          "mainEntityOfPage": { "@type": "WebPage", "@id": `https://funzionabene.it/blog/${articolo._id}` }
+        }}
+      />
       <article className="max-w-3xl mx-auto px-6 lg:px-10">
         <Link to="/blog" className="inline-flex items-center gap-2 text-sm text-[#0A0A0A]/60 hover:text-[#0A0A0A] mb-10">
           <ArrowLeft className="w-4 h-4" /> Torna al blog

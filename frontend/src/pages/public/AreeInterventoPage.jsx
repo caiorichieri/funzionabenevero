@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AREE_INTERVENTO, AREE_CATEGORIE } from "@/data/areeIntervento";
 import Mascotte from "@/components/shared/Mascotte";
 import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
+import SEO from "@/components/shared/SEO";
 
 export default function AreeInterventoPage() {
   // Group by category
@@ -15,6 +16,11 @@ export default function AreeInterventoPage() {
 
   return (
     <main className="min-h-[calc(100vh-80px)] bg-transparent relative overflow-hidden" data-testid="aree-intervento-page">
+      <SEO
+        title="Aree di intervento — Sessuologia clinica"
+        description="Disfunzioni sessuali, ansia da prestazione, coppia, identità e orientamento, trauma: le aree cliniche in cui i nostri psicologi e sessuologi lavorano ogni giorno."
+        path="/aree-intervento"
+      />
       {/* Continuous atmospheric backdrop */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true"><div className="absolute -top-32 -left-32 w-[700px] h-[700px] rounded-full bg-[#0A0A0A]/6 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-[800px] h-[800px] rounded-full bg-[#6B8FA3]/22 blur-3xl" />

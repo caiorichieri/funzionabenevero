@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Sparkles, Heart, ShieldCheck, Award, Users, Target } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
 import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
+import SEO from "@/components/shared/SEO";
 
 const VALUES = [
   {
@@ -48,6 +49,11 @@ const STATS = [
 export default function ChiSiamoPage() {
   return (
     <main className="min-h-[calc(100vh-80px)] relative bg-transparent overflow-hidden" data-testid="chisiamo-page">
+      <SEO
+        title="Chi siamo — Cura nella scelta, cura nel percorso"
+        description="FunzionaBene: la piattaforma italiana 100% dedicata alla sessuologia. Professionisti scelti uno a uno, iper-specializzati e iscritti all'Albo."
+        path="/chi-siamo"
+      />
       {/* Continuous atmospheric backdrop */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true"><div className="absolute -top-32 -left-32 w-[700px] h-[700px] rounded-full bg-[#0A0A0A]/6 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-[800px] h-[800px] rounded-full bg-[#6B8FA3]/22 blur-3xl" />

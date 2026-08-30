@@ -2,17 +2,19 @@
 import logging
 import os
 import re
+import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 
 from deps import db, require_auth, require_admin, find_user_by_id
 from models import TerapistaProfileInput
 from email_service import send_therapist_approved_email, send_new_therapist_admin_alert
+from storage_service import put_object, get_object, mime_for_ext, APP_NAME as STORAGE_APP
 
 router = APIRouter()
 
@@ -94,10 +96,11 @@ async def submit_terapeuta_candidatura(body: CandidaturaTerapistaInput, request:
 
     return {"message": "Candidatura ricevuta. Ti contatteremo a breve."}
 
-# ─── Local constants (docs storage) ────────────────────────────────────────
+# ─── Docs storage constants ────────────────────────────────────────────────
+# Legacy on-disk path — kept ONLY as a read-fallback for pre-migration docs.
+# New uploads go to Emergent Object Storage under {STORAGE_APP}/terapisti_docs/{user_id}/{tipo}-{uuid}{ext}.
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
 TERAPISTI_DOCS_DIR = UPLOADS_DIR / "terapisti_docs"
-TERAPISTI_DOCS_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_DOC_TYPES = {"cv", "assicurazione", "laurea"}
 ALLOWED_EXTS = {".pdf", ".png", ".jpg", ".jpeg"}
 MAX_DOC_SIZE = 10 * 1024 * 1024  # 10MB
@@ -178,15 +181,16 @@ async def upload_my_terapista_doc(tipo: str, file: UploadFile = File(...), user:
         raise HTTPException(400, "File troppo grande (max 10MB)")
     if len(content) == 0:
         raise HTTPException(400, "File vuoto")
-    user_dir = TERAPISTI_DOCS_DIR / user["_id"]
-    user_dir.mkdir(parents=True, exist_ok=True)
-    for old in user_dir.glob(f"{tipo}.*"):
-        try:
-            old.unlink()
-        except Exception:
-            pass
-    dest = user_dir / f"{tipo}{ext}"
-    dest.write_bytes(content)
+
+    # Upload to Emergent Object Storage (persistent, survives pod restarts)
+    storage_path = f"{STORAGE_APP}/terapisti_docs/{user['_id']}/{tipo}-{uuid.uuid4().hex}{ext}"
+    try:
+        result = put_object(storage_path, content, mime_for_ext(ext))
+    except Exception as e:
+        logging.exception(f"[STORAGE] upload failed for {tipo}: {e}")
+        raise HTTPException(503, "Impossibile caricare il documento. Riprova.")
+    stored_path = result.get("path", storage_path)
+
     now = datetime.now(timezone.utc)
     await db.terapisti.update_one(
         {"user_id": user["_id"]},
@@ -195,6 +199,7 @@ async def upload_my_terapista_doc(tipo: str, file: UploadFile = File(...), user:
                 "filename": file.filename,
                 "ext": ext,
                 "size": len(content),
+                "storage_path": stored_path,
                 "uploaded_at": now,
             }
         }},
@@ -417,13 +422,32 @@ async def admin_download_terapista_doc(terapista_id: str, tipo: str, user: dict 
     t = await db.terapisti.find_one({"_id": ObjectId(terapista_id)})
     if not t or not t.get("user_id"):
         raise HTTPException(404, "Terapeuta non trovato")
+
+    meta = (t.get("documenti") or {}).get(tipo) or {}
+    storage_path = meta.get("storage_path")
+    ext = (meta.get("ext") or "").lower()
+
+    # Preferred: Emergent Object Storage (all new uploads)
+    if storage_path:
+        try:
+            data, content_type = get_object(storage_path)
+        except Exception as e:
+            logging.exception(f"[STORAGE] download failed {storage_path}: {e}")
+            raise HTTPException(404, "Documento non trovato")
+        filename = f"{tipo}{ext or ''}"
+        return Response(
+            content=data,
+            media_type=content_type or mime_for_ext(ext),
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
+
+    # Legacy fallback: pre-migration docs still on the pod disk (may be gone after restart).
     user_dir = TERAPISTI_DOCS_DIR / t["user_id"]
-    matches = list(user_dir.glob(f"{tipo}.*"))
+    matches = list(user_dir.glob(f"{tipo}.*")) if user_dir.exists() else []
     if not matches:
         raise HTTPException(404, "Documento non trovato")
     p = matches[0]
-    media = "application/pdf" if p.suffix.lower() == ".pdf" else f"image/{p.suffix.lower().lstrip('.')}"
-    return FileResponse(p, media_type=media, filename=p.name)
+    return FileResponse(p, media_type=mime_for_ext(p.suffix), filename=p.name)
 
 
 @router.patch("/admin/terapisti/{terapista_id}/sospendi")

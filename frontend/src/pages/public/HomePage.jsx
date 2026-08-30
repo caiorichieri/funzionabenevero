@@ -11,6 +11,7 @@ import { AREE_INTERVENTO, AREE_CATEGORIE, TESTIMONIANZE } from "@/data/areeInter
 import Mascotte from "@/components/shared/Mascotte";
 import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
 import AppSection from "@/components/public/AppSection";
+import SEO from "@/components/shared/SEO";
 
 const HERO_BG = "/home-daily.jpg";
 
@@ -75,6 +76,24 @@ export default function HomePage() {
 
   return (
     <main data-testid="homepage" className="relative bg-transparent overflow-hidden">
+      <SEO
+        title="Psicologi e Sessuologi Online — 100% Sessuologia"
+        description="Prima piattaforma italiana 100% dedicata alla sessuologia. Psicologi e sessuologi iscritti all'Albo, prima sessione entro 48 ore. Online, riservato, cifrato."
+        path="/"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "MedicalBusiness",
+          "name": "FunzionaBene",
+          "url": "https://funzionabene.it",
+          "logo": "https://funzionabene.it/assets/logo.png",
+          "description": "Piattaforma italiana di consulenza sessuologica online con psicologi e sessuologi iscritti all'Albo.",
+          "medicalSpecialty": ["Psychiatric", "Psychology", "Sexology"],
+          "areaServed": { "@type": "Country", "name": "Italia" },
+          "availableLanguage": ["it", "en"],
+          "priceRange": "€49-€90",
+          "sameAs": ["https://www.instagram.com/funzionabene.it"]
+        }}
+      />
       {/* ────────── ATMOSPHERIC BACKDROP — gold ↔ steel-blue blooms only ────────── */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         {/* Vibrant gold bloom top-left */}

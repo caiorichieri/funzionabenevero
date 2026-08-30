@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Sparkles, ArrowRight, Check, Home, Shield, Award, Headphones } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
 import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
+import SEO from "@/components/shared/SEO";
 
 const BENEFITS = [
   {
@@ -57,6 +58,11 @@ const FAQ = [
 export default function SeduteImmersive() {
   return (
     <main className="min-h-[calc(100vh-80px)] relative bg-transparent overflow-hidden" data-testid="immersive-page">
+      <SEO
+        title="Sedute immersive — VR terapeutica per fobie e ansia sessuale"
+        description="Prima piattaforma italiana di sessioni immersive per disfunzioni, ansia da prestazione e fobie sessuali. Sempre guidate dal terapeuta. Evidence-based."
+        path="/sedute-immersive"
+      />
       {/* Continuous atmospheric backdrop — gold ↔ blue blooms only */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute -top-32 -left-32 w-[900px] h-[900px] rounded-full bg-[#0A0A0A]/8 blur-3xl" />

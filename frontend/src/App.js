@@ -1,4 +1,5 @@
 import { BrowserRouter } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 import ScrollToTop from "@/components/shared/ScrollToTop";
@@ -12,15 +13,17 @@ import "@/App.css";
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <StandaloneRedirector />
-        <PWAInstaller />
-        <IOSInstallHelper />
-        <AppRoutes />
-        <CookieBanner />
-      </BrowserRouter>
-    </AuthProvider>
+    <HelmetProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <StandaloneRedirector />
+          <PWAInstaller />
+          <IOSInstallHelper />
+          <AppRoutes />
+          <CookieBanner />
+        </BrowserRouter>
+      </AuthProvider>
+    </HelmetProvider>
   );
 }

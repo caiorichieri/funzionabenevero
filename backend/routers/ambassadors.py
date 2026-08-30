@@ -5,7 +5,7 @@ experience of disability) who publicly support the "Sessualità e Disabilità"
 landing page. Each has: name, role, short testimonial, longer story, photo.
 """
 import logging
-import re
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,11 +14,12 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 
 from deps import db, require_admin
+from storage_service import put_object, APP_NAME as STORAGE_APP
 
 router = APIRouter()
 
+# Legacy on-disk path — kept ONLY as a read-fallback for pre-migration photos.
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads" / "ambassadors"
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 _ALLOWED_MIME = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 _MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -102,12 +103,13 @@ async def delete_ambassador(amb_id: str, user: dict = Depends(require_admin)):
     doc = await db.ambassadors.find_one({"_id": oid})
     if not doc:
         raise HTTPException(404, "Ambassador non trovato")
-    # Delete photo file if any (best effort)
-    if doc.get("foto_filename"):
+    # Object Storage has no delete API; the DB row deletion is enough (photo becomes orphaned but
+    # unreachable since foto_filename disappears). Best-effort cleanup of any legacy on-disk file.
+    if doc.get("foto_filename") and UPLOADS_DIR.exists():
         try:
             (UPLOADS_DIR / doc["foto_filename"]).unlink(missing_ok=True)
         except Exception as e:
-            logging.warning(f"[AMBASSADOR] photo delete failed: {e}")
+            logging.warning(f"[AMBASSADOR] legacy photo delete failed: {e}")
     await db.ambassadors.delete_one({"_id": oid})
     return {"message": "Ambassador eliminato"}
 
@@ -129,16 +131,22 @@ async def upload_ambassador_photo(
     data = await file.read()
     if len(data) > _MAX_BYTES:
         raise HTTPException(400, f"Immagine troppo grande. Max {_MAX_BYTES // (1024*1024)}MB.")
-    # Replace previous file if exists
-    if doc.get("foto_filename"):
-        try:
-            (UPLOADS_DIR / doc["foto_filename"]).unlink(missing_ok=True)
-        except Exception:
-            pass
-    filename = f"{amb_id}{ext}"
-    (UPLOADS_DIR / filename).write_bytes(data)
+
+    # Upload to Emergent Object Storage. The filename doubles as the storage lookup key.
+    filename = f"{amb_id}-{uuid.uuid4().hex}{ext}"
+    storage_path = f"{STORAGE_APP}/ambassadors/{filename}"
+    try:
+        put_object(storage_path, data, file.content_type)
+    except Exception as e:
+        logging.exception(f"[STORAGE] ambassador photo upload failed: {e}")
+        raise HTTPException(503, "Impossibile caricare la foto. Riprova.")
+
     await db.ambassadors.update_one(
         {"_id": oid},
-        {"$set": {"foto_filename": filename, "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {
+            "foto_filename": filename,
+            "foto_storage_path": storage_path,
+            "updated_at": datetime.now(timezone.utc),
+        }},
     )
     return {"foto_url": f"/api/media/ambassadors/{filename}"}
