@@ -7,6 +7,7 @@ import {
   Zap, ArrowRight, Lock, MessageCircleHeart, Sparkles,
 } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
+import Scintilla from "@/components/shared/Scintilla";
 
 const NEEDS = [
   { n: "01", icon: Heart, key: "per-me", title: "Per me",
@@ -125,7 +126,7 @@ export default function SessualitaDisabilitaPage() {
             </div>
           </div>
           <div className="relative flex items-center justify-center">
-            <Mascotte name="abbraccio" size={340} animation="breathe" alt="Un abbraccio simbolico di sostegno" />
+            <Scintilla size={340} animation="breathe" />
           </div>
         </div>
       </section>
