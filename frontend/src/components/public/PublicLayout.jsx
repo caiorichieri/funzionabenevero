@@ -8,6 +8,7 @@ const NAV = [
   { to: "/", label: "Home" },
   { to: "/sedute-immersive", label: "Immersive" },
   { to: "/aree-intervento", label: "Aree" },
+  { to: "/sessualita-e-disabilita", label: "Disabilità" },
   { to: "/il-nostro-mondo", label: "Il nostro mondo" },
   { to: "/chi-siamo", label: "Chi siamo" },
   { to: "/blog", label: "Blog" },
