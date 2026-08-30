@@ -148,14 +148,16 @@ export default function SessualitaDisabilitaPage() {
               <a
                 key={n.key} href={`#dettaglio-${n.key}`}
                 data-testid={`need-card-${n.key}`}
-                className="group bg-white/70 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-3xl p-6 hover:border-[#F58A1F] hover:shadow-md hover:bg-white transition-all"
+                className="group bg-white/70 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-3xl p-6 hover:border-[#F58A1F] hover:shadow-md hover:bg-white transition-all flex flex-col"
               >
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-2">
                   <span className="text-xs text-[#0A0A0A]/40 tracking-widest">{n.n}</span>
-                  <Mascotte name={mascots[i]} size={80} animation="float" />
+                </div>
+                <div className="h-24 flex items-end justify-center mb-4">
+                  <Mascotte name={mascots[i]} size={90} animation="float" />
                 </div>
                 <h3 className="font-serif text-2xl mb-3">{n.title}</h3>
-                <p className="text-sm text-[#0A0A0A]/70 leading-relaxed mb-4">{n.desc}</p>
+                <p className="text-sm text-[#0A0A0A]/70 leading-relaxed mb-4 flex-grow">{n.desc}</p>
                 <div className="text-sm font-medium text-[#0A0A0A] group-hover:text-[#F58A1F] inline-flex items-center gap-1">
                   Approfondisci <ChevronRight className="w-4 h-4" />
                 </div>
