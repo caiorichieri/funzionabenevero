@@ -1061,6 +1061,32 @@ _SIGNATURE_ALLOWLIST_PREFIXES = (
     "/api/upload/",         # file uploads used by signature flow
 )
 
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    """Ensure critical security headers are present on ALL responses, including
+    /api/*. Static assets get the same headers via frontend/public/_headers.json
+    at the Emergent edge layer.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        'camera=(self "https://*.daily.co"), microphone=(self "https://*.daily.co"), '
+        'geolocation=(), payment=(self "https://*.stripe.com"), usb=(), '
+        'magnetometer=(), gyroscope=(), accelerometer=()'
+    )
+    # CSP with 'frame-ancestors none' is enough to block clickjacking of API responses.
+    # Full CSP for HTML pages is set at edge via _headers.json (SPA-specific).
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    )
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
+
+
 @app.middleware("http")
 async def therapist_signature_gate(request, call_next):
     path = request.url.path
