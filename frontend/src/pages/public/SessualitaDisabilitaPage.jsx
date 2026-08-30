@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight, Heart, Users, Baby, Activity, Ear, Brain,
   Zap, ArrowRight, Lock, MessageCircleHeart, Sparkles,
 } from "lucide-react";
+import Mascotte from "@/components/shared/Mascotte";
 
 const NEEDS = [
   { n: "01", icon: Heart, key: "per-me", title: "Per me",
@@ -80,12 +81,19 @@ export default function SessualitaDisabilitaPage() {
   }, []);
 
   return (
-    <div data-testid="sessualita-disabilita-page" className="bg-[#FDFBF7] text-[#0A0A0A]">
+    <div data-testid="sessualita-disabilita-page" className="relative bg-transparent text-[#0A0A0A] overflow-hidden">
+      {/* Decorative background blur (matches ChiSiamoPage aesthetic) */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full bg-[#F58A1F]/10 blur-3xl" />
+        <div className="absolute top-1/3 -right-32 w-[700px] h-[700px] rounded-full bg-[#6B8FA3]/15 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] rounded-full bg-[#E9D628]/15 blur-3xl" />
+      </div>
+
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-16 pb-20 md:pt-24 md:pb-28">
+      <section className="relative max-w-6xl mx-auto px-6 pt-16 pb-20 md:pt-24 md:pb-28">
         <div className="grid md:grid-cols-2 gap-10 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F58A1F]/10 text-[#F58A1F] text-xs font-medium tracking-wide uppercase mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F58A1F]/15 text-[#F58A1F] text-xs font-medium tracking-wide uppercase mb-6">
               <Sparkles className="w-3.5 h-3.5" /> Un percorso dedicato
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold font-[Outfit] leading-[1.05] mb-4">
@@ -110,30 +118,20 @@ export default function SessualitaDisabilitaPage() {
               <Link
                 data-testid="hero-cta-questionario"
                 to="/questionario"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white font-medium transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-br from-[#F58A1F] to-[#F5D419] hover:from-[#E07A0F] hover:to-[#E5C419] text-[#0A0A0A] font-bold transition-colors shadow-md"
               >
                 Inizia il questionario
               </Link>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {[
-              { label: "Il mio corpo", cta: "Riconoscermi", color: "bg-[#F58A1F]/15", icon: Heart },
-              { label: "La relazione", cta: "Ritrovarci", color: "bg-[#6B8FA3]/15", icon: Users },
-              { label: "Crescere insieme", cta: "Accompagnare", color: "bg-[#E9D628]/25", icon: Baby },
-            ].map((it) => (
-              <div key={it.label} className={`${it.color} rounded-3xl p-5 flex flex-col items-center justify-center min-h-[160px]`}>
-                <it.icon className="w-8 h-8 text-[#0A0A0A]/70 mb-3" />
-                <div className="text-xs uppercase tracking-widest text-[#0A0A0A]/50 mb-1">{it.label}</div>
-                <div className="font-serif text-base italic">{it.cta}</div>
-              </div>
-            ))}
+          <div className="relative flex items-center justify-center">
+            <Mascotte name="abbraccio" size={340} animation="breathe" alt="Un abbraccio simbolico di sostegno" />
           </div>
         </div>
       </section>
 
       {/* 3 Bisogni */}
-      <section id="percorsi" className="max-w-6xl mx-auto px-6 py-16 md:py-20">
+      <section id="percorsi" className="relative max-w-6xl mx-auto px-6 py-16 md:py-20">
         <div className="text-center mb-12">
           <div className="text-xs uppercase tracking-widest text-[#F58A1F] font-semibold mb-3">Da dove vuoi iniziare?</div>
           <h2 className="text-3xl md:text-4xl font-bold font-[Outfit] mb-4">Tre bisogni. Tre porte d&apos;ingresso.</h2>
@@ -143,26 +141,31 @@ export default function SessualitaDisabilitaPage() {
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {NEEDS.map((n) => (
-            <a
-              key={n.key} href={`#dettaglio-${n.key}`}
-              data-testid={`need-card-${n.key}`}
-              className="group bg-white border border-[#0A0A0A]/10 rounded-3xl p-6 hover:border-[#F58A1F] hover:shadow-md transition-all"
-            >
-              <div className="text-xs text-[#0A0A0A]/40 mb-4 tracking-widest">{n.n}</div>
-              <n.icon className="w-8 h-8 text-[#F58A1F] mb-4" />
-              <h3 className="font-serif text-2xl mb-3">{n.title}</h3>
-              <p className="text-sm text-[#0A0A0A]/70 leading-relaxed mb-4">{n.desc}</p>
-              <div className="text-sm font-medium text-[#0A0A0A] group-hover:text-[#F58A1F] inline-flex items-center gap-1">
-                Approfondisci <ChevronRight className="w-4 h-4" />
-              </div>
-            </a>
-          ))}
+          {NEEDS.map((n, i) => {
+            const mascots = ["pensativo", "coppia", "sereno"];
+            return (
+              <a
+                key={n.key} href={`#dettaglio-${n.key}`}
+                data-testid={`need-card-${n.key}`}
+                className="group bg-white/70 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-3xl p-6 hover:border-[#F58A1F] hover:shadow-md hover:bg-white transition-all"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <span className="text-xs text-[#0A0A0A]/40 tracking-widest">{n.n}</span>
+                  <Mascotte name={mascots[i]} size={80} animation="float" />
+                </div>
+                <h3 className="font-serif text-2xl mb-3">{n.title}</h3>
+                <p className="text-sm text-[#0A0A0A]/70 leading-relaxed mb-4">{n.desc}</p>
+                <div className="text-sm font-medium text-[#0A0A0A] group-hover:text-[#F58A1F] inline-flex items-center gap-1">
+                  Approfondisci <ChevronRight className="w-4 h-4" />
+                </div>
+              </a>
+            );
+          })}
         </div>
       </section>
 
       {/* Preoccupazioni comuni */}
-      <section className="bg-[#0A0A0A] text-white py-16 md:py-20">
+      <section className="relative bg-[#0A0A0A] text-white py-16 md:py-20">
         <div className="max-w-4xl mx-auto px-6">
           <h2 className="text-3xl md:text-4xl font-bold font-[Outfit] mb-3">
             Quando qualcosa cambia, non devi capirlo da solo.
@@ -186,7 +189,7 @@ export default function SessualitaDisabilitaPage() {
       </section>
 
       {/* Tipologie */}
-      <section className="max-w-6xl mx-auto px-6 py-16 md:py-20">
+      <section className="relative max-w-6xl mx-auto px-6 py-16 md:py-20">
         <div className="text-center mb-12">
           <div className="text-xs uppercase tracking-widest text-[#F58A1F] font-semibold mb-3">Un tema, esperienze diverse</div>
           <h2 className="text-3xl md:text-4xl font-bold font-[Outfit] mb-4">Non esiste un solo modo di vivere la disabilità</h2>
@@ -198,7 +201,7 @@ export default function SessualitaDisabilitaPage() {
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {DISABILITY_TYPES.map((t) => (
-            <div key={t.title} className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-5">
+            <div key={t.title} className="bg-white/70 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-2xl p-5 hover:bg-white transition-colors">
               <t.icon className="w-7 h-7 text-[#6B8FA3] mb-3" />
               <h3 className="font-semibold mb-2">{t.title}</h3>
               <p className="text-xs text-[#0A0A0A]/65 leading-relaxed">{t.desc}</p>
@@ -214,33 +217,42 @@ export default function SessualitaDisabilitaPage() {
       {DEEP_PATHS.map((p, i) => (
         <section
           key={p.key} id={`dettaglio-${p.key === "persona" ? "per-me" : p.key === "coppia" ? "per-la-coppia" : "come-genitore"}`}
-          className={`py-16 md:py-20 ${i % 2 === 0 ? "bg-[#F8F5F0]" : "bg-[#FDFBF7]"}`}
+          className={`relative py-16 md:py-20 ${i % 2 === 0 ? "bg-white/40 backdrop-blur-sm" : ""}`}
         >
-          <div className="max-w-4xl mx-auto px-6">
-            <div className="text-xs text-[#0A0A0A]/40 mb-3 tracking-widest">{p.n} · {p.title.toUpperCase()}</div>
-            <h2 className="text-3xl md:text-4xl font-bold font-[Outfit] mb-4">{p.subtitle}</h2>
-            <p className="text-[#0A0A0A]/75 leading-relaxed mb-8">{p.desc}</p>
-            <ul className="space-y-3">
-              {p.bullets.map((b) => (
-                <li key={b} className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#F58A1F] mt-2.5 flex-shrink-0" />
-                  <span className="text-[#0A0A0A]/85">{b}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="max-w-4xl mx-auto px-6 grid md:grid-cols-[1fr_180px] gap-8 items-center">
+            <div>
+              <div className="text-xs text-[#0A0A0A]/40 mb-3 tracking-widest">{p.n} · {p.title.toUpperCase()}</div>
+              <h2 className="text-3xl md:text-4xl font-bold font-[Outfit] mb-4">{p.subtitle}</h2>
+              <p className="text-[#0A0A0A]/75 leading-relaxed mb-8">{p.desc}</p>
+              <ul className="space-y-3">
+                {p.bullets.map((b) => (
+                  <li key={b} className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#F58A1F] mt-2.5 flex-shrink-0" />
+                    <span className="text-[#0A0A0A]/85">{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="hidden md:flex justify-center">
+              <Mascotte
+                name={p.key === "persona" ? "pensativo" : p.key === "coppia" ? "coppia" : "sereno"}
+                size={170}
+                animation={p.key === "coppia" ? "wiggle" : "float"}
+              />
+            </div>
           </div>
         </section>
       ))}
 
       {/* Che cosa puoi trovare */}
-      <section className="max-w-6xl mx-auto px-6 py-16 md:py-20">
+      <section className="relative max-w-6xl mx-auto px-6 py-16 md:py-20">
         <div className="text-center mb-12">
           <div className="text-xs uppercase tracking-widest text-[#F58A1F] font-semibold mb-3">Che cosa puoi trovare</div>
           <h2 className="text-3xl md:text-4xl font-bold font-[Outfit] mb-4">Ascolto, orientamento e strumenti concreti.</h2>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {SERVICES.map((s) => (
-            <div key={s.title} className="bg-white border border-[#0A0A0A]/10 rounded-3xl p-6">
+            <div key={s.title} className="bg-white/70 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-3xl p-6 hover:bg-white transition-colors">
               <MessageCircleHeart className="w-8 h-8 text-[#F58A1F] mb-4" />
               <h3 className="font-semibold mb-3">{s.title}</h3>
               <p className="text-sm text-[#0A0A0A]/70 leading-relaxed">{s.desc}</p>
@@ -254,7 +266,7 @@ export default function SessualitaDisabilitaPage() {
       </section>
 
       {/* Come funziona */}
-      <section className="bg-[#F8F5F0] py-16 md:py-20">
+      <section className="relative bg-white/40 backdrop-blur-sm py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-12">
             <div className="text-xs uppercase tracking-widest text-[#F58A1F] font-semibold mb-3">Come funziona</div>
@@ -276,7 +288,7 @@ export default function SessualitaDisabilitaPage() {
       </section>
 
       {/* Ambassadors */}
-      <section className="max-w-6xl mx-auto px-6 py-16 md:py-20">
+      <section className="relative max-w-6xl mx-auto px-6 py-16 md:py-20">
         <div className="text-center mb-12">
           <div className="text-xs uppercase tracking-widest text-[#F58A1F] font-semibold mb-3">Voci che aprono la conversazione</div>
           <h2 className="text-3xl md:text-4xl font-bold font-[Outfit] mb-4">
@@ -289,8 +301,10 @@ export default function SessualitaDisabilitaPage() {
         </div>
 
         {ambassadors.length === 0 ? (
-          <div data-testid="ambassadors-empty" className="text-center py-12 bg-[#F8F5F0]/60 border border-[#0A0A0A]/10 rounded-3xl max-w-xl mx-auto">
-            <MessageCircleHeart className="w-10 h-10 mx-auto text-[#F58A1F]/60 mb-3" />
+          <div data-testid="ambassadors-empty" className="text-center py-12 bg-white/60 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-3xl max-w-xl mx-auto">
+            <div className="flex justify-center mb-3">
+              <Mascotte name="saltitante" size={100} animation="wiggle" />
+            </div>
             <p className="font-medium text-[#0A0A0A]">Stiamo raccogliendo le prime voci.</p>
             <p className="text-sm text-[#0A0A0A]/60 mt-2">Se vuoi condividere la tua esperienza, scrivici a <a className="underline hover:text-[#0A0A0A]" href="mailto:hr@funzionabene.it">hr@funzionabene.it</a>.</p>
           </div>
@@ -301,7 +315,7 @@ export default function SessualitaDisabilitaPage() {
                 key={a.id}
                 data-testid={`ambassador-card-${a.id}`}
                 onClick={() => setOpenAmb(a)}
-                className="text-left bg-white border border-[#0A0A0A]/10 rounded-3xl overflow-hidden hover:shadow-lg hover:border-[#F58A1F] transition-all"
+                className="text-left bg-white/70 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-3xl overflow-hidden hover:shadow-lg hover:border-[#F58A1F] hover:bg-white transition-all"
               >
                 {a.foto_url ? (
                   <img src={a.foto_url} alt={a.nome} className="w-full h-56 object-cover" loading="lazy" />
@@ -327,7 +341,7 @@ export default function SessualitaDisabilitaPage() {
       </section>
 
       {/* FAQ */}
-      <section className="bg-[#F8F5F0] py-16 md:py-20">
+      <section className="relative bg-white/40 backdrop-blur-sm py-16 md:py-20">
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-10">
             <div className="text-xs uppercase tracking-widest text-[#F58A1F] font-semibold mb-3">Domande frequenti</div>
@@ -336,11 +350,11 @@ export default function SessualitaDisabilitaPage() {
           </div>
           <div className="space-y-2">
             {FAQS.map((f, i) => (
-              <div key={i} className="bg-white border border-[#0A0A0A]/10 rounded-2xl overflow-hidden">
+              <div key={i} className="bg-white/80 backdrop-blur-sm border border-[#0A0A0A]/10 rounded-2xl overflow-hidden">
                 <button
                   data-testid={`faq-toggle-${i}`}
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between p-5 text-left hover:bg-[#F8F5F0]/40"
+                  className="w-full flex items-center justify-between p-5 text-left hover:bg-white"
                 >
                   <span className="font-medium">{f.q}</span>
                   <ChevronDown className={`w-5 h-5 text-[#0A0A0A]/50 transition-transform ${openFaq === i ? "rotate-180" : ""}`} />
@@ -355,8 +369,8 @@ export default function SessualitaDisabilitaPage() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 md:py-24 bg-gradient-to-br from-[#F58A1F] to-[#E9D628]">
-        <div className="max-w-3xl mx-auto text-center px-6">
+      <section className="relative py-20 md:py-24 bg-gradient-to-br from-[#F58A1F] to-[#E9D628]">
+        <div className="max-w-3xl mx-auto text-center px-6 relative z-10">
           <h2 className="text-3xl md:text-5xl font-bold font-[Outfit] text-[#0A0A0A] mb-4 leading-tight">
             La sessualità è parte della vita.
             <br /><span className="italic font-serif font-normal">Anche quando la vita cambia.</span>
@@ -375,7 +389,7 @@ export default function SessualitaDisabilitaPage() {
       </section>
 
       {/* Disclaimer */}
-      <section className="bg-[#0A0A0A] text-white/70 py-10">
+      <section className="relative bg-[#0A0A0A] text-white/70 py-10">
         <div className="max-w-3xl mx-auto px-6 text-center text-sm">
           <p className="font-semibold text-white mb-2">Importante</p>
           <p>
