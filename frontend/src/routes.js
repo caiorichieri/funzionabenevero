@@ -192,6 +192,8 @@ export default function AppRoutes() {
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/payment/cancel" element={<PaymentCancelPage />} />
         <Route path="/mandato-legale" element={<MandatoLegalePage />} />
+        <Route path="/sessualita-e-disabilita" element={<SessualitaDisabilitaPage />} />
+        <Route path="/disabilita" element={<Navigate to="/sessualita-e-disabilita" replace />} />
       </Route>
 
       {/* Auth flows */}
@@ -200,8 +202,6 @@ export default function AppRoutes() {
       <Route path="/register" element={<Navigate to="/registrati" replace />} />
       <Route path="/candidatura-terapeuta" element={<CandidaturaTerapeutaPage />} />
       <Route path="/lavora-con-noi" element={<Navigate to="/candidatura-terapeuta" replace />} />
-      <Route path="/sessualita-e-disabilita" element={<SessualitaDisabilitaPage />} />
-      <Route path="/disabilita" element={<Navigate to="/sessualita-e-disabilita" replace />} />
       <Route path="/verifica-otp" element={<OTPPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
