@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle, UserPlus } from "lucide-react";
 
 const EMPTY_FORM = {
   nome: "", cognome: "", telefono: "", bio: "", anni_esperienza: "",
@@ -138,6 +138,23 @@ export default function TerapistiPage() {
     load();
   };
 
+  const handleAttivaCandidato = async (t) => {
+    const msg = `Attivare la candidatura di ${t.nome} ${t.cognome}?\n\n` +
+      `• Viene creato un account terapeuta (sospeso finché non completa l'onboarding).\n` +
+      `• Un'email con link di attivazione (7 giorni) verrà inviata a ${t.email}.\n` +
+      `• Riceverai una nuova email quando avrà terminato l'onboarding.`;
+    if (!window.confirm(msg)) return;
+    try {
+      const r = await axios.post(`${API}/admin/terapisti/candidato/${t._id}/attiva`, {}, { withCredentials: true });
+      alert(`Candidato attivato. Email inviata a ${t.email}.`);
+      // Dev-only: log the activation URL if the backend exposed it
+      if (r.data.activation_url) console.log("[DEV] Activation URL:", r.data.activation_url);
+      load();
+    } catch (e) {
+      alert(e.response?.data?.detail || "Errore durante l'attivazione");
+    }
+  };
+
   const handleToggleSospensione = async (t) => {
     const nextSospeso = !t.sospeso;
     const msg = nextSospeso
@@ -204,6 +221,16 @@ export default function TerapistiPage() {
                           Candidatura
                         </span>
                       )}
+                      {t.approval_status === "in_onboarding" && (
+                        <span data-testid={`badge-onboarding-${t._id}`} className="text-[10px] uppercase tracking-wide font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          In onboarding
+                        </span>
+                      )}
+                      {t.approval_status === "pronto_per_review" && (
+                        <span data-testid={`badge-pronto-review-${t._id}`} className="text-[10px] uppercase tracking-wide font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full animate-pulse">
+                          Da rivedere
+                        </span>
+                      )}
                       {t.sospeso && (
                         <span data-testid={`badge-sospeso-${t._id}`} className="text-[10px] uppercase tracking-wide font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Sospeso</span>
                       )}
@@ -222,6 +249,16 @@ export default function TerapistiPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {t.approval_status === "lead" && (
+                    <button
+                      data-testid={`attiva-candidato-${t._id}`}
+                      onClick={() => handleAttivaCandidato(t)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F58A1F] hover:bg-[#e07a12] text-white text-xs font-semibold transition-colors"
+                      title="Attiva candidato: invia link di attivazione via email"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> Attiva
+                    </button>
+                  )}
                   {t.documenti_verificati
                     ? <span data-testid={`badge-verificato-${t._id}`} className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"><ShieldCheck className="w-3 h-3" /> Pubblico</span>
                     : <span data-testid={`badge-non-verificato-${t._id}`} className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full"><ShieldX className="w-3 h-3" /> Non pubblico</span>

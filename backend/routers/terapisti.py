@@ -1,7 +1,9 @@
 """Terapisti (therapists) router: CRUD + profile + slots + documents + admin verification."""
+import hashlib
 import logging
 import os
 import re
+import secrets as _secrets
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -11,12 +13,32 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 
-from deps import db, require_auth, require_admin, find_user_by_id
+from deps import db, require_auth, require_admin, find_user_by_id, hash_password
 from models import TerapistaProfileInput
-from email_service import send_therapist_approved_email, send_new_therapist_admin_alert
+from email_service import (
+    send_therapist_approved_email,
+    send_new_therapist_admin_alert,
+    send_therapist_activation_email,
+    send_therapist_ready_for_review_email,
+)
 from storage_service import put_object, get_object, mime_for_ext, APP_NAME as STORAGE_APP
 
 router = APIRouter()
+
+ACTIVATION_TOKEN_DAYS = 7
+ADMIN_REVIEW_EMAIL = os.environ.get("ADMIN_REVIEW_EMAIL", "hr@funzionabene.it")
+
+
+def _token_digest(raw: str) -> str:
+    return hashlib.sha256(raw.encode("ascii")).hexdigest()
+
+
+def _frontend_origin(request: Request) -> str:
+    env_url = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL")
+    if env_url:
+        return env_url.rstrip("/")
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    return origin.rstrip("/")
 
 
 # ─── Public: therapist application (lead capture) ─────────────────────────
@@ -234,6 +256,56 @@ async def firma_autocert_dpr445(request: Request, user: dict = Depends(require_a
         }},
     )
     return {"message": "Autocertificazione DPR 445/2000 firmata", "data": now.isoformat()}
+
+
+@router.post("/terapisti/me/onboarding-completato")
+async def marca_onboarding_completato(user: dict = Depends(require_auth)):
+    """Called by the therapist after finishing the full onboarding flow
+    (docs + phone verification + DPR 445 signature). Marks approval_status="pronto_per_review"
+    and notifies the admin by email so they can do the final documenti_verificati toggle."""
+    if user["role"] != "terapeuta":
+        raise HTTPException(403, "Accesso negato")
+    t = await db.terapisti.find_one({"user_id": user["_id"]})
+    if not t:
+        raise HTTPException(404, "Profilo terapeuta non trovato")
+    # Guard: all onboarding steps must be complete
+    docs = t.get("documenti", {}) or {}
+    missing = [k for k in ALLOWED_DOC_TYPES if k not in docs]
+    if missing:
+        raise HTTPException(400, f"Documenti mancanti: {', '.join(missing)}")
+    if not t.get("autocertificazione_firmata"):
+        raise HTTPException(400, "Devi firmare l'autocertificazione DPR 445 prima di completare l'onboarding.")
+    u = await find_user_by_id(user["_id"])
+    if not u or not u.get("telefono_verificato"):
+        raise HTTPException(400, "Devi verificare il telefono via SMS prima di completare l'onboarding.")
+
+    now = datetime.now(timezone.utc)
+    # Idempotent — safe to call multiple times
+    already = t.get("approval_status") == "pronto_per_review"
+    await db.terapisti.update_one(
+        {"_id": t["_id"]},
+        {"$set": {
+            "approval_status": "pronto_per_review",
+            "onboarding_completato_at": now,
+        }},
+    )
+    await db.users.update_one(
+        {"_id": ObjectId(user["_id"])},
+        {"$set": {"approval_status": "pronto_per_review"}},
+    )
+
+    if not already:
+        try:
+            await send_therapist_ready_for_review_email(
+                admin_email=ADMIN_REVIEW_EMAIL,
+                terapista_nome=f"{t.get('nome', '')} {t.get('cognome', '')}".strip(),
+                terapista_email=u.get("email", ""),
+                terapista_id=str(t["_id"]),
+            )
+        except Exception as e:
+            logging.error(f"[EMAIL] admin review notification failed: {e}")
+
+    return {"message": "Onboarding completato. L'amministrazione revisionerà il profilo a breve."}
 
 
 @router.get("/terapisti/{terapista_id}")
@@ -484,13 +556,19 @@ async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = D
         raise HTTPException(404, "Terapeuta non trovato")
     was_verified = bool(t.get("documenti_verificati"))
     now = datetime.now(timezone.utc)
+    update = {
+        "documenti_verificati": verificato,
+        "documenti_verificati_at": now if verificato else None,
+        "documenti_verificati_by": user["_id"] if verificato else None,
+    }
+    if verificato:
+        # Final approval: lift the suspension applied during activation
+        update["sospeso"] = False
+        update["sospeso_at"] = None
+        update["sospeso_by"] = None
     await db.terapisti.update_one(
         {"_id": ObjectId(terapista_id)},
-        {"$set": {
-            "documenti_verificati": verificato,
-            "documenti_verificati_at": now if verificato else None,
-            "documenti_verificati_by": user["_id"] if verificato else None,
-        }},
+        {"$set": update},
     )
     # If newly approved (transition from unverified → verified), notify therapist by email
     if verificato and not was_verified and t.get("user_id"):
@@ -498,11 +576,112 @@ async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = D
             u = await find_user_by_id(t["user_id"])
             if u and u.get("email"):
                 await send_therapist_approved_email(u["email"], t.get("nome", ""))
-                # Also update user.approval_status for consistency with legacy field
+                # Also reactivate the user account + update approval_status
                 await db.users.update_one(
                     {"_id": ObjectId(t["user_id"])},
-                    {"$set": {"approval_status": "approvato"}},
+                    {"$set": {"approval_status": "approvato", "is_active": True}},
                 )
         except Exception as e:
             logging.error(f"[EMAIL] therapist approved notification failed: {e}")
     return {"message": "Aggiornato", "documenti_verificati": verificato}
+
+
+# ─── Admin: activate lead-therapist (send activation email) ────────────────
+@router.post("/admin/terapisti/candidato/{lead_id}/attiva")
+async def attiva_candidato_terapeuta(lead_id: str, request: Request, user: dict = Depends(require_admin)):
+    """Convert a lead-therapist into a real user account and send an activation email.
+
+    The therapist stays 'sospeso' and 'documenti_verificati=false' until they complete
+    onboarding AND the admin does the final review via /admin/terapisti/{id}/verifica.
+    """
+    try:
+        lead_oid = ObjectId(lead_id)
+    except Exception:
+        raise HTTPException(400, "ID candidato non valido")
+
+    lead = await db.terapisti.find_one({"_id": lead_oid})
+    if not lead:
+        raise HTTPException(404, "Candidato non trovato")
+    if lead.get("approval_status") != "lead":
+        raise HTTPException(400, "Questo profilo non è più in stato di candidatura")
+
+    email = (lead.get("email") or "").lower().strip()
+    if not email:
+        raise HTTPException(400, "Email del candidato mancante")
+
+    now = datetime.now(timezone.utc)
+    existing_user = await db.users.find_one({"email": email})
+
+    if existing_user:
+        # Ensure the user is marked as therapist + suspended for onboarding
+        user_id = str(existing_user["_id"])
+        await db.users.update_one(
+            {"_id": existing_user["_id"]},
+            {"$set": {
+                "role": "terapeuta",
+                "is_active": False,
+                "approval_status": "in_onboarding",
+            }},
+        )
+    else:
+        # Placeholder password (unusable) — the user will set a real one via the activation link
+        placeholder = hash_password(_secrets.token_urlsafe(24))
+        user_doc = {
+            "email": email,
+            "password_hash": placeholder,
+            "role": "terapeuta",
+            "nome": lead.get("nome", ""),
+            "cognome": lead.get("cognome", ""),
+            "telefono": lead.get("telefono"),
+            "telefono_verificato": False,
+            "is_verified": True,      # email is trusted (admin activated manually)
+            "is_active": False,       # blocks login until password is set
+            "approval_status": "in_onboarding",
+            "consenso_privacy": True,
+            "consenso_termini": True,
+            "consenso_marketing": False,
+            "created_at": now,
+        }
+        insert = await db.users.insert_one(user_doc)
+        user_id = str(insert.inserted_id)
+
+    # Bind terapista doc to the user + suspend + move status forward
+    await db.terapisti.update_one(
+        {"_id": lead_oid},
+        {"$set": {
+            "user_id": user_id,
+            "approval_status": "in_onboarding",
+            "sospeso": True,
+            "sospeso_at": now,
+            "sospeso_by": user["_id"],
+            "documenti_verificati": False,
+            "attivato_at": now,
+            "attivato_by": user["_id"],
+        }},
+    )
+
+    # Generate a single-use activation token (7 days). Reuses password_reset_tokens collection.
+    raw_token = _secrets.token_urlsafe(32)
+    await db.password_reset_tokens.delete_many({"user_id": user_id, "used_at": None})
+    await db.password_reset_tokens.insert_one({
+        "user_id": user_id,
+        "token_hash": _token_digest(raw_token),
+        "expires_at": now + timedelta(days=ACTIVATION_TOKEN_DAYS),
+        "used_at": None,
+        "created_at": now,
+        "purpose": "therapist_activation",
+    })
+
+    frontend = _frontend_origin(request)
+    activation_url = f"{frontend}/attiva-account?token={raw_token}"
+    try:
+        await send_therapist_activation_email(email, activation_url, lead.get("nome", ""))
+    except Exception as e:
+        logging.error(f"[EMAIL] therapist activation email failed: {e}")
+        # Do not fail the whole operation — admin can re-trigger
+
+    return {
+        "message": "Candidato attivato. Email di attivazione inviata.",
+        "user_id": user_id,
+        "activation_url": activation_url if os.environ.get("ENV") != "production" else None,
+    }

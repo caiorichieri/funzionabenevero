@@ -121,6 +121,13 @@ export default function OnboardingSection({ profilo, currentUser, onRefresh }) {
     setDprSigning(true);
     try {
       await axios.post(`${API}/terapisti/me/autocertificazione-dpr445`, {}, { withCredentials: true });
+      // After the final signature, tell the backend that onboarding is complete so the admin
+      // gets notified via email. Best-effort — if this fails the therapist is still signed.
+      try {
+        await axios.post(`${API}/terapisti/me/onboarding-completato`, {}, { withCredentials: true });
+      } catch (e) {
+        // Backend enforces the same guards; silently ignore validation errors here.
+      }
       onRefresh && onRefresh();
     } catch (err) {
       setError(readErr(err, "Errore firma autocertificazione"));

@@ -626,6 +626,105 @@ async def send_new_therapist_admin_alert(therapist: dict) -> bool:
     })
 
 
+async def send_therapist_activation_email(email: str, activation_url: str, nome: str = "") -> bool:
+    """Send activation link to a lead-therapist who has just been approved by admin.
+    They set their password, then complete onboarding (docs + phone + DPR 445 signature)."""
+    if not email:
+        return False
+    ciao = f"Ciao {nome}," if nome else "Ciao,"
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#D4A017;margin-top:6px;">ATTIVA IL TUO PROFILO</div>
+</td></tr>
+<tr><td style="padding:32px 40px 12px;">
+<h1 style="font-family:Georgia,serif;font-size:28px;color:#D4A017;margin:0 0 14px;font-weight:500;">La tua candidatura è stata approvata 🎉</h1>
+<p style="color:rgba(230,226,216,0.85);font-size:15px;line-height:1.6;margin:0 0 16px;">{ciao}</p>
+<p style="color:rgba(230,226,216,0.85);font-size:15px;line-height:1.6;margin:0 0 12px;">
+Abbiamo esaminato la tua candidatura come professionista su <strong style="color:#F4F1ED;">FunzionaBene</strong> e vogliamo darti il benvenuto nel nostro team di sessuologi e psicologi.
+</p>
+<p style="color:rgba(230,226,216,0.85);font-size:15px;line-height:1.6;margin:0 0 12px;">
+<strong style="color:#F4F1ED;">Prossimo passo:</strong> clicca sul pulsante qui sotto per creare la tua password e completare l'onboarding. Ti chiederemo di:
+</p>
+<ul style="color:rgba(230,226,216,0.85);font-size:14px;line-height:1.7;margin:0 0 16px;padding-left:20px;">
+<li>Compilare il tuo profilo clinico (biografia, prezzo, disponibilità)</li>
+<li>Caricare i documenti obbligatori (Curriculum, Assicurazione, Laurea)</li>
+<li>Verificare il numero di telefono via SMS</li>
+<li>Firmare l'autocertificazione DPR 445/2000</li>
+</ul>
+<p style="color:rgba(230,226,216,0.65);font-size:13px;line-height:1.6;margin:0 0 8px;">
+Il tuo profilo diventerà visibile ai pazienti <strong style="color:#F4F1ED;">solo dopo</strong> la revisione finale della nostra amministrazione.
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px 28px;text-align:center;">
+<a href="{activation_url}" style="display:inline-block;background:linear-gradient(135deg,#F58A1F,#F5D419);color:#0A0A0A;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Attiva il mio profilo →</a>
+</td></tr>
+<tr><td style="padding:0 40px 28px;text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0 0 8px;">Se il pulsante non funziona, copia questo link:</p>
+<p style="color:#D4A017;font-size:11px;word-break:break-all;margin:0;">{activation_url}</p>
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:16px 0 0;">Il link scade tra 7 giorni.</p>
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Psicologi e Sessuologi</p>
+</td></tr>
+</table></body></html>"""
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [email],
+        "subject": "Attiva il tuo profilo terapeuta — FunzionaBene",
+        "html": html,
+    })
+
+
+async def send_therapist_ready_for_review_email(
+    admin_email: str, terapista_nome: str, terapista_email: str, terapista_id: str
+) -> bool:
+    """Notify admin that a therapist has completed onboarding and is waiting for final review."""
+    if not admin_email:
+        return False
+    frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+    review_url = f"{frontend}/admin/terapisti"
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#F58A1F;margin-top:6px;">REVISIONE RICHIESTA</div>
+</td></tr>
+<tr><td style="padding:32px 40px 12px;">
+<h1 style="font-family:Georgia,serif;font-size:26px;color:#F58A1F;margin:0 0 14px;font-weight:500;">Un candidato ha completato l'onboarding</h1>
+<p style="color:rgba(230,226,216,0.85);font-size:15px;line-height:1.6;margin:0 0 20px;">
+<strong style="color:#F4F1ED;">{terapista_nome}</strong> (<a href="mailto:{terapista_email}" style="color:#D4A017;">{terapista_email}</a>) ha caricato tutti i documenti, verificato il telefono e firmato l'autocertificazione DPR 445.
+</p>
+<div style="background:rgba(212,160,23,0.08);border:1px solid rgba(212,160,23,0.3);border-radius:12px;padding:16px 20px;margin:0 0 20px;">
+<p style="color:rgba(230,226,216,0.9);font-size:14px;line-height:1.6;margin:0;">
+<strong style="color:#D4A017;">Da fare adesso:</strong><br/>
+1. Rivedi i documenti caricati (CV, Assicurazione, Laurea)<br/>
+2. Verifica i dati del profilo (Albo, biografia, prezzo)<br/>
+3. Se tutto è in ordine, clicca <em>"Verifica documenti"</em> per rendere pubblico il profilo
+</p>
+</div>
+<p style="color:rgba(230,226,216,0.65);font-size:13px;line-height:1.6;margin:0;">
+Il terapeuta rimane <strong style="color:#F58A1F;">sospeso</strong> e non è visibile ai pazienti finché non completi la revisione.
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px 28px;text-align:center;">
+<a href="{review_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Rivedi candidato →</a>
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">ID Terapeuta: {terapista_id}</p>
+</td></tr>
+</table></body></html>"""
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [admin_email],
+        "subject": f"[Revisione] {terapista_nome} ha completato l'onboarding",
+        "html": html,
+    })
+
+
 async def send_therapist_approved_email(email: str, nome: str) -> bool:
     """Notify a therapist that they have been approved and are now publicly visible."""
     if not email:

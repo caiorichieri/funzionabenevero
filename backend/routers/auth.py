@@ -212,8 +212,11 @@ async def login(data: LoginInput, response: Response):
         raise HTTPException(status_code=403, detail="Account disattivato")
     # Therapists must be explicitly approved by an admin before they can access the platform.
     # Legacy `approval_status` value is "approvato" (see admin approve endpoint); newer flow may
-    # use "verified" — accept either. Anything else (pending, lead, missing) is blocked.
-    if user.get("role") == "terapeuta" and user.get("approval_status") not in ("approvato", "verified"):
+    # use "verified" — accept either. Therapists in onboarding ("in_onboarding" / "pronto_per_review")
+    # are also allowed to login so they can complete their profile.
+    if user.get("role") == "terapeuta" and user.get("approval_status") not in (
+        "approvato", "verified", "in_onboarding", "pronto_per_review"
+    ):
         raise HTTPException(
             status_code=403,
             detail="Il tuo profilo è in fase di valutazione. Ti contatteremo dopo la verifica.",
@@ -295,3 +298,82 @@ async def reset_password(body: ResetPasswordRequest):
         raise HTTPException(500, "Impossibile completare il reset.")
 
     return {"message": "Password reimpostata con successo. Ora puoi accedere."}
+
+
+
+# ─── Therapist activation (from admin-issued invitation link) ─────────────────
+@router.get("/auth/attivazione-terapeuta/verifica")
+async def verifica_token_attivazione(token: str):
+    """Public: check if an activation token is still valid, before showing the form.
+    Returns basic user info so the UI can greet the therapist by name.
+    """
+    digest = _token_digest(token)
+    now = datetime.now(timezone.utc)
+    doc = await db.password_reset_tokens.find_one({
+        "token_hash": digest,
+        "used_at": None,
+        "expires_at": {"$gt": now},
+        "purpose": "therapist_activation",
+    })
+    if not doc:
+        raise HTTPException(400, "Il link di attivazione non è valido o è scaduto.")
+    user = await db.users.find_one(
+        {"_id": ObjectId(doc["user_id"])},
+        {"email": 1, "nome": 1, "cognome": 1},
+    )
+    if not user:
+        raise HTTPException(400, "Il link di attivazione non è valido o è scaduto.")
+    return {"email": user.get("email"), "nome": user.get("nome"), "cognome": user.get("cognome")}
+
+
+@router.post("/auth/attivazione-terapeuta/completa")
+async def completa_attivazione_terapeuta(body: ResetPasswordRequest, response: Response):
+    """Public: therapist sets their initial password using the admin-issued token.
+    Also activates the user account (is_active=true) and logs them in immediately."""
+    generic_error = HTTPException(400, "Il link di attivazione non è valido o è scaduto.")
+    digest = _token_digest(body.token)
+    now = datetime.now(timezone.utc)
+
+    token_doc = await db.password_reset_tokens.find_one_and_update(
+        {
+            "token_hash": digest,
+            "used_at": None,
+            "expires_at": {"$gt": now},
+            "purpose": "therapist_activation",
+        },
+        {"$set": {"used_at": now}},
+        projection={"user_id": 1, "token_hash": 1},
+    )
+    if token_doc is None:
+        raise generic_error
+    if not _hmac.compare_digest(token_doc["token_hash"], digest):
+        raise generic_error
+
+    new_hash = hash_password(body.new_password)
+    user = await db.users.find_one({"_id": ObjectId(token_doc["user_id"])})
+    if not user:
+        raise generic_error
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {
+            "password_hash": new_hash,
+            "password_changed_at": now,
+            "is_active": True,
+            "is_verified": True,
+        }},
+    )
+
+    # Auto-login: set the same cookies the login endpoint sets
+    user_id = str(user["_id"])
+    access_token = create_access_token(user_id, user["email"], "terapeuta")
+    refresh_token = create_refresh_token(user_id)
+    response.set_cookie("access_token", access_token, httponly=True, samesite="none", secure=True, max_age=28800, path="/")
+    response.set_cookie("refresh_token", refresh_token, httponly=True, samesite="none", secure=True, max_age=604800, path="/")
+    return {
+        "message": "Account attivato con successo.",
+        "_id": user_id,
+        "email": user["email"],
+        "nome": user.get("nome", ""),
+        "cognome": user.get("cognome", ""),
+        "role": "terapeuta",
+    }

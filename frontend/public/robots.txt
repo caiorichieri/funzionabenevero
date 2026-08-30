@@ -12,6 +12,7 @@ Disallow: /login
 Disallow: /registrati
 Disallow: /verifica-otp
 Disallow: /candidatura-terapeuta
+Disallow: /attiva-account
 Disallow: /*?token=
 Disallow: /*?magic=
 

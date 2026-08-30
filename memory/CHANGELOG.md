@@ -78,3 +78,28 @@
 - **Deploy blocker resolved**: the `ephemeral-upload-storage` lint rule no longer fires — all user uploads now survive pod restarts. Legacy on-disk fallback preserved for the (empty in prod) demo assets.
 - **Tests**: 15/15 backend smoke tests pass; E2E flow validated via curl (admin login → create ambassador → upload photo → fetch public URL → delete). SEO pages still render correctly (verified via Playwright).
 
+
+## 2026-02-22 — Fluxo "Attiva Candidato" ponta-a-ponta (P1 feito)
+- **Estados novos** em `approval_status` para terapeutas:
+  - `"lead"` — candidatura recebida via `/candidatura-terapeuta` (sem conta user).
+  - `"in_onboarding"` — admin ativou o candidato, user criado suspenso, aguarda onboarding.
+  - `"pronto_per_review"` — terapeuta finalizou docs + telefone + assinatura DPR 445, admin precisa rever.
+  - `"approvato"` — admin aprovou docs, terapeuta público e pode receber pacientes.
+- **Backend** (`/app/backend/routers/terapisti.py` + `auth.py`):
+  - `POST /api/admin/terapisti/candidato/{lead_id}/attiva` — Admin ativa lead. Cria user `terapeuta` com `is_active=false`, gera token (7 dias) em `password_reset_tokens` (purpose=`therapist_activation`), envia email de ativação (`send_therapist_activation_email`).
+  - `POST /api/terapisti/me/onboarding-completato` — Chamado após assinar DPR 445; guard-checka docs+telefone+firma, muda status para `"pronto_per_review"` e envia email ao admin (`send_therapist_ready_for_review_email` → `ADMIN_REVIEW_EMAIL`, default `hr@funzionabene.it`).
+  - `GET /api/auth/attivazione-terapeuta/verifica?token=...` — Endpoint público que valida o token e retorna nome/email/cognome do candidato.
+  - `POST /api/auth/attivazione-terapeuta/completa` — Consome token, define password, `is_active=true`, auto-login (seta cookies e retorna user).
+  - `PATCH /api/admin/terapisti/{id}/verifica` — Adicionado: quando o admin marca `verificato=true` a suspensão é levantada (`sospeso=false`, `user.is_active=true`) e o welcome email é enviado.
+- **Frontend**:
+  - `/app/frontend/src/pages/AttivaAccountPage.jsx` (novo) — Página `/attiva-account?token=...` com validação de token, formulário de senha, força visual, auto-login e redirect para `/terapeuta`.
+  - `/app/frontend/src/routes.js` — Route pública `/attiva-account`.
+  - `/app/frontend/src/pages/admin/TerapistiPage.jsx` — Botão "Attiva" (só visível quando `approval_status="lead"`), badges novos `IN ONBOARDING` e `DA RIVEDERE` (pulsante amarelo), handler `handleAttivaCandidato`.
+  - `/app/frontend/src/components/therapist/OnboardingSection.jsx` — Após `POST /autocertificazione-dpr445` chama automaticamente `/onboarding-completato` para disparar o email ao admin.
+  - `robots.txt` — `Disallow: /attiva-account` (fluxo privado).
+- **Emails novos** (`email_service.py`):
+  - `send_therapist_activation_email(email, activation_url, nome)` — CTA laranja "Attiva il mio profilo", lista dos passos de onboarding, aviso 7 dias.
+  - `send_therapist_ready_for_review_email(admin_email, nome, terapista_email, terapista_id)` — Notifica admin para rever o candidato.
+- **Login gate** (`auth.py`): terapeutas com `approval_status ∈ {"approvato","verified","in_onboarding","pronto_per_review"}` conseguem logar; `"lead"`/`"pending"` continuam bloqueados.
+- **Testes**: E2E via curl validado — candidatura pública → admin activa → link magic verify → completa activation → login com nova senha. 15/15 smoke tests continuam a passar. Frontend validado com Playwright (badges, botão Attiva, página `/attiva-account` estados válido/inválido).
+

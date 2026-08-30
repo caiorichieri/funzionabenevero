@@ -9,6 +9,7 @@ import CandidaturaTerapeutaPage from "@/pages/CandidaturaTerapeutaPage";
 import OTPPage from "@/pages/OTPPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import AttivaAccountPage from "@/pages/AttivaAccountPage";
 
 // Admin
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -205,6 +206,7 @@ export default function AppRoutes() {
       <Route path="/verifica-otp" element={<OTPPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/attiva-account" element={<AttivaAccountPage />} />
 
       {/* Admin */}
       <Route path="/admin" element={<ProtectedRoute roles={ADMIN_ROLES}><Layout /></ProtectedRoute>}>
