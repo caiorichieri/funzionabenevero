@@ -22,6 +22,8 @@ import PagamentiPage from "@/pages/admin/PagamentiPage";
 import FatturePage from "@/pages/admin/FatturePage";
 import RegistroTrattamentiPage from "@/pages/admin/RegistroTrattamentiPage";
 import RecensioniPage from "@/pages/admin/RecensioniPage";
+import AdminAmbassadorsPage from "@/pages/admin/AmbassadorsPage";
+import SessualitaDisabilitaPage from "@/pages/public/SessualitaDisabilitaPage";
 
 // Therapist
 import TerapistaDashboard from "@/pages/therapist/TerapistaDashboard";
@@ -134,6 +136,8 @@ export function StandaloneRedirector() {
       p.startsWith("/login") ||
       p.startsWith("/registrati") ||
       p.startsWith("/candidatura-terapeuta") ||
+      p.startsWith("/sessualita-e-disabilita") ||
+      p.startsWith("/disabilita") ||
       p.startsWith("/verifica-otp") ||
       p.startsWith("/recupera-password") ||
       p.startsWith("/reset-password") ||
@@ -196,6 +200,8 @@ export default function AppRoutes() {
       <Route path="/register" element={<Navigate to="/registrati" replace />} />
       <Route path="/candidatura-terapeuta" element={<CandidaturaTerapeutaPage />} />
       <Route path="/lavora-con-noi" element={<Navigate to="/candidatura-terapeuta" replace />} />
+      <Route path="/sessualita-e-disabilita" element={<SessualitaDisabilitaPage />} />
+      <Route path="/disabilita" element={<Navigate to="/sessualita-e-disabilita" replace />} />
       <Route path="/verifica-otp" element={<OTPPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -213,6 +219,7 @@ export default function AppRoutes() {
         <Route path="registro-trattamenti" element={<RegistroTrattamentiPage />} />
         <Route path="pagamenti" element={<PagamentiPage />} />
         <Route path="recensioni" element={<RecensioniPage />} />
+        <Route path="ambassadors" element={<AdminAmbassadorsPage />} />
       </Route>
 
       {/* Therapist */}

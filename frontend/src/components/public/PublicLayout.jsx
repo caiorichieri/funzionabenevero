@@ -159,6 +159,7 @@ function Footer() {
             <li><Link to="/questionario" className="hover:text-[#0A0A0A]">Questionario</Link></li>
             <li><Link to="/sedute-immersive" className="hover:text-[#0A0A0A]">Sessioni immersive</Link></li>
             <li><Link to="/aree-intervento" className="hover:text-[#0A0A0A]">Aree di intervento</Link></li>
+            <li><Link to="/sessualita-e-disabilita" className="hover:text-[#0A0A0A]">Sessualità e disabilità</Link></li>
             <li><Link to="/chi-siamo" className="hover:text-[#0A0A0A]">Chi siamo</Link></li>
             <li><Link to="/blog" className="hover:text-[#0A0A0A]">Blog</Link></li>
             <li><Link to="/faq" className="hover:text-[#0A0A0A]">FAQ</Link></li>

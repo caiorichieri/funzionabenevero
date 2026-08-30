@@ -16,6 +16,7 @@ const ADMIN_MENU = [
   { to: "/admin/pagamenti", icon: Wallet, label: "Pagamenti" },
   { to: "/admin/fatture", icon: Receipt, label: "Fatture" },
   { to: "/admin/recensioni", icon: Star, label: "Recensioni", badgeKey: "reviews" },
+  { to: "/admin/ambassadors", icon: Heart, label: "Ambassador" },
   { to: "/admin/blog", icon: FileText, label: "Blog" },
   { to: "/admin/contratti", icon: ScrollText, label: "Documenti Legali" },
   { to: "/admin/registro-trattamenti", icon: Shield, label: "Registro Trattamenti" },
