@@ -35,10 +35,8 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 bg-[#0A0A0A] flex-col justify-between p-12">
         <div>
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-full bg-[#E9D628] flex items-center justify-center">
-              <span className="text-[#0A0A0A] font-bold text-sm font-[Outfit]">FB</span>
-            </div>
-            <span className="text-white text-xl font-semibold font-[Outfit]">FunzionaBene</span>
+            <img src="/assets/logo.png" alt="FunzionaBene" className="w-12 h-12 object-contain" />
+            <span className="text-white text-xl font-semibold font-[Outfit]">funzionabene</span>
           </div>
           <div className="space-y-4">
             <h1 className="text-4xl font-bold text-white font-[Outfit] leading-tight">
@@ -46,7 +44,7 @@ export default function LoginPage() {
               <span className="text-[#E9D628]">Gestionale</span>
             </h1>
             <p className="text-[rgba(253,251,247,0.7)] text-lg leading-relaxed">
-              Piattaforma integrata di sessuologia online FunzionaBene.
+              Piattaforma sessuologia online FunzionaBene.
             </p>
           </div>
         </div>
