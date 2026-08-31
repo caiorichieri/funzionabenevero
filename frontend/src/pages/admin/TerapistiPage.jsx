@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle, UserPlus } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle, UserPlus, Mail } from "lucide-react";
 
 const EMPTY_FORM = {
   nome: "", cognome: "", telefono: "", bio: "", anni_esperienza: "",
@@ -155,6 +155,21 @@ export default function TerapistiPage() {
     }
   };
 
+  const handleReinviaAttivazione = async (t) => {
+    const msg = `Re-inviare il link di attivazione a ${t.nome} ${t.cognome} (${t.email})?\n\n` +
+      `• I link precedenti verranno invalidati.\n` +
+      `• Un nuovo link (valido 7 giorni) sarà inviato via email.`;
+    if (!window.confirm(msg)) return;
+    try {
+      const r = await axios.post(`${API}/admin/terapisti/${t._id}/reinvia-attivazione`, {}, { withCredentials: true });
+      alert(r.data.message || "Nuovo link inviato.");
+      if (r.data.activation_url) console.log("[DEV] Activation URL:", r.data.activation_url);
+      load();
+    } catch (e) {
+      alert(e.response?.data?.detail || "Errore durante l'invio");
+    }
+  };
+
   const handleToggleSospensione = async (t) => {
     const nextSospeso = !t.sospeso;
     const msg = nextSospeso
@@ -257,6 +272,16 @@ export default function TerapistiPage() {
                       title="Attiva candidato: invia link di attivazione via email"
                     >
                       <UserPlus className="w-3.5 h-3.5" /> Attiva
+                    </button>
+                  )}
+                  {(t.approval_status === "in_onboarding" || t.approval_status === "pronto_per_review") && (
+                    <button
+                      data-testid={`reinvia-attivazione-${t._id}`}
+                      onClick={() => handleReinviaAttivazione(t)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#0A0A0A]/15 hover:bg-[#0A0A0A]/5 text-[#0A0A0A] text-xs font-semibold transition-colors"
+                      title="Re-invia il link di attivazione via email"
+                    >
+                      <Mail className="w-3.5 h-3.5" /> Reinvia link
                     </button>
                   )}
                   {t.documenti_verificati

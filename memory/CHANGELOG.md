@@ -113,3 +113,25 @@
 - **Bug secundário fixado**: o endpoint `GET /api/sitemap.xml` filtrava blog posts por `pubblicato=True` (campo inexistente); o campo correto é `stato="pubblicato"`. Agora o sitemap inclui 15 blog posts + 1 terapeuta verificado.
 - 15/15 smoke tests continuam a passar.
 
+
+## 2026-02-22 — Reinvia Link Attivazione + Blog CMS Migliorato
+
+### Reinvia Link Attivazione
+- **Backend**: `POST /api/admin/terapisti/{id}/reinvia-attivazione` — invalida tokens antigos, cria novo token (7 dias), re-envia o email de ativação. Só funciona para status `"in_onboarding"` ou `"pronto_per_review"`. Regista `ultimo_reinvio_attivazione_{at,by}` no doc do terapeuta.
+- **Frontend** (`TerapistiPage.jsx`): novo botão "Reinvia link" (com ícone Mail) visível para status `in_onboarding` e `pronto_per_review`; handler com confirm dialog que avisa que os links anteriores serão invalidados.
+- Testado E2E via curl: candidatura → attiva → reinvia → verifica novo token → completa com nova senha.
+
+### Blog CMS — Editor Migliorato
+- **Backend**:
+  - `POST /api/blog/upload-image` — upload de imagem (JPG/PNG/WEBP/GIF, max 5 MB) para Emergent Object Storage em `funzionabene/blog/{uuid}{ext}`. Cria doc em `db.blog_media` com `storage_path`.
+  - `GET /api/media/blog/{filename}` — endpoint público que lê o `storage_path` do Mongo e serve o binário do Object Storage com cache 24h.
+- **Frontend** (`admin/BlogPage.jsx`):
+  - Modal do editor agora **max-w-6xl** com layout **split-view** (source HTML à esquerda, live preview sanitizada à direita, `sanitizeHtml` + `prose` styles).
+  - **Toolbar completa**: Bold, Italic, H2, H3, P, lista, link, citação, imagem inline. `wrapSelection` e `insertAtCursor` mantêm o cursor onde o usuário está.
+  - Botão **"Immagine di copertina"** com upload dedicado (usa mesmo endpoint) + preview + botão remover.
+  - Botão **"Immagine"** na toolbar insere `<figure><img src="{obj-storage-url}" alt="" /></figure>` no cursor após upload.
+  - Contador de caratteres em live.
+  - Preview modal de artigo publicado agora renderiza HTML sanitizado (antes mostrava plain text com `whitespace-pre-wrap`).
+- Testado: upload de imagem 322 bytes → obj storage → URL público → 200 OK; screenshot do editor split-view valida a renderização correta de `<h2>`, `<strong>`, `<em>`, `<ul>` etc.
+- 15/15 smoke tests continuam a passar.
+

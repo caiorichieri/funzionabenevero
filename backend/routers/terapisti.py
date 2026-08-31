@@ -685,3 +685,58 @@ async def attiva_candidato_terapeuta(lead_id: str, request: Request, user: dict 
         "user_id": user_id,
         "activation_url": activation_url if os.environ.get("ENV") != "production" else None,
     }
+
+
+@router.post("/admin/terapisti/{terapista_id}/reinvia-attivazione")
+async def reinvia_attivazione_terapeuta(
+    terapista_id: str, request: Request, user: dict = Depends(require_admin)
+):
+    """Re-issue an activation link for a therapist stuck in onboarding.
+    Invalidates any previous unused activation tokens and sends a fresh email."""
+    try:
+        oid = ObjectId(terapista_id)
+    except Exception:
+        raise HTTPException(400, "ID terapeuta non valido")
+
+    t = await db.terapisti.find_one({"_id": oid})
+    if not t:
+        raise HTTPException(404, "Terapeuta non trovato")
+    if not t.get("user_id"):
+        raise HTTPException(400, "Questo profilo non è stato ancora attivato — usa 'Attiva' invece.")
+    if t.get("approval_status") not in ("in_onboarding", "pronto_per_review"):
+        raise HTTPException(400, "Il candidato non è in fase di attivazione/onboarding.")
+
+    u = await find_user_by_id(t["user_id"])
+    if not u or not u.get("email"):
+        raise HTTPException(400, "Utente non trovato o senza email")
+
+    now = datetime.now(timezone.utc)
+    # Invalidate any pending activation tokens for this user
+    await db.password_reset_tokens.delete_many(
+        {"user_id": t["user_id"], "used_at": None, "purpose": "therapist_activation"}
+    )
+    raw_token = _secrets.token_urlsafe(32)
+    await db.password_reset_tokens.insert_one({
+        "user_id": t["user_id"],
+        "token_hash": _token_digest(raw_token),
+        "expires_at": now + timedelta(days=ACTIVATION_TOKEN_DAYS),
+        "used_at": None,
+        "created_at": now,
+        "purpose": "therapist_activation",
+    })
+    await db.terapisti.update_one(
+        {"_id": oid},
+        {"$set": {"ultimo_reinvio_attivazione_at": now, "ultimo_reinvio_attivazione_by": user["_id"]}},
+    )
+
+    frontend = _frontend_origin(request)
+    activation_url = f"{frontend}/attiva-account?token={raw_token}"
+    try:
+        await send_therapist_activation_email(u["email"], activation_url, t.get("nome", ""))
+    except Exception as e:
+        logging.error(f"[EMAIL] therapist activation resend failed: {e}")
+
+    return {
+        "message": f"Nuovo link inviato a {u['email']}",
+        "activation_url": activation_url if os.environ.get("ENV") != "production" else None,
+    }

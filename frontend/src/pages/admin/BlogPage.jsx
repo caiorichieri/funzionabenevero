@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Plus, CheckCircle, XCircle, Trash2, Eye, Clock, X, Edit2 } from "lucide-react";
+import { Plus, CheckCircle, XCircle, Trash2, Eye, Clock, X, Edit2, Image as ImageIcon, Bold, Italic, List, Link as LinkIcon } from "lucide-react";
+import { safeHtml } from "@/utils/safeHtml";
 
 const CATEGORIE = ["Sessuologia","Terapia di coppia","Disfunzioni sessuali","Relazioni","Salute mentale","Altro"];
 
@@ -23,7 +24,7 @@ function getSaveButtonLabel(saving, editing, publishLabel = "Pubblica") {
   return publishLabel;
 }
 
-const EMPTY = { titolo: "", contenuto: "", categoria: "", tags: "" };
+const EMPTY = { titolo: "", contenuto: "", categoria: "", tags: "", immagine_url: "" };
 
 export default function AdminBlogPage() {
   const [articoli, setArticoli] = useState([]);
@@ -49,7 +50,13 @@ export default function AdminBlogPage() {
   const openCreate = () => { setEditing(null); setForm(EMPTY); setError(""); setShowForm(true); };
   const openEdit   = (a) => {
     setEditing(a._id);
-    setForm({ titolo: a.titolo, contenuto: a.contenuto, categoria: a.categoria||"", tags: (a.tags||[]).join(", ") });
+    setForm({
+      titolo: a.titolo,
+      contenuto: a.contenuto,
+      categoria: a.categoria || "",
+      tags: (a.tags || []).join(", "),
+      immagine_url: a.immagine_url || "",
+    });
     setError("");
     setShowForm(true);
   };
@@ -79,6 +86,65 @@ export default function AdminBlogPage() {
     bozza: articoli.filter(a => a.stato === "bozza").length,
     pubblicato: articoli.filter(a => a.stato === "pubblicato").length,
     rifiutato: articoli.filter(a => a.stato === "rifiutato").length,
+  };
+
+  // ─── Editor toolbar helpers (image upload + inline formatting) ─────────
+  const contenutoRef = useRef(null);
+  const [uploading, setUploading] = useState(null); // null | "inline" | "cover"
+
+  const insertAtCursor = (snippet) => {
+    const ta = contenutoRef.current;
+    if (!ta) { setForm(f => ({ ...f, contenuto: (f.contenuto || "") + snippet })); return; }
+    const start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
+    const next = val.slice(0, start) + snippet + val.slice(end);
+    setForm(f => ({ ...f, contenuto: next }));
+    // Restore cursor position after React commits the update
+    setTimeout(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + snippet.length;
+    }, 0);
+  };
+
+  const wrapSelection = (before, after = before) => {
+    const ta = contenutoRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
+    const selected = val.slice(start, end) || "...";
+    const next = val.slice(0, start) + before + selected + after + val.slice(end);
+    setForm(f => ({ ...f, contenuto: next }));
+    setTimeout(() => {
+      ta.focus();
+      ta.selectionStart = start + before.length;
+      ta.selectionEnd = start + before.length + selected.length;
+    }, 0);
+  };
+
+  const uploadImage = async (kind, file) => {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { alert("Seleziona un file immagine (JPG, PNG, WEBP, GIF)."); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("Immagine troppo grande (max 5 MB)."); return; }
+    setUploading(kind);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await axios.post(`${API}/blog/upload-image`, fd, { withCredentials: true });
+      const url = r.data.url;
+      if (kind === "cover") {
+        setForm(f => ({ ...f, immagine_url: url }));
+      } else {
+        insertAtCursor(`\n<figure><img src="${url}" alt="" /></figure>\n`);
+      }
+    } catch (e) {
+      alert(e.response?.data?.detail || "Errore durante l'upload");
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const insertLink = () => {
+    const href = window.prompt("URL del link:");
+    if (!href) return;
+    wrapSelection(`<a href="${href}" target="_blank" rel="noopener">`, "</a>");
   };
 
   return (
@@ -201,7 +267,7 @@ export default function AdminBlogPage() {
       {/* Modal Crea/Modifica */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl my-6">
             <div className="flex items-center justify-between p-6 border-b border-[#0A0A0A]/10">
               <h2 className="text-xl font-bold text-[#0A0A0A] font-[Outfit]">
                 {editing ? "Modifica Articolo" : "Nuovo Articolo"}
@@ -212,14 +278,16 @@ export default function AdminBlogPage() {
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
-              <div>
-                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Titolo*</label>
-                <input data-testid="form-titolo" type="text" value={form.titolo} required
-                  onChange={e => setForm({...form, titolo:e.target.value})}
-                  placeholder="Titolo dell'articolo"
-                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Meta row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-3">
+                  <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Titolo*</label>
+                  <input data-testid="form-titolo" type="text" value={form.titolo} required
+                    onChange={e => setForm({...form, titolo:e.target.value})}
+                    placeholder="Titolo dell'articolo"
+                    className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Categoria</label>
                   <select value={form.categoria} onChange={e => setForm({...form, categoria:e.target.value})}
@@ -234,14 +302,90 @@ export default function AdminBlogPage() {
                     placeholder="sessuologia, coppia, ..."
                     className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Immagine di copertina</label>
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 flex items-center gap-2 px-3 py-2.5 border border-dashed border-[#0A0A0A]/25 rounded-xl text-xs text-[#0A0A0A]/65 hover:bg-[#0A0A0A]/5 cursor-pointer">
+                      <ImageIcon className="w-4 h-4" />
+                      <span>{uploading === "cover" ? "Caricamento..." : (form.immagine_url ? "Sostituisci" : "Carica immagine")}</span>
+                      <input
+                        data-testid="upload-cover-image"
+                        type="file" accept="image/*" className="hidden"
+                        onChange={e => e.target.files?.[0] && uploadImage("cover", e.target.files[0])}
+                      />
+                    </label>
+                    {form.immagine_url && (
+                      <button type="button" onClick={() => setForm(f => ({ ...f, immagine_url: "" }))}
+                        className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100" title="Rimuovi">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {form.immagine_url && (
+                    <img src={form.immagine_url.startsWith('http') ? form.immagine_url : `${API.replace('/api','')}${form.immagine_url}`}
+                      alt="cover" className="mt-2 w-full h-24 object-cover rounded-xl border border-[#0A0A0A]/10" />
+                  )}
+                </div>
               </div>
+
+              {/* Editor + Preview split */}
               <div>
-                <label className="block text-sm font-medium text-[#0A0A0A] mb-1">Contenuto*</label>
-                <textarea data-testid="form-contenuto" value={form.contenuto} required
-                  onChange={e => setForm({...form, contenuto:e.target.value})} rows={10}
-                  placeholder="Scrivi il contenuto dell'articolo..."
-                  className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] resize-none" />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-[#0A0A0A]">Contenuto* (HTML)</label>
+                  <div className="text-xs text-[#0A0A0A]/50">{(form.contenuto || "").length} caratteri</div>
+                </div>
+
+                {/* Toolbar */}
+                <div className="flex flex-wrap items-center gap-1 mb-2 p-1.5 bg-[#0A0A0A]/5 rounded-xl">
+                  <button type="button" onClick={() => wrapSelection("<strong>", "</strong>")} title="Grassetto"
+                    className="p-1.5 rounded-lg hover:bg-white text-[#0A0A0A]/70"><Bold className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => wrapSelection("<em>", "</em>")} title="Corsivo"
+                    className="p-1.5 rounded-lg hover:bg-white text-[#0A0A0A]/70"><Italic className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => insertAtCursor("\n<h2>Titolo sezione</h2>\n")} title="Titolo H2"
+                    className="p-1.5 px-2 rounded-lg hover:bg-white text-[#0A0A0A]/70 text-xs font-bold">H2</button>
+                  <button type="button" onClick={() => insertAtCursor("\n<h3>Sottotitolo</h3>\n")} title="Titolo H3"
+                    className="p-1.5 px-2 rounded-lg hover:bg-white text-[#0A0A0A]/70 text-xs font-bold">H3</button>
+                  <button type="button" onClick={() => insertAtCursor("\n<p></p>\n")} title="Paragrafo"
+                    className="p-1.5 px-2 rounded-lg hover:bg-white text-[#0A0A0A]/70 text-xs">P</button>
+                  <button type="button" onClick={() => insertAtCursor("\n<ul>\n  <li>Punto</li>\n</ul>\n")} title="Lista"
+                    className="p-1.5 rounded-lg hover:bg-white text-[#0A0A0A]/70"><List className="w-4 h-4" /></button>
+                  <button type="button" onClick={insertLink} title="Link"
+                    className="p-1.5 rounded-lg hover:bg-white text-[#0A0A0A]/70"><LinkIcon className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => insertAtCursor('\n<blockquote>Citazione</blockquote>\n')} title="Citazione"
+                    className="p-1.5 px-2 rounded-lg hover:bg-white text-[#0A0A0A]/70 text-xs">""</button>
+                  <div className="mx-1 h-5 w-px bg-[#0A0A0A]/15" />
+                  <label className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white text-[#0A0A0A]/70 cursor-pointer text-xs">
+                    <ImageIcon className="w-4 h-4" />
+                    <span>{uploading === "inline" ? "..." : "Immagine"}</span>
+                    <input
+                      data-testid="upload-inline-image"
+                      type="file" accept="image/*" className="hidden"
+                      onChange={e => e.target.files?.[0] && uploadImage("inline", e.target.files[0])}
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {/* Editor */}
+                  <textarea data-testid="form-contenuto" value={form.contenuto} required
+                    ref={contenutoRef}
+                    onChange={e => setForm({...form, contenuto:e.target.value})} rows={20}
+                    placeholder='<p>Scrivi qui il contenuto in HTML. Usa la toolbar per formattare, aggiungere titoli, liste, link e immagini.</p>'
+                    className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] resize-none font-mono" />
+
+                  {/* Live preview */}
+                  <div data-testid="live-preview" className="rounded-xl border border-[#0A0A0A]/10 bg-[#FAF9F6] p-5 overflow-auto max-h-[500px]">
+                    <div className="text-[10px] uppercase tracking-widest text-[#0A0A0A]/40 mb-3">Anteprima</div>
+                    {form.titolo && <h1 className="font-serif text-2xl text-[#0A0A0A] leading-tight mb-3">{form.titolo}</h1>}
+                    {form.immagine_url && (
+                      <img src={form.immagine_url.startsWith('http') ? form.immagine_url : `${API.replace('/api','')}${form.immagine_url}`}
+                        alt="cover" className="w-full h-40 object-cover rounded-lg mb-4" />
+                    )}
+                    <div className="prose prose-sm max-w-none text-[#0A0A0A]" {...safeHtml(form.contenuto || '<p class="text-gray-400">L\'anteprima apparirà qui man mano che scrivi...</p>')} />
+                  </div>
+                </div>
               </div>
+
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setShowForm(false)}
                   className="px-5 py-2.5 border border-[#0A0A0A]/15 rounded-full text-[#0A0A0A] hover:bg-[#0A0A0A]/5">
@@ -276,7 +420,11 @@ export default function AdminBlogPage() {
               <div className="text-sm text-[#0A0A0A]/55 mb-4">
                 di <strong>{preview.autore_nome}</strong> · {new Date(preview.created_at).toLocaleDateString("it-IT")}
               </div>
-              <div className="prose text-[#0A0A0A] text-sm leading-relaxed whitespace-pre-wrap">{preview.contenuto}</div>
+              {preview.immagine_url && (
+                <img src={preview.immagine_url.startsWith('http') ? preview.immagine_url : `${API.replace('/api','')}${preview.immagine_url}`}
+                  alt={preview.titolo} className="w-full h-48 object-cover rounded-xl mb-4" />
+              )}
+              <div className="prose text-[#0A0A0A] text-sm leading-relaxed max-w-none" {...safeHtml(preview.contenuto)} />
             </div>
             {preview.stato === "bozza" && (
               <div className="flex justify-end gap-3 p-6 border-t border-[#0A0A0A]/10">

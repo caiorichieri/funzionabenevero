@@ -1,13 +1,21 @@
 """Blog router: therapist articles + admin approval + public feed."""
+import logging
+import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import Response
 
 from deps import db, require_auth, require_admin
 from models import ArticoloInput
+from storage_service import put_object, get_object, mime_for_ext, APP_NAME as STORAGE_APP
 
 router = APIRouter()
+
+_BLOG_ALLOWED_MIME = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+_BLOG_MAX_IMG_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 @router.get("/blog")
@@ -85,3 +93,58 @@ async def public_blog():
     for d in docs:
         d["_id"] = str(d["_id"])
     return docs
+
+
+# ─── Blog inline image upload (admin/therapist) ───────────────────────────
+@router.post("/blog/upload-image")
+async def upload_blog_image(file: UploadFile = File(...), user: dict = Depends(require_auth)):
+    """Upload an inline image for a blog article. Returns a public URL to embed in the HTML.
+    Available to therapists (own articles) and admins."""
+    if user["role"] not in ("admin", "terapeuta"):
+        raise HTTPException(403, "Accesso negato")
+    ext = _BLOG_ALLOWED_MIME.get(file.content_type)
+    if not ext:
+        raise HTTPException(400, "Formato non supportato. Usa JPG, PNG, WEBP o GIF.")
+    data = await file.read()
+    if len(data) > _BLOG_MAX_IMG_BYTES:
+        raise HTTPException(400, f"Immagine troppo grande. Max {_BLOG_MAX_IMG_BYTES // (1024*1024)}MB.")
+    if len(data) == 0:
+        raise HTTPException(400, "File vuoto")
+
+    filename = f"{uuid.uuid4().hex}{ext}"
+    storage_path = f"{STORAGE_APP}/blog/{filename}"
+    try:
+        put_object(storage_path, data, file.content_type)
+    except Exception as e:
+        logging.exception(f"[STORAGE] blog image upload failed: {e}")
+        raise HTTPException(503, "Impossibile caricare l'immagine. Riprova.")
+    # Persist mapping so /media/blog/{filename} can look up the object storage path
+    await db.blog_media.insert_one({
+        "filename": filename,
+        "storage_path": storage_path,
+        "content_type": file.content_type,
+        "size": len(data),
+        "uploaded_by": user["_id"],
+        "uploaded_at": datetime.now(timezone.utc),
+    })
+    return {"url": f"/api/media/blog/{filename}", "filename": filename}
+
+
+@router.get("/media/blog/{filename}")
+async def get_blog_image(filename: str):
+    """Public: serves a blog inline image (jpg/png/webp/gif) from Object Storage."""
+    if "/" in filename or ".." in filename:
+        raise HTTPException(400, "Invalid filename")
+    doc = await db.blog_media.find_one({"filename": filename}, {"storage_path": 1, "content_type": 1})
+    if not doc or not doc.get("storage_path"):
+        raise HTTPException(404, "Image not found")
+    try:
+        data, ct = get_object(doc["storage_path"])
+    except Exception as e:
+        logging.warning(f"[STORAGE] blog image fetch failed: {e}")
+        raise HTTPException(404, "Image not found")
+    return Response(
+        content=data,
+        media_type=ct or doc.get("content_type") or mime_for_ext(Path(filename).suffix),
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
