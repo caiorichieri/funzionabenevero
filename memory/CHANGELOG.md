@@ -135,3 +135,20 @@
 - Testado: upload de imagem 322 bytes → obj storage → URL público → 200 OK; screenshot do editor split-view valida a renderização correta de `<h2>`, `<strong>`, `<em>`, `<ul>` etc.
 - 15/15 smoke tests continuam a passar.
 
+
+## 2026-02-22 — Contatore "Da Rivedere" in Sidebar + Modelli Articoli Blog
+
+### Contatore Da Rivedere (sidebar admin)
+- **Backend**: novo endpoint `GET /api/admin/terapisti/count-da-rivedere` que retorna `{count: N}` para terapeutas com `approval_status="pronto_per_review"`.
+- **Frontend** (`Sidebar.jsx`): a voce "Terapisti" agora tem `badgeKey: "terapistiPending"`. O poll (a cada 60s) chama os dois endpoints em paralelo (recensioni + terapisti da rivedere). Screenshot confirma o badge vermelho com "1" quando existe um terapeuta em espera de revisão.
+
+### Modelli Articoli Blog (3 templates pre-fatti)
+- **Novo file** `/app/frontend/src/data/blogTemplates.js` com 3 templates HTML:
+  - **Case Study** — struttura clinica anonima: quadro iniziale → cornice teorica → percorso → momento di svolta → risultati → riflessioni.
+  - **Guida Clinica** — di cosa parliamo → come si manifesta → cause (psicologiche/fisiologiche/relazionali) → come si affronta → quando rivolgersi a uno specialista.
+  - **Ricerca / Approfondimento** — il fenomeno → cosa dice la ricerca (studi + meta-analisi) → implicazioni cliniche → conclusioni → riferimenti.
+- **Frontend** (`admin/BlogPage.jsx`): novo card horizontal "Parti da un modello (opzionale)" com 3 botões (cor gradient laranja/giallo). Só aparece quando `!editing`. Um click pre-preenche titolo, contenuto (~1500-2000 caratteri de HTML pronto) e tags. Confirma antes de sobrescrever se o utilizador já tiver escrito algo.
+- Screenshot valida: click em "Guida Clinica" → 1899 caratteres inseridos + preview renderiza `<h2>`, listas, sezioni corretamente.
+
+15/15 smoke tests continuam a passar. Cleanup do terapeuta de teste feito.
+

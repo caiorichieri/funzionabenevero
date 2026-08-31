@@ -10,7 +10,7 @@ import {
 const ADMIN_MENU = [
   { to: "/admin", icon: LayoutDashboard, label: "Panoramica", exact: true },
   { to: "/admin/calendario", icon: CalendarDays, label: "Calendario Terapisti" },
-  { to: "/admin/terapisti", icon: UserCheck, label: "Terapisti" },
+  { to: "/admin/terapisti", icon: UserCheck, label: "Terapisti", badgeKey: "terapistiPending" },
   { to: "/admin/pazienti", icon: Users, label: "Pazienti" },
   { to: "/admin/appuntamenti", icon: Calendar, label: "Appuntamenti" },
   { to: "/admin/pagamenti", icon: Wallet, label: "Pagamenti" },
@@ -41,7 +41,7 @@ const PATIENT_MENU = [
 export default function Sidebar({ onClose }) {
   const { user } = useAuth();
   const location = useLocation();
-  const [badges, setBadges] = useState({ reviews: 0 });
+  const [badges, setBadges] = useState({ reviews: 0, terapistiPending: 0 });
 
   useEffect(() => {
     if (user?.role !== "admin") return;
@@ -51,6 +51,12 @@ export default function Sidebar({ onClose }) {
         .get(`${API}/admin/reviews/count-pending`, { withCredentials: true })
         .then((r) => {
           if (!cancelled) setBadges((b) => ({ ...b, reviews: r.data?.count || 0 }));
+        })
+        .catch(() => {});
+      axios
+        .get(`${API}/admin/terapisti/count-da-rivedere`, { withCredentials: true })
+        .then((r) => {
+          if (!cancelled) setBadges((b) => ({ ...b, terapistiPending: r.data?.count || 0 }));
         })
         .catch(() => {});
     };

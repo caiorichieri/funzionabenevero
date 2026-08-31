@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Plus, CheckCircle, XCircle, Trash2, Eye, Clock, X, Edit2, Image as ImageIcon, Bold, Italic, List, Link as LinkIcon } from "lucide-react";
+import { Plus, CheckCircle, XCircle, Trash2, Eye, Clock, X, Edit2, Image as ImageIcon, Bold, Italic, List, Link as LinkIcon, LayoutTemplate } from "lucide-react";
 import { safeHtml } from "@/utils/safeHtml";
+import { BLOG_TEMPLATES } from "@/data/blogTemplates";
 
 const CATEGORIE = ["Sessuologia","Terapia di coppia","Disfunzioni sessuali","Relazioni","Salute mentale","Altro"];
 
@@ -147,6 +148,19 @@ export default function AdminBlogPage() {
     wrapSelection(`<a href="${href}" target="_blank" rel="noopener">`, "</a>");
   };
 
+  const applyTemplate = (tpl) => {
+    // If the user already typed something, ask before overwriting
+    if ((form.titolo && form.titolo !== EMPTY.titolo) || (form.contenuto && form.contenuto.trim())) {
+      if (!window.confirm(`Sostituire il contenuto attuale con il template "${tpl.label}"?`)) return;
+    }
+    setForm(f => ({
+      ...f,
+      titolo: tpl.titolo,
+      contenuto: tpl.contenuto,
+      tags: tpl.tags || f.tags,
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -278,6 +292,30 @@ export default function AdminBlogPage() {
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
+
+              {/* Template picker — only visible when creating a new article */}
+              {!editing && (
+                <div className="border border-[#0A0A0A]/10 rounded-2xl p-4 bg-gradient-to-br from-[#F58A1F]/5 to-[#F5D419]/5" data-testid="template-picker">
+                  <div className="flex items-center gap-2 mb-3">
+                    <LayoutTemplate className="w-4 h-4 text-[#F58A1F]" />
+                    <span className="text-sm font-medium text-[#0A0A0A]">Parti da un modello (opzionale)</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {BLOG_TEMPLATES.map(tpl => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        data-testid={`template-${tpl.id}`}
+                        onClick={() => applyTemplate(tpl)}
+                        className="text-left p-3 rounded-xl border border-[#0A0A0A]/10 bg-white hover:border-[#F58A1F] hover:shadow-sm transition-all"
+                      >
+                        <div className="text-sm font-semibold text-[#0A0A0A]">{tpl.label}</div>
+                        <div className="text-xs text-[#0A0A0A]/55 mt-1 leading-snug">{tpl.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Meta row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

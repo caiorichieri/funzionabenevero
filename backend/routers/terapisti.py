@@ -456,6 +456,14 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
 
 
 # ─── Admin: therapist approval + documents review & verification ─────────────
+@router.get("/admin/terapisti/count-da-rivedere")
+async def count_terapisti_da_rivedere(user: dict = Depends(require_admin)):
+    """Count therapists who have completed onboarding and are waiting for the admin's
+    final review (documenti_verificati toggle). Used for the sidebar badge."""
+    count = await db.terapisti.count_documents({"approval_status": "pronto_per_review"})
+    return {"count": count}
+
+
 @router.patch("/admin/terapisti/{terapista_user_id}/approva")
 async def approva_terapista(terapista_user_id: str, user: dict = Depends(require_admin)):
     await db.users.update_one(
