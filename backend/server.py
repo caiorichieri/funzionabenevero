@@ -528,7 +528,7 @@ async def dynamic_sitemap():
 
     # Published blog posts
     try:
-        articoli = await db.articoli.find({"pubblicato": True}).to_list(500)
+        articoli = await db.articoli.find({"stato": "pubblicato"}).to_list(500)
         for a in articoli:
             aid = str(a.get("_id"))
             lm = a.get("updated_at") or a.get("created_at")
