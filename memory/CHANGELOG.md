@@ -152,3 +152,24 @@
 
 15/15 smoke tests continuam a passar. Cleanup do terapeuta de teste feito.
 
+
+## 2026-02-22 — Analizzatore SEO in tempo reale (Yoast-style)
+- **Nuovo componente** `/app/frontend/src/components/admin/BlogSeoAnalyzer.jsx` (self-contained, zero backend calls, zero librerie extra):
+  - Score 0-100 con cerchio colorato (verde ≥70, amber ≥50, rosso <50).
+  - Input "focus keyword" — abilita 4 check aggiuntivi.
+  - **10 check totali** che si aggiornano ad ogni keystroke:
+    1. Focus keyword nel titolo (peso 15)
+    2. Focus keyword nel primo paragrafo (peso 10)
+    3. Focus keyword in almeno un H2 (peso 10)
+    4. Densità della keyword 0.5-2.5% (peso 15, penalizza troppo bassa e troppo alta = keyword-stuffing)
+    5. Lunghezza titolo 30-60 caratteri (peso 10, avviso se troncato oltre 60)
+    6. Lunghezza meta description 120-160 (peso 10; usa `excerpt` o primo paragrafo come proxy)
+    7. Lunghezza contenuto ≥300 parole (peso 15, ottimo se ≥600)
+    8. Struttura headings — almeno 2 H2 (peso 10)
+    9. Almeno un'immagine con alt text (peso 10)
+    10. Almeno un link nel contenuto (peso 5)
+  - Ogni check ha icona (CheckCircle2 / AlertCircle / XCircle) e messaggio in italiano naturale ("Titolo un po' lungo (61). Google può troncarlo dopo 60.").
+- **Integrazione** (`admin/BlogPage.jsx`): l'analyzer è nella colonna destra del modal, sopra la live preview. Sempre visibile durante la scrittura.
+- Testato: template "Guida Clinica" + keyword "anorgasmia" → score 55 con breakdown corretto di tutti i 10 check.
+- Zero impact backend, zero call di rete. 15/15 smoke tests continuam a passar.
+

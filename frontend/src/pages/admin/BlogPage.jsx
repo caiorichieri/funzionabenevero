@@ -4,6 +4,7 @@ import { API } from "@/contexts/AuthContext";
 import { Plus, CheckCircle, XCircle, Trash2, Eye, Clock, X, Edit2, Image as ImageIcon, Bold, Italic, List, Link as LinkIcon, LayoutTemplate } from "lucide-react";
 import { safeHtml } from "@/utils/safeHtml";
 import { BLOG_TEMPLATES } from "@/data/blogTemplates";
+import BlogSeoAnalyzer from "@/components/admin/BlogSeoAnalyzer";
 
 const CATEGORIE = ["Sessuologia","Terapia di coppia","Disfunzioni sessuali","Relazioni","Salute mentale","Altro"];
 
@@ -411,15 +412,18 @@ export default function AdminBlogPage() {
                     placeholder='<p>Scrivi qui il contenuto in HTML. Usa la toolbar per formattare, aggiungere titoli, liste, link e immagini.</p>'
                     className="w-full px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] resize-none font-mono" />
 
-                  {/* Live preview */}
-                  <div data-testid="live-preview" className="rounded-xl border border-[#0A0A0A]/10 bg-[#FAF9F6] p-5 overflow-auto max-h-[500px]">
-                    <div className="text-[10px] uppercase tracking-widest text-[#0A0A0A]/40 mb-3">Anteprima</div>
-                    {form.titolo && <h1 className="font-serif text-2xl text-[#0A0A0A] leading-tight mb-3">{form.titolo}</h1>}
-                    {form.immagine_url && (
-                      <img src={form.immagine_url.startsWith('http') ? form.immagine_url : `${API.replace('/api','')}${form.immagine_url}`}
-                        alt="cover" className="w-full h-40 object-cover rounded-lg mb-4" />
-                    )}
-                    <div className="prose prose-sm max-w-none text-[#0A0A0A]" {...safeHtml(form.contenuto || '<p class="text-gray-400">L\'anteprima apparirà qui man mano che scrivi...</p>')} />
+                  {/* Right column: SEO analyzer + live preview */}
+                  <div className="space-y-3">
+                    <BlogSeoAnalyzer titolo={form.titolo} contenuto={form.contenuto} />
+                    <div data-testid="live-preview" className="rounded-xl border border-[#0A0A0A]/10 bg-[#FAF9F6] p-5 overflow-auto max-h-[400px]">
+                      <div className="text-[10px] uppercase tracking-widest text-[#0A0A0A]/40 mb-3">Anteprima</div>
+                      {form.titolo && <h1 className="font-serif text-2xl text-[#0A0A0A] leading-tight mb-3">{form.titolo}</h1>}
+                      {form.immagine_url && (
+                        <img src={form.immagine_url.startsWith('http') ? form.immagine_url : `${API.replace('/api','')}${form.immagine_url}`}
+                          alt="cover" className="w-full h-40 object-cover rounded-lg mb-4" />
+                      )}
+                      <div className="prose prose-sm max-w-none text-[#0A0A0A]" {...safeHtml(form.contenuto || '<p class="text-gray-400">L\'anteprima apparirà qui man mano che scrivi...</p>')} />
+                    </div>
                   </div>
                 </div>
               </div>
