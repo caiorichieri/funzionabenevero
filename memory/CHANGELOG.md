@@ -103,3 +103,13 @@
 - **Login gate** (`auth.py`): terapeutas com `approval_status ∈ {"approvato","verified","in_onboarding","pronto_per_review"}` conseguem logar; `"lead"`/`"pending"` continuam bloqueados.
 - **Testes**: E2E via curl validado — candidatura pública → admin activa → link magic verify → completa activation → login com nova senha. 15/15 smoke tests continuam a passar. Frontend validado com Playwright (badges, botão Attiva, página `/attiva-account` estados válido/inválido).
 
+
+## 2026-02-22 — Blog seed automático (bug fix produção)
+- **Root cause**: em produção `/blog` e `/admin/blog` estavam vazios porque os 15 artigos "sessuologia-html-v1" existiam apenas na base de dados de preview e não havia mecanismo de seed automático.
+- **Fix**: exportei os 15 artigos existentes para `/app/backend/data/blog_seed.json` (27 KB) e adicionei `_seed_blog_articles()` como função idempotente no startup do FastAPI.
+  - Só semeia se `seed_source="sessuologia-html-v1"` não existir (admin pode apagar/editar sem re-seed).
+  - Parseia datas ISO → datetime, força `stato="pubblicato"` como default.
+  - Testado: 2 restarts consecutivos → continua 15 artigos (sem duplicação).
+- **Bug secundário fixado**: o endpoint `GET /api/sitemap.xml` filtrava blog posts por `pubblicato=True` (campo inexistente); o campo correto é `stato="pubblicato"`. Agora o sitemap inclui 15 blog posts + 1 terapeuta verificado.
+- 15/15 smoke tests continuam a passar.
+

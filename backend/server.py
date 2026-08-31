@@ -1283,6 +1283,7 @@ async def startup():
     await _seed_default_contract()
     await _seed_legal_documents()
     await _seed_registro_trattamenti()
+    await _seed_blog_articles()
 
     # Initialize Emergent Object Storage (used for therapist verification documents)
     try:
@@ -1308,6 +1309,45 @@ async def startup():
         {"$set": {"documenti_verificati": True}},
     )
     start_scheduler()
+
+
+async def _seed_blog_articles():
+    """Idempotent: seed the initial batch of blog articles from data/blog_seed.json.
+    Runs only when the collection has none of the seed_source='sessuologia-html-v1' docs
+    (allows admins to delete or rewrite them without them coming back)."""
+    import json as _json
+    seed_key = "sessuologia-html-v1"
+    already = await db.articoli.count_documents({"seed_source": seed_key})
+    if already > 0:
+        return
+    seed_path = Path(__file__).resolve().parent / "data" / "blog_seed.json"
+    if not seed_path.exists():
+        logging.warning(f"[SEED] blog seed file missing: {seed_path}")
+        return
+    try:
+        raw = _json.loads(seed_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        logging.error(f"[SEED] blog seed parse failed: {e}")
+        return
+    if not raw:
+        return
+    now = datetime.now(timezone.utc)
+    docs = []
+    for a in raw:
+        for k in ("created_at", "updated_at", "approvato_il"):
+            v = a.get(k)
+            if isinstance(v, str):
+                try:
+                    a[k] = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                except Exception:
+                    a[k] = now
+        a.setdefault("created_at", now)
+        a.setdefault("stato", "pubblicato")
+        docs.append(a)
+    if docs:
+        await db.articoli.insert_many(docs)
+        logging.info(f"[SEED] inserted {len(docs)} blog articles from seed_key={seed_key}")
+
 
 
 async def _seed_default_contract():
