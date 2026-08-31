@@ -1139,8 +1139,6 @@ _cors_origins = list({
     "http://localhost:3000",
     "https://funzionabene.friulion.it",
     "https://www.funzionabene.friulion.it",
-    "https://portugues-writer-2.preview.emergentagent.com",
-    "https://portugues-writer-2.emergent.host",
     *_extra_origins,
 })
 logging.info(f"[CORS] Allowed origins: {_cors_origins}")

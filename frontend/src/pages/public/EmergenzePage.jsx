@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AlertTriangle, Phone, Heart, Shield, ExternalLink, ArrowLeft } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
+import SEO from "@/components/shared/SEO";
 
 const NUMBERS = [
   {
@@ -62,6 +63,7 @@ const NUMBERS = [
 export default function EmergenzePage() {
   return (
     <main className="min-h-[calc(100vh-80px)] bg-transparent relative overflow-hidden" data-testid="emergenze-page">
+      <SEO title="Emergenze e Numeri Utili" description="Numeri utili e linee di ascolto per emergenze psicologiche, violenza, stalking e crisi suicidarie. Assistenza immediata 24/7." path="/emergenze" />
       {/* Continuous atmospheric backdrop */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true"><div className="absolute -top-32 -left-32 w-[700px] h-[700px] rounded-full bg-[#0A0A0A]/6 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-[800px] h-[800px] rounded-full bg-[#6B8FA3]/22 blur-3xl" />

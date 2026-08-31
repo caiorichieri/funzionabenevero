@@ -1,82 +1,70 @@
-"""Emergent Object Storage helper — used to archive legally-binding PDF receipts.
+"""S3 Object Storage helper — used to archive legally-binding PDF receipts and
+signed contracts (fatture, legal signatures).
 
-Storage init is idempotent; the storage_key is cached in-memory for the process
-lifetime. Paths follow the convention: funzionabene/<subfolder>/<uuid>.<ext>.
+Storage client is a boto3 S3 client pointed at Host.it Object Storage
+(S3-compatible), cached in-memory for the process lifetime. Paths follow the
+convention: funzionabene/<subfolder>/<filename>.
 """
 import os
 import logging
-import requests
 from typing import Tuple
 
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
-APP_NAME = "funzionabene"
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError
 
-_storage_key: str | None = None
+S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY")
+S3_ENDPOINT = os.environ.get("S3_ENDPOINT")
+S3_REGION = os.environ.get("S3_REGION", "eu-it-trn-1")
+S3_DOCS_BUCKET = os.environ.get("S3_DOCS_BUCKET", "funzionabene-docs")
+
+_s3_client = None
 
 
-def _get_emergent_key() -> str:
-    key = os.environ.get("EMERGENT_LLM_KEY")
-    if not key:
-        raise RuntimeError("EMERGENT_LLM_KEY not configured in backend/.env")
-    return key
-
-
-def init_storage() -> str:
-    """Initialize the storage session. Cached — safe to call repeatedly."""
-    global _storage_key
-    if _storage_key:
-        return _storage_key
-    resp = requests.post(
-        f"{STORAGE_URL}/init",
-        json={"emergent_key": _get_emergent_key()},
-        timeout=30,
+def _get_client():
+    """Return a cached boto3 S3 client. Raises if S3 credentials are missing."""
+    global _s3_client
+    if _s3_client is not None:
+        return _s3_client
+    if not (S3_ACCESS_KEY and S3_SECRET_KEY and S3_ENDPOINT):
+        raise RuntimeError(
+            "S3_ACCESS_KEY, S3_SECRET_KEY and S3_ENDPOINT must be configured in backend/.env"
+        )
+    _s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
+        endpoint_url=S3_ENDPOINT,
+        region_name=S3_REGION,
+        config=Config(signature_version="s3v4"),
     )
-    resp.raise_for_status()
-    _storage_key = resp.json()["storage_key"]
-    logging.info("[OBJSTORE] session initialized")
-    return _storage_key
+    logging.info("[OBJSTORE] S3 client initialized (bucket=%s)", S3_DOCS_BUCKET)
+    return _s3_client
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
-    """Upload bytes. Returns {"path": <canonical>, "size": int, "etag": str}."""
-    key = init_storage()
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data,
-        timeout=120,
+    """Upload bytes to S3. Returns {"path": <canonical>, "size": int}."""
+    client = _get_client()
+    client.put_object(
+        Bucket=S3_DOCS_BUCKET,
+        Key=path,
+        Body=data,
+        ContentType=content_type,
     )
-    if resp.status_code == 403:
-        # session expired — force refresh
-        global _storage_key
-        _storage_key = None
-        key = init_storage()
-        resp = requests.put(
-            f"{STORAGE_URL}/objects/{path}",
-            headers={"X-Storage-Key": key, "Content-Type": content_type},
-            data=data,
-            timeout=120,
-        )
-    resp.raise_for_status()
-    return resp.json()
+    logging.info("[OBJSTORE] put_object path=%s size=%d", path, len(data))
+    return {"path": path, "size": len(data)}
 
 
 def get_object(path: str) -> Tuple[bytes, str]:
     """Download bytes for path. Returns (content, content_type)."""
-    key = init_storage()
-    resp = requests.get(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key},
-        timeout=60,
-    )
-    if resp.status_code == 403:
-        global _storage_key
-        _storage_key = None
-        key = init_storage()
-        resp = requests.get(
-            f"{STORAGE_URL}/objects/{path}",
-            headers={"X-Storage-Key": key},
-            timeout=60,
-        )
-    resp.raise_for_status()
-    return resp.content, resp.headers.get("Content-Type", "application/pdf")
+    client = _get_client()
+    try:
+        resp = client.get_object(Bucket=S3_DOCS_BUCKET, Key=path)
+    except ClientError:
+        logging.exception("[OBJSTORE] get_object failed path=%s", path)
+        raise
+    content = resp["Body"].read()
+    content_type = resp.get("ContentType", "application/pdf")
+    logging.info("[OBJSTORE] get_object path=%s size=%d", path, len(content))
+    return content, content_type

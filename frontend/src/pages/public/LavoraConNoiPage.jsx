@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Award, BookOpen, Heart, Sparkles } from "lucide-react";
 import Mascotte from "@/components/shared/Mascotte";
+import SEO from "@/components/shared/SEO";
 
 const ROLES = [
   {
@@ -67,6 +68,7 @@ const ROLES = [
 export default function LavoraConNoiPage() {
   return (
     <main className="min-h-[calc(100vh-80px)] relative bg-transparent overflow-hidden" data-testid="lavora-page">
+      <SEO title="Lavora con Noi" description="Unisciti al team di psicologi e sessuologi di FunzionaBene. Scopri come candidarti per lavorare con noi online." path="/lavora-con-noi" />
       {/* Hero */}
       <section className="relative max-w-5xl mx-auto px-6 lg:px-10 py-20 lg:py-28">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#0A0A0A]/60 hover:text-[#0A0A0A] mb-10 transition-colors">

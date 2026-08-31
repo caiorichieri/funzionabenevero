@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import LegalLayout from "@/components/public/LegalLayout";
+import SEO from "@/components/shared/SEO";
 import { TITOLARE } from "@/data/legalInfo";
 
 /**
@@ -27,11 +28,13 @@ export default function MandatoLegalePage() {
     : null;
 
   return (
-    <LegalLayout
-      title={contract?.title || "Mandato all'incasso"}
-      lastUpdate={lastUpdate}
-      testId="mandato-legale-page"
-    >
+    <>
+      <SEO title="Mandato all'Incasso" description="Testo del mandato all'incasso con rappresentanza tra FunzionaBene e i professionisti sanitari della piattaforma." path="/mandato-legale" />
+      <LegalLayout
+        title={contract?.title || "Mandato all'incasso"}
+        lastUpdate={lastUpdate}
+        testId="mandato-legale-page"
+      >
       <div className="mb-8 p-5 rounded-2xl bg-white/40 border border-[#0A0A0A]/10">
         <p className="text-sm text-[#0A0A0A]/80 mb-0">
           Questa pagina riproduce il <strong>contratto quadro</strong> che regola il rapporto tra <strong>{TITOLARE.nome}</strong>
@@ -74,5 +77,6 @@ export default function MandatoLegalePage() {
         deve ri-accettarla al successivo accesso. Le versioni precedenti sono conservate immutabili come traccia legale.
       </p>
     </LegalLayout>
+    </>
   );
 }

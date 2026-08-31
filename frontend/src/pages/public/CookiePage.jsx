@@ -1,4 +1,5 @@
 import LegalLayout from "@/components/public/LegalLayout";
+import SEO from "@/components/shared/SEO";
 import { useState, useEffect } from "react";
 import { getCookiePreferences, setCookiePreferences, clearCookieConsent } from "@/utils/cookieConsent";
 
@@ -44,7 +45,9 @@ export default function CookiePage() {
   };
 
   return (
-    <LegalLayout title="Cookie Policy" lastUpdate="19 aprile 2026" testId="cookie-page">
+    <>
+      <SEO title="Cookie Policy" description="Informativa sui cookie utilizzati da FunzionaBene: essenziali, di analisi e di marketing." path="/cookie" />
+      <LegalLayout title="Cookie Policy" lastUpdate="19 aprile 2026" testId="cookie-page">
       <p>
         Il sito <strong>funzionabene.it</strong> utilizza cookie e tecnologie simili per garantire il funzionamento
         del sito, migliorare l&apos;esperienza utente e (solo con il tuo consenso) analizzare il traffico.
@@ -136,5 +139,6 @@ export default function CookiePage() {
         I cookie non essenziali richiedono consenso (art. 7 GDPR), revocabile in qualsiasi momento tramite questa pagina.
       </p>
     </LegalLayout>
+    </>
   );
 }
