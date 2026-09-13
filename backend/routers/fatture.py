@@ -248,7 +248,7 @@ async def _generate_fatture_commissione_mensile(year: int, month: int) -> list[d
             },
             cedente_display=("<b>BIDOC SRL</b><br/>Marchio: Funzionabene<br/>"
                               "P.IVA/CF 01985930930<br/>REA PN-377600<br/>"
-                              "Via Mazzini 62, 33097 Spilimbergo (PN)<br/>PEC bidocsrl@pecimprese.it"),
+                              "P.za I Maggio, 2/interno 2, 33097 Spilimbergo (PN)<br/>PEC bidocsrl@pecimprese.it"),
             cessionario_display=_safe_html_block(
                 f"<b>{escape(terapeuta.get('nome',''))} {escape(terapeuta.get('cognome',''))}</b>",
                 f"P.IVA {escape(terapeuta.get('partita_iva',''))}",

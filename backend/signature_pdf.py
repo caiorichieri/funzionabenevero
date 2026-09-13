@@ -120,7 +120,7 @@ def generate_signature_receipt(
     titolare_data = [
         ["Ragione sociale:", "BIDOC SRL"],
         ["Marchio commerciale:", "Funzionabene"],
-        ["Sede legale:", "Via Mazzini, 62 — 33097 Spilimbergo (PN) — Italia"],
+        ["Sede legale:", "P.za I Maggio, 2/interno 2 — 33097 Spilimbergo (PN) — Italia"],
         ["P. IVA / C.F.:", "01985930930"],
         ["Iscrizione REA:", "PN-377600"],
         ["PEC:", "bidocsrl@pecimprese.it"],

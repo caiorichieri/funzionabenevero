@@ -39,7 +39,7 @@ def _issuer_therapist(t: dict) -> str:
 def _issuer_bidoc() -> str:
     return "<br/>".join([
         "<b>BIDOC SRL</b>",
-        "Via Mazzini, 62 · 33097 Spilimbergo (PN)",
+        "P.za I Maggio, 2/interno 2 · 33097 Spilimbergo (PN)",
         "P.IVA: 01985930930",
         "Marchio: <i>Funzionabene</i>",
     ])

@@ -4,9 +4,6 @@ import {
   ArrowRight, ShieldCheck, Heart, Award, Lock, Sparkles, Check, X,
   Quote, AlertCircle, MessageCircle
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { API } from "@/contexts/AuthContext";
 import { AREE_INTERVENTO, AREE_CATEGORIE, TESTIMONIANZE } from "@/data/areeIntervento";
 import Mascotte from "@/components/shared/Mascotte";
 import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
@@ -68,12 +65,6 @@ const NON_SERVE_LIST = [
 ];
 
 export default function HomePage() {
-  const [terapisti, setTerapisti] = useState([]);
-
-  useEffect(() => {
-    axios.get(`${API}/public/terapisti`).then(r => setTerapisti(r.data.slice(0, 3))).catch(() => {});
-  }, []);
-
   return (
     <main data-testid="homepage" className="relative bg-transparent overflow-hidden">
       <SEO
@@ -495,57 +486,73 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ────────── THERAPISTS PREVIEW ────────── */}
-      {terapisti.length > 0 && (
-        <section className="max-w-7xl mx-auto px-6 lg:px-10 py-24 lg:py-32" data-testid="therapists-preview">
-          <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
-            <div>
-              <span className="text-[#0A0A0A] text-xs tracking-[0.25em] uppercase">I nostri specialisti</span>
-              <h2 className="mt-4 font-serif text-4xl lg:text-5xl text-[#0A0A0A]">Professionisti, umani.</h2>
+      {/* ────────── I NOSTRI TERAPEUTI — impactful narrative ────────── */}
+      <section className="max-w-7xl mx-auto px-6 lg:px-10 py-24 lg:py-32" data-testid="therapists-narrative">
+        <div className="max-w-3xl mb-16">
+          <span className="text-[#0A0A0A] text-xs tracking-[0.25em] uppercase">I nostri professionisti</span>
+          <h2 className="mt-4 font-serif text-4xl lg:text-5xl text-[#0A0A0A] leading-tight">
+            Non "prendiamo tutti".<br/>
+            <em className="text-[#6B8FA3]">Scegliamo, uno per uno.</em>
+          </h2>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-10 lg:gap-12 mb-16">
+          <div className="text-center md:text-left" data-testid="therapist-pillar-ascolto">
+            <div className="flex justify-center md:justify-start mb-6">
+              <Mascotte name="pensativo" theme="light" size={130} animation="breathe" />
             </div>
-            <Link to="/questionario" className="text-sm text-[#6B8FA3] hover:text-[#94B2C2] tracking-wide">
-              Trova il tuo sessuologo →
-            </Link>
+            <h3 className="font-serif text-2xl text-[#0A0A0A] mb-3">Chi sa ascoltare davvero</h3>
+            <p className="text-[15px] text-[#0A0A0A]/70 leading-relaxed">
+              Non giudica, non interrompe, non ha fretta. Sta in silenzio con te finché la parola arriva. È la prima cosa che valutiamo prima di dire di sì a un/a professionista.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {terapisti.map((t, i) => (
-              <motion.div
-                key={t._id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                data-testid={`therapist-preview-${i}`}
-                className="p-8 brand-card"
-              >
-                {t.foto_url ? (
-                  <img src={t.foto_url} alt={`${t.nome} ${t.cognome}`} className="w-20 h-20 rounded-full object-cover border border-[#0A0A0A]/10 mb-6" />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#0A0A0A]/10 to-[#6B8FA3]/15 border border-[#0A0A0A]/10 flex items-center justify-center mb-6">
-                    <span className="font-serif text-3xl text-[#0A0A0A]">
-                      {(t.nome || "?")[0]}{(t.cognome || "?")[0]}
-                    </span>
-                  </div>
-                )}
-                <h3 className="font-serif text-2xl text-[#0A0A0A]">Dr. {t.nome} {t.cognome}</h3>
-                <p className="text-xs tracking-[0.15em] uppercase text-[#6B8FA3] mt-1">
-                  {t.anni_esperienza ? `${t.anni_esperienza} anni di esperienza` : "Specialista"}
-                </p>
-                {Array.isArray(t.specializzazioni) && t.specializzazioni.length > 0 && (
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {t.specializzazioni.slice(0, 2).map((s) => (
-                      <span key={s} className="text-xs px-3 py-1 rounded-full bg-white text-[#0A0A0A] border border-[#0A0A0A]/15">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            ))}
+          <div className="text-center md:text-left" data-testid="therapist-pillar-competenza">
+            <div className="flex justify-center md:justify-start mb-6">
+              <Mascotte name="sereno" theme="light" size={130} animation="breathe" />
+            </div>
+            <h3 className="font-serif text-2xl text-[#0A0A0A] mb-3">Iper-specializzato in sessuologia</h3>
+            <p className="text-[15px] text-[#0A0A0A]/70 leading-relaxed">
+              Iscritto/a all'Albo degli Psicologi e con formazione specifica in sessuologia clinica. Non "psicologo generalista che tratta anche sessualità". <strong>Solo sessuologia.</strong>
+            </p>
           </div>
-        </section>
-      )}
+
+          <div className="text-center md:text-left" data-testid="therapist-pillar-accoglienza">
+            <div className="flex justify-center md:justify-start mb-6">
+              <Mascotte name="abbraccio" theme="light" size={130} animation="breathe" />
+            </div>
+            <h3 className="font-serif text-2xl text-[#0A0A0A] mb-3">Che ti accoglie come sei</h3>
+            <p className="text-[15px] text-[#0A0A0A]/70 leading-relaxed">
+              Etero, gay, lesbica, bisex, pansex, asex. In coppia, in tre, da sole. Con disabilità, con storie difficili, con desideri che pensavi di non poter dire. <em>Qui c'è spazio.</em>
+            </p>
+          </div>
+        </div>
+
+        <div className="max-w-3xl mx-auto md:mx-0 border-t border-[#0A0A0A]/15 pt-10">
+          <p className="text-lg lg:text-xl text-[#0A0A0A] leading-relaxed font-serif">
+            Ogni professionista che entra in FunzionaBene passa da un colloquio con la nostra direzione clinica, una verifica dell'iscrizione all'Albo e una revisione dei suoi anni di pratica in sessuologia.
+            <span className="block mt-4 text-[#6B8FA3]">
+              Solo <strong className="text-[#0A0A0A]">1 su 8</strong> dei professionisti che si candidano viene ammesso.
+            </span>
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Link
+              to="/questionario"
+              data-testid="cta-questionario"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#0A0A0A] text-white rounded-full font-medium hover:bg-[#1C1C1C] transition-colors"
+            >
+              Trova il tuo sessuologo
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/chi-siamo"
+              className="text-sm text-[#6B8FA3] hover:text-[#94B2C2] tracking-wide"
+            >
+              Come scegliamo i professionisti →
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ────────── CTA BAND ────────── */}
       <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-24 lg:pb-32" data-testid="cta-band">

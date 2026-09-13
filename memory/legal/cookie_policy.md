@@ -7,7 +7,7 @@ _Redatta in conformità alle Linee Guida del Garante Privacy del 10 giugno 2021 
 ## 1. Titolare del trattamento
 
 **BIDOC SRL**
-- Sede legale: Via Mazzini, 62 – 33097 Spilimbergo (PN)
+- Sede legale: P.za I Maggio, 2/interno 2 – 33097 Spilimbergo (PN)
 - P. IVA e C.F.: 01985930930
 - Iscrizione REA: PN-377600
 - PEC: bidocsrl@pecimprese.it

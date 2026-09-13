@@ -1358,7 +1358,7 @@ async def _seed_default_contract():
         return
     default_html = """
 <h2>Mandato all'incasso con Rappresentanza</h2>
-<p><strong>Tra il Terapeuta</strong> — professionista sanitario iscritto all'Albo — <strong>e BIDOC SRL</strong>, con sede in Via Mazzini, 62 · Spilimbergo (PN) · P.IVA 01985930930, quale titolare del marchio <em>Funzionabene</em> (di seguito "la Piattaforma").</p>
+<p><strong>Tra il Terapeuta</strong> — professionista sanitario iscritto all'Albo — <strong>e BIDOC SRL</strong>, con sede in P.za I Maggio, 2/interno 2 · 33097 Spilimbergo (PN) · P.IVA 01985930930, quale titolare del marchio <em>Funzionabene</em> (di seguito "la Piattaforma").</p>
 
 <h3>1. Natura del rapporto</h3>
 <p>La Piattaforma opera in <strong>mandato all'incasso con rappresentanza</strong> per conto del Terapeuta, ai sensi degli artt. 1703 e ss. c.c.. La Piattaforma non è parte del contratto sanitario tra Terapeuta e paziente: essa svolge esclusivamente attività di intermediazione tecnica, gestione dell'agenda, incasso e ripasso dei corrispettivi.</p>

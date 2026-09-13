@@ -173,3 +173,18 @@
 - Testato: template "Guida Clinica" + keyword "anorgasmia" → score 55 con breakdown corretto di tutti i 10 check.
 - Zero impact backend, zero call di rete. 15/15 smoke tests continuam a passar.
 
+
+## 2026-02-22 — Home narrative rework + hide "Mandato Legale" + endereço BIDOC
+- **Homepage**: sostituita la sezione "Professionisti, umani" (che listava 3 terapeuti reali) con una nuova sezione narrativa **"Non 'prendiamo tutti'. Scegliamo, uno per uno."** con:
+  - 3 pilastri illustrati da mascotte (`pensativo`, `sereno`, `abbraccio` in tema `light`, animation `breathe`): "Chi sa ascoltare davvero", "Iper-specializzato in sessuologia", "Che ti accoglie come sei".
+  - Frase finale d'impatto: *"Solo 1 su 8 dei professionisti che si candidano viene ammesso."*
+  - CTA principale al questionario + link secondario "Come scegliamo i professionisti" a `/chi-siamo`.
+  - Rimosso lo state `terapisti` + il fetch a `/api/public/terapisti` (non più necessari).
+- **Footer** (`PublicLayout.jsx`): rimosso il link "Mandato legale" dalla sezione Legale.
+- **Endereço BIDOC** aggiornato da `Via Mazzini, 62` a `P.za I Maggio, 2/interno 2` in:
+  - `frontend/src/data/legalInfo.js` (fonte unica per il frontend).
+  - Backend Python: `server.py`, `fatturazione.py`, `signature_pdf.py`, `registro_pdf.py`, `invoice_pdf.py`, `email_service.py`, `routers/fatture.py`, `routers/legal_signature.py`.
+  - Documenti legali sorgente in `/app/memory/legal/*.md` (7 file: privacy visitatori/pazienti/terapeuti, cookie, termini pazienti, contratto collaborazione, PIANO).
+- **Azione richiesta dopo il deploy**: l'admin deve andare in `/admin/contratti` e cliccare "Ripubblica" per ognuno dei 6 documenti legali per rigenerare la versione con il nuovo indirizzo (il seed è idempotente: se esiste già una versione non la sovrascrive).
+- 15/15 smoke tests continuano a passar.
+

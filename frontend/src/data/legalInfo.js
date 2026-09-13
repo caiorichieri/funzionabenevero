@@ -5,7 +5,7 @@
 export const TITOLARE = {
   nome: "BIDOC SRL",
   brand: "Funzionabene",
-  via: "Via Mazzini, 62",
+  via: "P.za I Maggio, 2/interno 2",
   cap: "33097",
   citta: "Spilimbergo (PN)",
   pIva: "01985930930",

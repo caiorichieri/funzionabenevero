@@ -22,7 +22,7 @@ Ai fini della presente informativa il trattamento dei dati personali del Pazient
 ### A.1 Titolare del trattamento
 
 **BIDOC SRL**
-- Sede legale: Via Mazzini, 62 – 33097 Spilimbergo (PN)
+- Sede legale: P.za I Maggio, 2/interno 2 – 33097 Spilimbergo (PN)
 - P. IVA e Codice Fiscale: 01985930930
 - Iscrizione REA: PN-377600
 - PEC: bidocsrl@pecimprese.it
@@ -167,7 +167,7 @@ L'Utente può in qualsiasi momento esercitare i diritti previsti dagli **artt. 1
 **Per i trattamenti di Sezione A (BIDOC SRL)** — richieste da inviare a:
 - Email: **privacy@bidoc.it**
 - PEC: bidocsrl@pecimprese.it
-- Posta: BIDOC SRL, Via Mazzini 62, 33097 Spilimbergo (PN)
+- Posta: BIDOC SRL, P.za I Maggio, 2/interno 2, 33097 Spilimbergo (PN)
 - oppure tramite l'apposita sezione **"Privacy e i miei dati"** disponibile nell'area personale dell'Utente sulla piattaforma.
 
 **Per i trattamenti di Sezione B (Terapeuta)** — richieste da inviare direttamente al Terapeuta secondo i contatti indicati sulla sua pagina profilo. In alternativa, l'Utente può indirizzare la richiesta a privacy@bidoc.it: BIDOC SRL provvederà a trasmetterla al Terapeuta competente entro 5 giorni lavorativi.

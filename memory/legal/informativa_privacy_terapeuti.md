@@ -18,7 +18,7 @@ La presente informativa è resa ai professionisti (psicologi, psicoterapeuti) ch
 ### 1.1 Titolare del trattamento
 
 **BIDOC SRL**
-- Sede legale: Via Mazzini, 62 – 33097 Spilimbergo (PN)
+- Sede legale: P.za I Maggio, 2/interno 2 – 33097 Spilimbergo (PN)
 - P. IVA e Codice Fiscale: 01985930930
 - Iscrizione REA: PN-377600
 - PEC: bidocsrl@pecimprese.it

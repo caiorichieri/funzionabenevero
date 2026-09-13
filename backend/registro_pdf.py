@@ -17,7 +17,7 @@ from reportlab.platypus import (
 
 BIDOC_TITOLARE = {
     "denominazione": "BIDOC S.R.L.",
-    "sede": "Via Mazzini, 62 — 33097 Spilimbergo (PN), Italia",
+    "sede": "P.za I Maggio, 2/interno 2 — 33097 Spilimbergo (PN), Italia",
     "piva_cf": "01985930930",
     "rea": "PN-377600",
     "pec": "bidocsrl@pecimprese.it",

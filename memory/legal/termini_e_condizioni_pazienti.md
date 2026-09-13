@@ -13,7 +13,7 @@ I presenti Termini e Condizioni (di seguito "**Termini**") disciplinano l'access
 La Piattaforma è gestita da:
 
 **BIDOC S.R.L.**
-- Sede legale: Via Mazzini, 62 – 33097 Spilimbergo (PN)
+- Sede legale: P.za I Maggio, 2/interno 2 – 33097 Spilimbergo (PN)
 - P. IVA e C.F.: 01985930930
 - Iscrizione REA: PN-377600
 - PEC: bidocsrl@pecimprese.it

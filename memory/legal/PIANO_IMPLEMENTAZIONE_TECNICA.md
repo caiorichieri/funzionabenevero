@@ -59,7 +59,7 @@ Aggiungere sezione **"Legale"** con link a:
 - **"Esercita i tuoi diritti GDPR"** → `/gdpr-richieste`
 
 Dati aziendali in footer:
-> BIDOC SRL — Via Mazzini 62, 33097 Spilimbergo (PN) — P. IVA 01985930930 — REA PN-377600 — PEC: bidocsrl@pecimprese.it — DPO: privacy@bidoc.it
+> BIDOC SRL — P.za I Maggio, 2/interno 2, 33097 Spilimbergo (PN) — P. IVA 01985930930 — REA PN-377600 — PEC: bidocsrl@pecimprese.it — DPO: privacy@bidoc.it
 
 ---
 

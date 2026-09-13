@@ -462,7 +462,7 @@ async def gdpr_export(user: dict = Depends(require_auth)):
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "titolare": {
             "ragione_sociale": "BIDOC SRL",
-            "sede": "Via Mazzini 62, 33097 Spilimbergo (PN)",
+            "sede": "P.za I Maggio, 2/interno 2, 33097 Spilimbergo (PN)",
             "p_iva": "01985930930",
             "dpo_email": "privacy@bidoc.it",
         },

@@ -293,7 +293,7 @@ async def send_password_reset_email(email: str, reset_url: str, nome: str = "") 
         </td></tr>
       </table>
       <p style="color:#0A0A0A;opacity:0.5;font-size:11px;margin-top:20px;">
-        BIDOC SRL · Via Mazzini 62 · Spilimbergo (PN) · funzionabene.it
+        BIDOC SRL · P.za I Maggio, 2/interno 2 · Spilimbergo (PN) · funzionabene.it
       </p>
     </td></tr>
   </table>
@@ -427,7 +427,7 @@ Gli appuntamenti già confermati saranno onorati; le prenotazioni future saranno
 </p>
 </td></tr>
 <tr><td style="padding:20px 40px;text-align:center;font-size:11px;color:rgba(230,226,216,0.3);">
-BIDOC SRL · P.IVA 01985930930 · Via Mazzini 62, 33097 Spilimbergo (PN)<br>
+BIDOC SRL · P.IVA 01985930930 · P.za I Maggio, 2/interno 2, 33097 Spilimbergo (PN)<br>
 Per assistenza: <a href="mailto:privacy@bidoc.it" style="color:rgba(230,226,216,0.5);">privacy@bidoc.it</a>
 </td></tr>
 </table></td></tr></table></body></html>"""

@@ -2,7 +2,7 @@
 
 **tra**
 
-**BIDOC S.R.L.** (di seguito anche "BIDOC" o "Piattaforma"), con sede legale in Via Mazzini, 62 – 33097 Spilimbergo (PN), P. IVA e Codice Fiscale 01985930930, iscritta al Registro delle Imprese al REA PN-377600, PEC bidocsrl@pecimprese.it, in persona del legale rappresentante pro tempore, che opera con il marchio commerciale **"Funzionabene"** attraverso il sito **www.funzionabene.it**;
+**BIDOC S.R.L.** (di seguito anche "BIDOC" o "Piattaforma"), con sede legale in P.za I Maggio, 2/interno 2 – 33097 Spilimbergo (PN), P. IVA e Codice Fiscale 01985930930, iscritta al Registro delle Imprese al REA PN-377600, PEC bidocsrl@pecimprese.it, in persona del legale rappresentante pro tempore, che opera con il marchio commerciale **"Funzionabene"** attraverso il sito **www.funzionabene.it**;
 
 **e**
 

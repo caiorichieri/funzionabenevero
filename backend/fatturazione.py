@@ -28,7 +28,7 @@ BIDOC = {
     "cf": "01985930930",
     "piva": "01985930930",
     "sede": {
-        "indirizzo": "Via Mazzini, 62",
+        "indirizzo": "P.za I Maggio, 2/interno 2",
         "cap": "33097",
         "comune": "Spilimbergo",
         "provincia": "PN",
