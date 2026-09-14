@@ -150,9 +150,6 @@ export default function IlNostroMondoPage() {
                   >
                     <h3 className="font-serif text-lg lg:text-xl text-[#0A0A0A] leading-snug">{m.title}</h3>
                     <p className="mt-2 text-sm text-[#0A0A0A]/65 leading-relaxed line-clamp-3">{m.desc}</p>
-                    <span className="mt-3 inline-flex items-center gap-1.5 text-xs tracking-wide text-[#0A0A0A] font-medium">
-                      Scopri <ArrowRight className="w-3 h-3" />
-                    </span>
                   </motion.div>
                 ) : (
                   <motion.h3
