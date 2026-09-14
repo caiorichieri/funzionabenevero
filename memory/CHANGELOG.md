@@ -188,3 +188,13 @@
 - **Azione richiesta dopo il deploy**: l'admin deve andare in `/admin/contratti` e cliccare "Ripubblica" per ognuno dei 6 documenti legali per rigenerare la versione con il nuovo indirizzo (il seed è idempotente: se esiste già una versione non la sovrascrive).
 - 15/15 smoke tests continuano a passar.
 
+
+## 2026-02-22 — Banner Trasparenza (Coesione Italia 21-27 · UE · Regione FVG) nel footer
+- **Nova imagem**: `/app/frontend/public/assets/coesione-italia-fvg.webp` (60 KB, striscia orizzontale con 4 loghi: Coesione Italia 21-27 FVG, Cofinanziato UE, Repubblica Italiana, Regione Autonoma FVG).
+- **Frontend** (`PublicLayout.jsx`): banner inserito nel footer tra il link "Scarica l'app" e la linha `border-t` que separa os dados BIDOC.
+  - Larghezza: `w-full` em mobile (100% do container com padding), `md:w-2/5` em desktop (40% do container `max-w-7xl`).
+  - Link: `<a href="https://www.bidoc.it/trasparenza" target="_blank" rel="noopener noreferrer">` com hover opacity + title tooltip.
+  - Alt text descrittivo per accessibilità e SEO.
+  - `loading="lazy"` per performance.
+- 15/15 smoke tests continuam a passar.
+
