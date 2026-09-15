@@ -198,3 +198,14 @@
   - `loading="lazy"` per performance.
 - 15/15 smoke tests continuam a passar.
 
+
+## 2026-02-22 — Bug fix: onboarding therapist não conseguia salvar dados do profilo
+- **Root cause**: o middleware `therapist_signature_gate` (server.py:1199) bloqueava todos os POST/PUT/PATCH/DELETE em `/api/*` para terapeutas sem os 4 contracts obrigatórios firmados — mas o allowlist só continha `/api/auth/`, `/api/contracts/`, `/api/legal-documents/`, `/api/upload/`. Isso criava um **catch-22**: para chegar à página de firma dos contracts o terapeuta precisava primeiro preencher o profilo, verificar telefone e assinar DPR 445, mas todos esses endpoints eram bloqueados com HTTP 403.
+- **Sintoma reportato pelo usuário**: "vem uma tela verde e não salvo os dados"  — na verdade era o erro 403 `"Devi firmare i documenti obbligatori..."` mas o frontend mascarava mal o feedback visual.
+- **Fix**: adicionadas 2 novas entradas ao `_SIGNATURE_ALLOWLIST_PREFIXES`:
+  - `/api/terapisti/me/` (documenti upload, telefono verify, DPR 445, onboarding-completato)
+  - `/api/terapisti/profilo/me` (save profile data — é o endpoint que estava em uso)
+- **Validado E2E**: candidatura → attiva → complete signup → PUT profilo com payload completo → HTTP 200 → dados persistem (bio, albo, prezzo, partita_iva, iban confirmados via GET subsequente).
+- 15/15 smoke tests continuam a passar.
+- **Ação necessária depois do deploy**: nenhum, o fix é retroativo — qualquer terapeuta preso em onboarding em produção agora conseguirá salvar dados.
+

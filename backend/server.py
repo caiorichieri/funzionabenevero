@@ -1163,11 +1163,20 @@ import jwt as _jwt
 
 # Endpoints therapists can ALWAYS access, even without signed docs (needed to
 # actually complete the signature flow, log out, view their profile, etc.).
+# During onboarding the therapist MUST be able to:
+#   - upload documents (POST /api/terapisti/me/documenti/{tipo})
+#   - verify phone (POST /api/terapisti/me/phone/...)
+#   - save profile data (PUT /api/terapisti/profilo/me)
+#   - sign DPR 445 (POST /api/terapisti/me/autocertificazione-dpr445)
+#   - mark onboarding complete (POST /api/terapisti/me/onboarding-completato)
+# All of these must happen BEFORE the contract signatures.
 _SIGNATURE_ALLOWLIST_PREFIXES = (
-    "/api/auth/",           # login, logout, /me
-    "/api/contracts/",      # sign, list pending
-    "/api/legal-documents/",  # read legal doc content (public reads)
-    "/api/upload/",         # file uploads used by signature flow
+    "/api/auth/",                       # login, logout, /me
+    "/api/contracts/",                  # sign, list pending
+    "/api/legal-documents/",            # read legal doc content (public reads)
+    "/api/upload/",                     # file uploads used by signature flow
+    "/api/terapisti/me/",               # therapist self-service during onboarding
+    "/api/terapisti/profilo/me",        # therapist profile save during onboarding
 )
 
 
