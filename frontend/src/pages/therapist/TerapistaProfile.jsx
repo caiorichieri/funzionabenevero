@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Save, Plus, Trash2, CheckCircle } from "lucide-react";
+import { Save, Plus, Trash2, CheckCircle, Clock } from "lucide-react";
 import OnboardingSection from "@/components/therapist/OnboardingSection";
 import { formatApiError } from "@/lib/apiError";
 
@@ -108,7 +108,21 @@ export default function TerapistaProfile() {
       />
 
       {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
-      {saved && <div data-testid="profile-saved" className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Profilo salvato con successo!</div>}
+      {saved && (
+        profilo?.approval_status === "approvato" ? (
+          <div data-testid="profile-saved" className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" /> Profilo salvato con successo!
+          </div>
+        ) : (
+          <div data-testid="profile-saved" className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm flex items-start gap-2">
+            <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <span>
+              <strong>Il tuo profilo è stato salvato con successo.</strong><br/>
+              A breve un amministratore verificherà i tuoi dati e documenti. Riceverai un'email di conferma dell'approvazione.
+            </span>
+          </div>
+        )
+      )}
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Dati personali */}
@@ -382,38 +396,54 @@ export default function TerapistaProfile() {
           </div>
         </div>
 
-        {/* Disponibilità */}
-        <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-[#0A0A0A] font-[Outfit]">Disponibilità Settimanale</h3>
-            <button type="button" onClick={addDisponibilita}
-              className="flex items-center gap-1 text-sm text-[#0A0A0A] hover:text-[#0A0A0A]/70">
-              <Plus className="w-4 h-4" /> Aggiungi
-            </button>
+        {/* Disponibilità — bloccata finché il profilo non è approvato */}
+        {profilo?.approval_status === "approvato" ? (
+          <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-[#0A0A0A] font-[Outfit]">Disponibilità Settimanale</h3>
+              <button type="button" onClick={addDisponibilita}
+                className="flex items-center gap-1 text-sm text-[#0A0A0A] hover:text-[#0A0A0A]/70">
+                <Plus className="w-4 h-4" /> Aggiungi
+              </button>
+            </div>
+            {form.disponibilita.length === 0 && (
+              <p className="text-sm text-[#0A0A0A]/55 text-center py-4">Nessuna disponibilità impostata. Clicca &quot;Aggiungi&quot; per iniziare.</p>
+            )}
+            <div className="space-y-3">
+              {form.disponibilita.map((d, i) => (
+                <div key={`${d.giorno}-${d.ora_inizio}-${i}`} className="flex items-center gap-3">
+                  <select value={d.giorno} onChange={e => updateDisp(i,"giorno",e.target.value)}
+                    className="flex-1 px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] bg-white">
+                    {GIORNI.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <input type="time" value={d.ora_inizio} onChange={e => updateDisp(i,"ora_inizio",e.target.value)}
+                    className="w-28 px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                  <span className="text-[#0A0A0A]/55 text-sm">→</span>
+                  <input type="time" value={d.ora_fine} onChange={e => updateDisp(i,"ora_fine",e.target.value)}
+                    className="w-28 px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                  <button type="button" onClick={() => removeDisponibilita(i)}
+                    className="p-2 rounded-xl hover:bg-red-50 text-[#0A0A0A]/50 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-          {form.disponibilita.length === 0 && (
-            <p className="text-sm text-[#0A0A0A]/55 text-center py-4">Nessuna disponibilità impostata. Clicca &quot;Aggiungi&quot; per iniziare.</p>
-          )}
-          <div className="space-y-3">
-            {form.disponibilita.map((d, i) => (
-              <div key={`${d.giorno}-${d.ora_inizio}-${i}`} className="flex items-center gap-3">
-                <select value={d.giorno} onChange={e => updateDisp(i,"giorno",e.target.value)}
-                  className="flex-1 px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] bg-white">
-                  {GIORNI.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-                <input type="time" value={d.ora_inizio} onChange={e => updateDisp(i,"ora_inizio",e.target.value)}
-                  className="w-28 px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
-                <span className="text-[#0A0A0A]/55 text-sm">→</span>
-                <input type="time" value={d.ora_fine} onChange={e => updateDisp(i,"ora_fine",e.target.value)}
-                  className="w-28 px-3 py-2.5 border border-[#0A0A0A]/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
-                <button type="button" onClick={() => removeDisponibilita(i)}
-                  className="p-2 rounded-xl hover:bg-red-50 text-[#0A0A0A]/50 hover:text-red-600">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+        ) : (
+          <div data-testid="disponibilita-locked" className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-5 h-5 text-amber-700" />
               </div>
-            ))}
+              <div>
+                <h3 className="font-semibold text-amber-900 font-[Outfit] mb-1">Disponibilità Settimanale — In attesa di approvazione</h3>
+                <p className="text-sm text-amber-900/80">
+                  Potrai impostare i tuoi orari di disponibilità <strong>solo dopo che un amministratore avrà verificato i tuoi documenti</strong>. Riceverai un'email di conferma non appena il tuo profilo sarà approvato.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         <button data-testid="save-profilo-btn" type="submit" disabled={saving}
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-[#F58A1F] to-[#F5D419] hover:from-[#E07A0F] hover:to-[#E5C419] text-[#0A0A0A] font-bold rounded-2xl shadow-md hover:shadow-lg transition-colors disabled:opacity-50">

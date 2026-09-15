@@ -1,5 +1,12 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — UX: Blocco Disponibilità + Messaggio Post-Salvataggio (P1)
+- **File**: `/app/frontend/src/pages/therapist/TerapistaProfile.jsx`.
+- **Change 1**: Il messaggio "Profilo salvato con successo!" ora, se il terapeuta non è ancora `approvato`, mostra: *"Il tuo profilo è stato salvato con successo. A breve un amministratore verificherà i tuoi dati e documenti. Riceverai un'email di conferma dell'approvazione."* Per terapeuti già approvati resta il messaggio breve.
+- **Change 2**: La sezione **"Disponibilità Settimanale"** è nascosta e sostituita da un banner ambrato *"In attesa di approvazione"* finché `approval_status !== "approvato"`. Impedisce al terapeuta di configurare orari prima che l'admin verifichi i documenti.
+- **Test**: Smoke test frontend OK (HTTP 200, nessun errore di compilazione).
+
+
 ## 2026-02 — Bug Fix: Green Screen on Save Profile (P0)
 - **Files**: `/app/frontend/src/lib/apiError.js` (new), `/app/frontend/src/pages/therapist/TerapistaProfile.jsx`, `/app/frontend/src/pages/patient/PazienteDashboard.jsx`, `/app/frontend/src/components/therapist/MandatoAcceptanceGate.jsx`.
 - **Issue**: Nuovi terapeuti che salvavano il profilo con Partita IVA o IBAN non validi vedevano tela verde/bianca invece del messaggio d'errore.
