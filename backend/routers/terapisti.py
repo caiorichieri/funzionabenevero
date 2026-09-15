@@ -571,9 +571,12 @@ async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = D
     }
     if verificato:
         # Final approval: lift the suspension applied during activation
+        # AND move approval_status from pronto_per_review → approvato so the
+        # "Da rivedere" badge disappears from the admin list.
         update["sospeso"] = False
         update["sospeso_at"] = None
         update["sospeso_by"] = None
+        update["approval_status"] = "approvato"
     await db.terapisti.update_one(
         {"_id": ObjectId(terapista_id)},
         {"$set": update},

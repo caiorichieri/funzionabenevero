@@ -1753,6 +1753,19 @@ async def seed_data():
             )
             logging.info(f"[SEED] Admin password resynced from env var for: {admin_email}")
 
+    # Idempotent migration: therapists already verified by admin but stuck with
+    # approval_status != "approvato" (bug fixed in 2026-02). Realigns them so the
+    # "Da rivedere" badge disappears from the admin list.
+    try:
+        stale_res = await db.terapisti.update_many(
+            {"documenti_verificati": True, "approval_status": {"$ne": "approvato"}},
+            {"$set": {"approval_status": "approvato"}},
+        )
+        if stale_res.modified_count:
+            logging.info(f"[MIGRATION] Realigned approval_status=approvato for {stale_res.modified_count} verified therapists")
+    except Exception as e:
+        logging.error(f"[MIGRATION] Realign approval_status failed: {e}")
+
     # Skip demo data in production. Set SEED_DEMO_DATA=true to enable in dev/staging.
     if os.environ.get("SEED_DEMO_DATA", "false").lower() != "true":
         logging.info("[SEED] SEED_DEMO_DATA is false — skipping demo therapists/patients/payouts")

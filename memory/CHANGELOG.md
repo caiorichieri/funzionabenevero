@@ -1,5 +1,16 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Bug Fix: Badge "Da Rivedere" Non Spariva Dopo Approvazione (P1)
+- **File**: `/app/backend/routers/terapisti.py` (endpoint `PATCH /admin/terapisti/{id}/verifica`), `/app/backend/server.py` (migrazione idempotente in `seed_data`).
+- **Issue**: Admin cliccava sul check verde per verificare i documenti del terapeuta ma il badge "Da rivedere" restava per sempre nell'elenco admin.
+- **Root cause**: L'endpoint di verifica aggiornava `approval_status="approvato"` solo in `db.users`, non in `db.terapisti`. Il frontend legge da `db.terapisti`, quindi il badge restava a `pronto_per_review`.
+- **Fix**:
+  1. L'endpoint verifica ora setta `approval_status="approvato"` anche in `db.terapisti`.
+  2. Aggiunta migrazione idempotente in `seed_data()`: al boot allinea i terapeuti con `documenti_verificati=True` ma `approval_status != "approvato"` (recupera lo stato in produzione).
+- **Test**: curl end-to-end su terapeuta di prova → `PATCH .../verifica {"verificato":true}` → risposta 200, status passa da `pronto_per_review` → `approvato`, `sospeso=False`.
+
+
+
 ## 2026-02 — UX: Blocco Disponibilità + Messaggio Post-Salvataggio (P1)
 - **File**: `/app/frontend/src/pages/therapist/TerapistaProfile.jsx`.
 - **Change 1**: Il messaggio "Profilo salvato con successo!" ora, se il terapeuta non è ancora `approvato`, mostra: *"Il tuo profilo è stato salvato con successo. A breve un amministratore verificherà i tuoi dati e documenti. Riceverai un'email di conferma dell'approvazione."* Per terapeuti già approvati resta il messaggio breve.
