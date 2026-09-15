@@ -4,6 +4,7 @@ import { API } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Save, Plus, Trash2, CheckCircle, Clock, Camera, X } from "lucide-react";
 import OnboardingSection from "@/components/therapist/OnboardingSection";
+import PhotoCropperModal from "@/components/shared/PhotoCropperModal";
 import { formatApiError } from "@/lib/apiError";
 
 const GIORNI = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
@@ -18,6 +19,7 @@ export default function TerapistaProfile() {
   const [error, setError] = useState("");
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState("");
+  const [cropperFile, setCropperFile] = useState(null);
 
   const [form, setForm] = useState({
     nome:"", cognome:"", telefono:"", bio:"", anni_esperienza:"",
@@ -93,7 +95,7 @@ export default function TerapistaProfile() {
   const removeDisponibilita = (i) => setForm(f => ({ ...f, disponibilita: f.disponibilita.filter((_,idx)=>idx!==i) }));
   const updateDisp = (i, k, v) => setForm(f => ({ ...f, disponibilita: f.disponibilita.map((d,idx)=>idx===i?{...d,[k]:v}:d) }));
 
-  const handlePhotoUpload = async (e) => {
+  const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -102,14 +104,22 @@ export default function TerapistaProfile() {
       setPhotoError("Formato non supportato. Usa JPG, PNG o WEBP.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoError("Immagine troppo grande. Max 5MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoError("Immagine troppo grande. Max 10MB prima del ritaglio.");
       return;
     }
+    // Open the 1:1 cropper — the confirmed blob will be uploaded via handleCroppedUpload
+    setCropperFile(file);
+  };
+
+  const handleCroppedUpload = async (blob) => {
+    setCropperFile(null);
     setPhotoUploading(true);
+    setPhotoError("");
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      // Server accepts JPG/PNG/WEBP; the cropper outputs JPEG at 512×512.
+      fd.append("file", new File([blob], "profile.jpg", { type: "image/jpeg" }));
       const res = await axios.post(`${API}/terapisti/me/foto`, fd, {
         withCredentials: true,
         headers: { "Content-Type": "multipart/form-data" },
@@ -213,7 +223,7 @@ export default function TerapistaProfile() {
                     disabled={photoUploading}
                   />
                 </label>
-                <p className="text-xs text-[#0A0A0A]/55 mt-2">JPG, PNG o WEBP · max 5MB. La foto sarà mostrata ai pazienti sul tuo profilo pubblico.</p>
+                <p className="text-xs text-[#0A0A0A]/55 mt-2">JPG, PNG o WEBP · potrai ritagliare e centrare la foto prima del caricamento.</p>
                 {photoError && <p data-testid="profilo-foto-error" className="text-xs text-red-600 mt-1.5">{photoError}</p>}
               </div>
             </div>
@@ -542,6 +552,14 @@ export default function TerapistaProfile() {
           {saving ? "Salvataggio..." : "Salva Profilo"}
         </button>
       </form>
+
+      {cropperFile && (
+        <PhotoCropperModal
+          file={cropperFile}
+          onCancel={() => setCropperFile(null)}
+          onConfirm={handleCroppedUpload}
+        />
+      )}
     </div>
   );
 }

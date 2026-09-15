@@ -1,5 +1,16 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Feature: Photo Cropper 1:1 + Foto Obbligatoria per Approvazione (P1)
+- **File**: `/app/frontend/src/components/shared/PhotoCropperModal.jsx` (nuovo), `/app/frontend/src/pages/therapist/TerapistaProfile.jsx`, `/app/frontend/src/pages/admin/TerapistiPage.jsx`, `/app/backend/routers/terapisti.py`.
+- **Feature 1 — Cropper 1:1**: Nuovo modal (`PhotoCropperModal`) basato su `react-easy-crop` con crop quadrato (aspect=1), maschera circolare, zoom slider, drag-to-pan. All'apertura del file il cropper compare, l'utente centra la foto e conferma. L'output è **JPEG 512×512 quality 0.85** (≈ 40–80KB), uniforme su tutto il sito.
+- **Feature 2 — Foto obbligatoria per approvazione**: L'endpoint `PATCH /admin/terapisti/{id}/verifica` ora rifiuta con HTTP 400 quando `foto_url` è vuoto ("Il terapeuta non ha ancora caricato la foto profilo…"). L'admin UI mostra un badge rosso "Manca foto" e disabilita il pulsante di approvazione (con tooltip esplicativo) fino a quando il terapeuta non carica la foto.
+- **Dipendenza aggiunta**: `react-easy-crop@6.2.3`.
+- **Test E2E via curl**:
+  - Approvazione senza foto → HTTP 400 con messaggio in italiano.
+  - Approvazione con `foto_url` popolato → HTTP 200 `{"message":"Aggiornato"}`.
+
+
+
 ## 2026-02 — Feature: Foto Profilo Terapeuta (P1)
 - **File**: `/app/backend/routers/terapisti.py` (nuovi endpoint), `/app/backend/server.py` (serve endpoint aggiornato), `/app/frontend/src/pages/therapist/TerapistaProfile.jsx` (UI upload).
 - **Feature**: Il terapeuta può ora caricare / cambiare / rimuovere la propria foto profilo direttamente dalla pagina "Il mio Profilo".

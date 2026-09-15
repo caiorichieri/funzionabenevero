@@ -618,6 +618,12 @@ async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = D
     t = await db.terapisti.find_one({"_id": ObjectId(terapista_id)})
     if not t:
         raise HTTPException(404, "Terapeuta non trovato")
+    if verificato and not t.get("foto_url"):
+        raise HTTPException(
+            400,
+            "Il terapeuta non ha ancora caricato la foto profilo. "
+            "Non è possibile approvarlo: verrebbe pubblicato senza foto.",
+        )
     was_verified = bool(t.get("documenti_verificati"))
     now = datetime.now(timezone.utc)
     update = {

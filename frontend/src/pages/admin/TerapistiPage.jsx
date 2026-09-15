@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
-import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle, UserPlus, Mail } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle, UserPlus, Mail, Camera } from "lucide-react";
+import { formatApiError } from "@/lib/apiError";
 
 const EMPTY_FORM = {
   nome: "", cognome: "", telefono: "", bio: "", anni_esperienza: "",
@@ -130,12 +131,23 @@ export default function TerapistiPage() {
 
   const handleToggleVerifica = async (t) => {
     const nextVal = !t.documenti_verificati;
+    if (nextVal && !t.foto_url) {
+      alert(
+        "Impossibile approvare: il terapeuta non ha ancora caricato la foto profilo.\n\n" +
+        "Un profilo senza foto verrebbe pubblicato vuoto sul sito. Chiedi al terapeuta di caricarla dal suo profilo prima di approvarlo."
+      );
+      return;
+    }
     const msg = nextVal
       ? "Confermi di aver verificato i documenti e rendi il terapeuta visibile nel sito pubblico?"
       : "Rimuovi la verifica: il terapeuta non sarà più visibile nel sito pubblico. Procedere?";
     if (!window.confirm(msg)) return;
-    await axios.patch(`${API}/admin/terapisti/${t._id}/verifica`, { verificato: nextVal }, { withCredentials: true });
-    load();
+    try {
+      await axios.patch(`${API}/admin/terapisti/${t._id}/verifica`, { verificato: nextVal }, { withCredentials: true });
+      load();
+    } catch (e) {
+      alert(formatApiError(e, "Errore durante l'operazione"));
+    }
   };
 
   const handleAttivaCandidato = async (t) => {
@@ -288,9 +300,15 @@ export default function TerapistiPage() {
                     ? <span data-testid={`badge-verificato-${t._id}`} className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"><ShieldCheck className="w-3 h-3" /> Pubblico</span>
                     : <span data-testid={`badge-non-verificato-${t._id}`} className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full"><ShieldX className="w-3 h-3" /> Non pubblico</span>
                   }
+                  {!t.foto_url && t.approval_status !== "lead" && (
+                    <span data-testid={`badge-no-foto-${t._id}`} className="flex items-center gap-1 text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-full" title="Foto profilo mancante — non può essere approvato">
+                      <Camera className="w-3 h-3" /> Manca foto
+                    </span>
+                  )}
                   <button data-testid={`toggle-verifica-${t._id}`} onClick={() => handleToggleVerifica(t)}
-                    className={`p-2 rounded-xl ${t.documenti_verificati ? "hover:bg-red-50 text-red-600" : "hover:bg-green-50 text-green-600"}`}
-                    title={t.documenti_verificati ? "Rimuovi verifica" : "Verifica documenti"}>
+                    disabled={!t.documenti_verificati && !t.foto_url}
+                    className={`p-2 rounded-xl transition-colors ${t.documenti_verificati ? "hover:bg-red-50 text-red-600" : "hover:bg-green-50 text-green-600 disabled:hover:bg-transparent disabled:text-[#0A0A0A]/25 disabled:cursor-not-allowed"}`}
+                    title={t.documenti_verificati ? "Rimuovi verifica" : (t.foto_url ? "Verifica documenti e pubblica" : "Impossibile approvare: manca la foto profilo")}>
                     {t.documenti_verificati ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                   </button>
                   <button data-testid={`edit-terapista-${t._id}`} onClick={() => openEdit(t)}
