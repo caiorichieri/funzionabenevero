@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Save, Plus, Trash2, CheckCircle, Clock } from "lucide-react";
+import { Save, Plus, Trash2, CheckCircle, Clock, Camera, X } from "lucide-react";
 import OnboardingSection from "@/components/therapist/OnboardingSection";
 import { formatApiError } from "@/lib/apiError";
 
@@ -16,6 +16,8 @@ export default function TerapistaProfile() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState("");
 
   const [form, setForm] = useState({
     nome:"", cognome:"", telefono:"", bio:"", anni_esperienza:"",
@@ -91,6 +93,46 @@ export default function TerapistaProfile() {
   const removeDisponibilita = (i) => setForm(f => ({ ...f, disponibilita: f.disponibilita.filter((_,idx)=>idx!==i) }));
   const updateDisp = (i, k, v) => setForm(f => ({ ...f, disponibilita: f.disponibilita.map((d,idx)=>idx===i?{...d,[k]:v}:d) }));
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoError("");
+    if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
+      setPhotoError("Formato non supportato. Usa JPG, PNG o WEBP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("Immagine troppo grande. Max 5MB.");
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await axios.post(`${API}/terapisti/me/foto`, fd, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setProfilo(p => ({ ...(p || {}), foto_url: res.data.foto_url }));
+    } catch (err) {
+      setPhotoError(formatApiError(err, "Errore nel caricamento della foto"));
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handlePhotoDelete = async () => {
+    if (!window.confirm("Rimuovere la foto profilo?")) return;
+    setPhotoError("");
+    try {
+      await axios.delete(`${API}/terapisti/me/foto`, { withCredentials: true });
+      setProfilo(p => ({ ...(p || {}), foto_url: null }));
+    } catch (err) {
+      setPhotoError(formatApiError(err, "Errore nella rimozione"));
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
@@ -128,6 +170,55 @@ export default function TerapistaProfile() {
         {/* Dati personali */}
         <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-6 shadow-sm">
           <h3 className="font-semibold text-[#0A0A0A] font-[Outfit] mb-4">Dati Personali</h3>
+
+          {/* Foto profilo */}
+          <div className="mb-6 pb-6 border-b border-[#0A0A0A]/8">
+            <label className="block text-sm font-medium text-[#0A0A0A] mb-3">Foto profilo</label>
+            <div className="flex items-center gap-5">
+              <div className="relative">
+                {profilo?.foto_url ? (
+                  <img
+                    data-testid="profilo-foto-preview"
+                    src={profilo.foto_url}
+                    alt="Foto profilo"
+                    className="w-24 h-24 rounded-2xl object-cover border border-[#0A0A0A]/15"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-2xl border border-dashed border-[#0A0A0A]/25 bg-[#0A0A0A]/[0.03] flex items-center justify-center text-[#0A0A0A]/40">
+                    <Camera className="w-8 h-8" />
+                  </div>
+                )}
+                {profilo?.foto_url && (
+                  <button
+                    type="button"
+                    data-testid="profilo-foto-remove"
+                    onClick={handlePhotoDelete}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-[#0A0A0A]/15 text-[#0A0A0A]/70 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center shadow-sm"
+                    title="Rimuovi foto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#0A0A0A] text-white rounded-xl text-sm font-medium cursor-pointer hover:bg-[#0A0A0A]/85 transition-colors disabled:opacity-50">
+                  <Camera className="w-4 h-4" />
+                  {photoUploading ? "Caricamento..." : (profilo?.foto_url ? "Cambia foto" : "Carica foto")}
+                  <input
+                    data-testid="profilo-foto-input"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                    disabled={photoUploading}
+                  />
+                </label>
+                <p className="text-xs text-[#0A0A0A]/55 mt-2">JPG, PNG o WEBP · max 5MB. La foto sarà mostrata ai pazienti sul tuo profilo pubblico.</p>
+                {photoError && <p data-testid="profilo-foto-error" className="text-xs text-red-600 mt-1.5">{photoError}</p>}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             {[["nome","Nome*"],["cognome","Cognome*"],["telefono","Telefono"],].map(([k,l]) => (
               <div key={k} className={k==="telefono"?"col-span-2 sm:col-span-1":""}>

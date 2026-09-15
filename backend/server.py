@@ -51,13 +51,31 @@ UPLOADS_DIR = Path(__file__).parent / "uploads"
 
 @api_router.get("/media/therapists/{filename}")
 async def get_therapist_photo(filename: str):
-    """Serve therapist photos. Whitelist-only for safety."""
+    """Serve therapist photos. Reads from Emergent Object Storage (new uploads)
+    with legacy fallback to pod disk (seed photos)."""
     if "/" in filename or ".." in filename:
         raise HTTPException(400, "Invalid filename")
+    ct_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+    ext = filename.rsplit(".", 1)[-1].lower()
+    media_type = ct_map.get(ext, "application/octet-stream")
+
+    # Preferred: Object Storage via foto_filename → foto_storage_path
+    doc = await db.terapisti.find_one({"foto_filename": filename}, {"foto_storage_path": 1})
+    if doc and doc.get("foto_storage_path"):
+        from storage_service import get_object
+        try:
+            data, ct = get_object(doc["foto_storage_path"])
+        except Exception as e:
+            logging.warning(f"[STORAGE] therapist photo fetch failed: {e}")
+            raise HTTPException(404, "Photo not found")
+        return Response(content=data, media_type=ct or media_type,
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+    # Legacy fallback: seed photos on pod disk
     path = UPLOADS_DIR / "therapists" / filename
     if not path.exists():
         raise HTTPException(404, "Photo not found")
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    return FileResponse(path, media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @api_router.get("/media/ambassadors/{filename}")

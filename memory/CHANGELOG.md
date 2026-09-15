@@ -1,5 +1,18 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Feature: Foto Profilo Terapeuta (P1)
+- **File**: `/app/backend/routers/terapisti.py` (nuovi endpoint), `/app/backend/server.py` (serve endpoint aggiornato), `/app/frontend/src/pages/therapist/TerapistaProfile.jsx` (UI upload).
+- **Feature**: Il terapeuta può ora caricare / cambiare / rimuovere la propria foto profilo direttamente dalla pagina "Il mio Profilo".
+- **Backend**:
+  - `POST /api/terapisti/me/foto`: upload multipart (JPG/PNG/WEBP, max 5MB). File salvato su **Emergent Object Storage** in `funzionabene/terapisti_photos/{filename}`. Aggiorna `foto_url`, `foto_filename`, `foto_storage_path` sul doc terapeuta.
+  - `DELETE /api/terapisti/me/foto`: rimuove i riferimenti alla foto (senza cancellare l'oggetto storage, permette rollback rapido).
+  - `GET /api/media/therapists/{filename}`: ora legge da Object Storage con fallback legacy al disk (per foto seed).
+  - Prefisso `/api/terapisti/me/` già in `_SIGNATURE_ALLOWLIST_PREFIXES`, quindi upload possibile anche durante l'onboarding.
+- **Frontend**: nuova sezione "Foto profilo" in cima ai "Dati Personali" con preview 96×96, pulsante Camera "Carica foto/Cambia foto", icona X per rimuovere. Validazione client-side (formato + 5MB) + messaggio errore leggibile.
+- **Test**: E2E via curl — upload 520B JPG → salvato in storage → `foto_url` popolato → `GET /api/media/therapists/{f}` → HTTP 200 image/jpeg. DELETE → `foto_url` diventa null.
+
+
+
 ## 2026-02 — Bug Fix: Badge "Da Rivedere" Non Spariva Dopo Approvazione (P1)
 - **File**: `/app/backend/routers/terapisti.py` (endpoint `PATCH /admin/terapisti/{id}/verifica`), `/app/backend/server.py` (migrazione idempotente in `seed_data`).
 - **Issue**: Admin cliccava sul check verde per verificare i documenti del terapeuta ma il badge "Da rivedere" restava per sempre nell'elenco admin.

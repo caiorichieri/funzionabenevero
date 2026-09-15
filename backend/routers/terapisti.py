@@ -127,6 +127,10 @@ ALLOWED_DOC_TYPES = {"cv", "assicurazione", "laurea"}
 ALLOWED_EXTS = {".pdf", ".png", ".jpg", ".jpeg"}
 MAX_DOC_SIZE = 10 * 1024 * 1024  # 10MB
 
+# ─── Profile photo constants ───────────────────────────────────────────────
+PHOTO_MIME_EXTS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5MB
+
 # ─── Slot helpers ─────────────────────────────────────────────────────────
 GIORNI_IT = {"Lunedì": 0, "Martedì": 1, "Mercoledì": 2, "Giovedì": 3,
              "Venerdì": 4, "Sabato": 5, "Domenica": 6}
@@ -169,6 +173,58 @@ async def update_my_terapista_profile(data: TerapistaProfileInput, user: dict = 
     doc = await db.terapisti.find_one({"user_id": user["_id"]})
     doc["_id"] = str(doc["_id"])
     return doc
+
+
+@router.post("/terapisti/me/foto")
+async def upload_my_terapista_foto(file: UploadFile = File(...), user: dict = Depends(require_auth)):
+    """Therapist uploads their profile photo. Stored in Emergent Object Storage.
+    Sets `foto_url`, `foto_filename`, `foto_storage_path` on the therapist doc."""
+    if user["role"] != "terapeuta":
+        raise HTTPException(403, "Solo i terapeuti possono caricare la foto profilo")
+    ext = PHOTO_MIME_EXTS.get(file.content_type or "")
+    if not ext:
+        raise HTTPException(400, "Formato non supportato. Usa JPG, PNG o WEBP.")
+    data = await file.read()
+    if len(data) > MAX_PHOTO_SIZE:
+        raise HTTPException(400, f"Immagine troppo grande. Max {MAX_PHOTO_SIZE // (1024*1024)}MB.")
+    if len(data) == 0:
+        raise HTTPException(400, "File vuoto")
+
+    filename = f"{user['_id']}-{uuid.uuid4().hex}{ext}"
+    storage_path = f"{STORAGE_APP}/terapisti_photos/{filename}"
+    try:
+        put_object(storage_path, data, file.content_type)
+    except Exception as e:
+        logging.exception(f"[STORAGE] therapist photo upload failed: {e}")
+        raise HTTPException(503, "Impossibile caricare la foto. Riprova.")
+
+    foto_url = f"/api/media/therapists/{filename}"
+    await db.terapisti.update_one(
+        {"user_id": user["_id"]},
+        {"$set": {
+            "foto_filename": filename,
+            "foto_storage_path": storage_path,
+            "foto_url": foto_url,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+        upsert=True,
+    )
+    return {"foto_url": foto_url}
+
+
+@router.delete("/terapisti/me/foto")
+async def delete_my_terapista_foto(user: dict = Depends(require_auth)):
+    """Therapist removes their profile photo. Storage object is left in place
+    (cheap and lets us restore quickly) but the therapist doc no longer references it."""
+    if user["role"] != "terapeuta":
+        raise HTTPException(403, "Accesso negato")
+    await db.terapisti.update_one(
+        {"user_id": user["_id"]},
+        {"$unset": {"foto_filename": "", "foto_storage_path": "", "foto_url": ""},
+         "$set": {"updated_at": datetime.now(timezone.utc)}},
+    )
+    return {"message": "Foto rimossa"}
+
 
 
 @router.get("/terapisti/me/documenti")
