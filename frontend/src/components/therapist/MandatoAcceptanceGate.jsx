@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { ScrollText, Check } from "lucide-react";
+import { formatApiError } from "@/lib/apiError";
 
 /**
  * Blocks the therapist dashboard until they accept the current version of the
@@ -62,7 +63,7 @@ export default function MandatoAcceptanceGate({ children }) {
       }, { withCredentials: true });
       setNeedsAcceptance(false);
     } catch (e) {
-      setError(e.response?.data?.detail || "Errore durante l'accettazione");
+      setError(formatApiError(e, "Errore durante l'accettazione"));
     } finally {
       setSubmitting(false);
     }

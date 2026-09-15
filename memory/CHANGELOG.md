@@ -1,5 +1,13 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Bug Fix: Green Screen on Save Profile (P0)
+- **Files**: `/app/frontend/src/lib/apiError.js` (new), `/app/frontend/src/pages/therapist/TerapistaProfile.jsx`, `/app/frontend/src/pages/patient/PazienteDashboard.jsx`, `/app/frontend/src/components/therapist/MandatoAcceptanceGate.jsx`.
+- **Issue**: Nuovi terapeuti che salvavano il profilo con Partita IVA o IBAN non validi vedevano tela verde/bianca invece del messaggio d'errore.
+- **Root cause**: FastAPI 422 restituisce `detail` come **array di oggetti Pydantic** (`{type, loc, msg, input, ctx, url}`). Il frontend faceva `setError(err.response.data.detail)` e poi lo renderizzava come figlio JSX → **React error #31** (crash del componente).
+- **Fix**: Nuovo helper `formatApiError(err, fallback)` che appiattisce array/oggetti Pydantic in stringhe leggibili nel formato `"campo: messaggio"`. Applicato in 3 componenti critici del flusso di onboarding + save profilo.
+- **Test**: Riprodotto 422 via curl con `partita_iva:"12345678900"` (checksum errato) → detail è array → helper restituisce `"partita_iva: Value error, Partita IVA italiana non valida: checksum errato."`. Save con payload valido: OK.
+
+
 ## 2026-02 — Bug Fix: Checkout Registration Consent (P0)
 - **File**: `/app/frontend/src/components/public/BookingSheet.jsx`
 - **Issue**: Nuovi utenti che si registravano dal BookingSheet pubblico ricevevano l'errore backend "I consensi obbligatori (privacy e termini) sono richiesti" anche spuntando il checkbox.

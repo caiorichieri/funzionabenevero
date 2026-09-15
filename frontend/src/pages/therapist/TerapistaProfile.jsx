@@ -4,6 +4,7 @@ import { API } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Save, Plus, Trash2, CheckCircle } from "lucide-react";
 import OnboardingSection from "@/components/therapist/OnboardingSection";
+import { formatApiError } from "@/lib/apiError";
 
 const GIORNI = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
 const GENERI_T = [{ v:"M",l:"Uomo" },{ v:"F",l:"Donna" },{ v:"Altro",l:"Non binario/Altro" }];
@@ -82,7 +83,7 @@ export default function TerapistaProfile() {
       setProfilo(res.data); setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      setError(err.response?.data?.detail || "Errore nel salvataggio");
+      setError(formatApiError(err, "Errore nel salvataggio"));
     } finally { setSaving(false); }
   };
 

@@ -5,6 +5,7 @@ import { API, useAuth } from "@/contexts/AuthContext";
 import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle } from "lucide-react";
 import ChatPanel from "@/components/shared/ChatPanel";
 import Mascotte from "@/components/shared/Mascotte";
+import { formatApiError } from "@/lib/apiError";
 
 function canJoin(dataOra, durata = 50) {
   const now = new Date();
@@ -70,7 +71,7 @@ export default function PazienteDashboard() {
       setProfilo(res.data); setSaved(true); setEditProfile(false);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      setCfError(err.response?.data?.detail || "Errore nel salvataggio");
+      setCfError(formatApiError(err, "Errore nel salvataggio"));
     } finally { setSaving(false); }
   };
 
