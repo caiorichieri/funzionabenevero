@@ -1,5 +1,18 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Feature: Admin Gestisce Documenti Terapeuta (P1)
+- **File**: `/app/backend/routers/terapisti.py` (nuovi endpoint admin), `/app/frontend/src/pages/admin/TerapistiPage.jsx`.
+- **Backend**:
+  - `POST /api/admin/terapisti/{id}/documenti/{tipo}` — admin carica/sostituisce CV, laurea, assicurazione (PDF/PNG/JPG, max 10MB → Emergent Object Storage). Traccia `uploaded_by="admin"` per audit.
+  - `DELETE /api/admin/terapisti/{id}/documenti/{tipo}` — admin rimuove il documento.
+- **Frontend Admin (Modal "Modifica Terapeuta")**: nuova sezione **"Documenti Terapeuta"** con 3 righe (CV / Laurea / Assicurazione RC). Ogni riga mostra: badge verde/rosso a seconda dello stato, filename+size, pulsante "Carica" o "Sostituisci", download link e trash. Docs caricati dall'admin sono marcati con "caricato da admin" per trasparenza.
+- **Test E2E via curl**:
+  - POST cv (808B PDF) → 200 · `documenti.cv` popolato con `uploaded_by="admin"`.
+  - DELETE cv → 200 `{"tipo":"cv"}`.
+- **UI verificata via screenshot**: sezione visibile e usabile dall'admin.
+
+
+
 ## 2026-02 — Feature: Foto Terapeuta Gestibile da Admin (P1)
 - **File**: `/app/backend/routers/terapisti.py` (nuovi endpoint admin), `/app/frontend/src/pages/admin/TerapistiPage.jsx`.
 - **Backend**:

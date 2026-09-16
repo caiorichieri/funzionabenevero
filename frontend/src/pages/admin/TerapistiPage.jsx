@@ -47,6 +47,9 @@ export default function TerapistiPage() {
   const [editFotoUploading, setEditFotoUploading] = useState(false);
   const [editFotoError, setEditFotoError] = useState("");
   const [adminCropperFile, setAdminCropperFile] = useState(null);
+  const [editDocs, setEditDocs] = useState({});
+  const [docUploading, setDocUploading] = useState(null); // tipo currently uploading
+  const [docError, setDocError] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -71,6 +74,13 @@ export default function TerapistiPage() {
     setEditing(t._id);
     setEditFotoUrl(t.foto_url || null);
     setEditFotoError("");
+    setEditDocs({});
+    setDocError("");
+    // Async: fetch documents metadata from the admin endpoint
+    axios
+      .get(`${API}/admin/terapisti/${t._id}/documenti`, { withCredentials: true })
+      .then((r) => setEditDocs(r.data?.documenti || {}))
+      .catch(() => setEditDocs({}));
     setForm({
       nome: t.nome || "", cognome: t.cognome || "", telefono: t.telefono || "",
       bio: t.bio || "", anni_esperienza: t.anni_esperienza || "",
@@ -150,6 +160,56 @@ export default function TerapistiPage() {
     }
   };
 
+  const DOC_TYPES = [
+    { key: "cv", label: "Curriculum Vitae" },
+    { key: "laurea", label: "Laurea / Diploma" },
+    { key: "assicurazione", label: "Assicurazione RC Professionale" },
+  ];
+
+  const handleDocUpload = async (tipo, e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !editing) return;
+    setDocError("");
+    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+    if (![".pdf", ".png", ".jpg", ".jpeg"].includes(ext)) {
+      setDocError("Formato non supportato. Usa PDF, PNG o JPG.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setDocError("File troppo grande (max 10MB).");
+      return;
+    }
+    setDocUploading(tipo);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      await axios.post(`${API}/admin/terapisti/${editing}/documenti/${tipo}`, fd, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const r = await axios.get(`${API}/admin/terapisti/${editing}/documenti`, { withCredentials: true });
+      setEditDocs(r.data?.documenti || {});
+    } catch (err) {
+      setDocError(formatApiError(err, "Errore nel caricamento del documento"));
+    } finally {
+      setDocUploading(null);
+    }
+  };
+
+  const handleDocDelete = async (tipo) => {
+    if (!editing) return;
+    if (!window.confirm(`Rimuovere il documento "${tipo}"?`)) return;
+    setDocError("");
+    try {
+      await axios.delete(`${API}/admin/terapisti/${editing}/documenti/${tipo}`, { withCredentials: true });
+      const r = await axios.get(`${API}/admin/terapisti/${editing}/documenti`, { withCredentials: true });
+      setEditDocs(r.data?.documenti || {});
+    } catch (err) {
+      setDocError(formatApiError(err, "Errore nella rimozione"));
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -170,7 +230,7 @@ export default function TerapistiPage() {
       setShowForm(false);
       load();
     } catch (err) {
-      setError(err.response?.data?.detail || "Errore nel salvataggio");
+      setError(formatApiError(err, "Errore nel salvataggio"));
     } finally {
       setSaving(false);
     }
@@ -593,6 +653,77 @@ export default function TerapistiPage() {
                       )}
                       {editFotoError && <p className="text-xs text-red-600 mt-1">{editFotoError}</p>}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Documenti (solo in modifica) */}
+              {editing && (
+                <div className="pb-4 border-b border-[#0A0A0A]/10">
+                  <div className="text-xs font-semibold text-[#0A0A0A]/55 uppercase tracking-wider mb-3">Documenti Terapeuta</div>
+                  {docError && <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">{docError}</div>}
+                  <div className="space-y-2">
+                    {DOC_TYPES.map(({ key, label }) => {
+                      const meta = editDocs[key];
+                      const uploading = docUploading === key;
+                      return (
+                        <div key={key} data-testid={`admin-doc-row-${key}`} className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${meta ? "border-green-200 bg-green-50/40" : "border-red-200 bg-red-50/30"}`}>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              {meta
+                                ? <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />}
+                              <span className="text-sm font-medium text-[#0A0A0A] truncate">{label}</span>
+                            </div>
+                            {meta ? (
+                              <div className="text-xs text-[#0A0A0A]/55 ml-6 truncate">
+                                {meta.filename || `${key}${meta.ext || ""}`}
+                                {meta.size ? ` · ${(meta.size / 1024).toFixed(0)}KB` : ""}
+                                {meta.uploaded_by === "admin" ? " · caricato da admin" : ""}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-red-600 ml-6">Non ancora caricato</div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {meta && (
+                              <a
+                                href={`${API}/admin/terapisti/${editing}/documenti/${key}/download`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                data-testid={`admin-doc-view-${key}`}
+                                className="p-2 rounded-lg hover:bg-white text-[#0A0A0A]/60 hover:text-[#0A0A0A]"
+                                title="Visualizza documento"
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                            )}
+                            <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0A0A0A] text-white rounded-lg text-xs font-medium cursor-pointer hover:bg-[#0A0A0A]/85 transition-colors">
+                              {uploading ? "..." : (meta ? "Sostituisci" : "Carica")}
+                              <input
+                                data-testid={`admin-doc-input-${key}`}
+                                type="file"
+                                accept="application/pdf,image/png,image/jpeg"
+                                className="hidden"
+                                onChange={(e) => handleDocUpload(key, e)}
+                                disabled={uploading}
+                              />
+                            </label>
+                            {meta && (
+                              <button
+                                type="button"
+                                data-testid={`admin-doc-delete-${key}`}
+                                onClick={() => handleDocDelete(key)}
+                                className="p-2 rounded-lg hover:bg-red-100 text-red-500"
+                                title="Rimuovi documento"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

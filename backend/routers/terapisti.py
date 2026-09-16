@@ -550,6 +550,77 @@ async def admin_list_terapista_docs(terapista_id: str, user: dict = Depends(requ
     }
 
 
+
+@router.post("/admin/terapisti/{terapista_id}/documenti/{tipo}")
+async def admin_upload_terapista_doc(
+    terapista_id: str,
+    tipo: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_admin),
+):
+    """Admin uploads or replaces a document for any therapist (CV, laurea,
+    assicurazione). Same validation and Object Storage path as the therapist
+    self-upload."""
+    tipo = tipo.lower().strip()
+    if tipo not in ALLOWED_DOC_TYPES:
+        raise HTTPException(400, f"Tipo documento non valido. Ammessi: {sorted(ALLOWED_DOC_TYPES)}")
+    try:
+        oid = ObjectId(terapista_id)
+    except Exception:
+        raise HTTPException(400, "ID non valido")
+    t = await db.terapisti.find_one({"_id": oid})
+    if not t or not t.get("user_id"):
+        raise HTTPException(404, "Terapeuta non trovato")
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_EXTS:
+        raise HTTPException(400, "Formato non supportato. Ammessi: PDF, PNG, JPG")
+    content = await file.read()
+    if len(content) > MAX_DOC_SIZE:
+        raise HTTPException(400, "File troppo grande (max 10MB)")
+    if len(content) == 0:
+        raise HTTPException(400, "File vuoto")
+
+    storage_path = f"{STORAGE_APP}/terapisti_docs/{t['user_id']}/{tipo}-{uuid.uuid4().hex}{ext}"
+    try:
+        result = put_object(storage_path, content, mime_for_ext(ext))
+    except Exception as e:
+        logging.exception(f"[STORAGE] admin doc upload failed {tipo}: {e}")
+        raise HTTPException(503, "Impossibile caricare il documento. Riprova.")
+    stored_path = result.get("path", storage_path)
+
+    now = datetime.now(timezone.utc)
+    await db.terapisti.update_one(
+        {"_id": oid},
+        {"$set": {
+            f"documenti.{tipo}": {
+                "filename": file.filename,
+                "ext": ext,
+                "size": len(content),
+                "storage_path": stored_path,
+                "uploaded_at": now,
+                "uploaded_by": "admin",
+                "uploaded_by_id": user["_id"],
+            }
+        }},
+    )
+    return {"message": "Documento caricato", "tipo": tipo, "size": len(content)}
+
+
+@router.delete("/admin/terapisti/{terapista_id}/documenti/{tipo}")
+async def admin_delete_terapista_doc(terapista_id: str, tipo: str, user: dict = Depends(require_admin)):
+    """Admin removes a therapist document (unset only, storage object left in place)."""
+    tipo = tipo.lower().strip()
+    if tipo not in ALLOWED_DOC_TYPES:
+        raise HTTPException(400, "Tipo non valido")
+    try:
+        oid = ObjectId(terapista_id)
+    except Exception:
+        raise HTTPException(400, "ID non valido")
+    await db.terapisti.update_one({"_id": oid}, {"$unset": {f"documenti.{tipo}": ""}})
+    return {"message": "Documento rimosso", "tipo": tipo}
+
+
 @router.get("/admin/terapisti/{terapista_id}/documenti/{tipo}/download")
 async def admin_download_terapista_doc(terapista_id: str, tipo: str, user: dict = Depends(require_admin)):
     tipo = tipo.lower().strip()
