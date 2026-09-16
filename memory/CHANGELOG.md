@@ -1,5 +1,19 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Feature: Foto Terapeuta Gestibile da Admin (P1)
+- **File**: `/app/backend/routers/terapisti.py` (nuovi endpoint admin), `/app/frontend/src/pages/admin/TerapistiPage.jsx`.
+- **Backend**:
+  - `POST /api/admin/terapisti/{id}/foto` — admin carica/sostituisce la foto di qualunque terapeuta (JPG/PNG/WEBP, max 5MB → Emergent Object Storage).
+  - `DELETE /api/admin/terapisti/{id}/foto` — admin rimuove la foto.
+- **Frontend Admin**:
+  - Nuova sezione "Foto Profilo" in cima al modal di modifica terapeuta con preview 80×80, pulsante "Carica foto/Cambia foto" e X per rimuovere.
+  - Riutilizza `PhotoCropperModal` per il ritaglio 1:1 (output JPEG 512×512).
+  - Placeholder rosso "Manca foto" quando assente + hint "senza foto non puoi approvare il terapeuta".
+  - Ricarica automaticamente la lista dopo upload/delete.
+- **Test E2E via curl**: admin POST foto → 200 + `foto_url`; admin DELETE foto → 200 `{"message":"Foto rimossa"}`. UI verificata via screenshot.
+
+
+
 ## 2026-02 — Feature: Photo Cropper 1:1 + Foto Obbligatoria per Approvazione (P1)
 - **File**: `/app/frontend/src/components/shared/PhotoCropperModal.jsx` (nuovo), `/app/frontend/src/pages/therapist/TerapistaProfile.jsx`, `/app/frontend/src/pages/admin/TerapistiPage.jsx`, `/app/backend/routers/terapisti.py`.
 - **Feature 1 — Cropper 1:1**: Nuovo modal (`PhotoCropperModal`) basato su `react-easy-crop` con crop quadrato (aspect=1), maschera circolare, zoom slider, drag-to-pan. All'apertura del file il cropper compare, l'utente centra la foto e conferma. L'output è **JPEG 512×512 quality 0.85** (≈ 40–80KB), uniforme su tutto il sito.

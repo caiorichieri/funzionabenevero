@@ -3,6 +3,7 @@ import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { Plus, Search, Edit2, Trash2, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, CheckCircle, XCircle, Download, PauseCircle, PlayCircle, UserPlus, Mail, Camera } from "lucide-react";
 import { formatApiError } from "@/lib/apiError";
+import PhotoCropperModal from "@/components/shared/PhotoCropperModal";
 
 const EMPTY_FORM = {
   nome: "", cognome: "", telefono: "", bio: "", anni_esperienza: "",
@@ -42,6 +43,10 @@ export default function TerapistiPage() {
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [error, setError] = useState("");
+  const [editFotoUrl, setEditFotoUrl] = useState(null);
+  const [editFotoUploading, setEditFotoUploading] = useState(false);
+  const [editFotoError, setEditFotoError] = useState("");
+  const [adminCropperFile, setAdminCropperFile] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -56,12 +61,16 @@ export default function TerapistiPage() {
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
+    setEditFotoUrl(null);
+    setEditFotoError("");
     setError("");
     setShowForm(true);
   };
 
   const openEdit = (t) => {
     setEditing(t._id);
+    setEditFotoUrl(t.foto_url || null);
+    setEditFotoError("");
     setForm({
       nome: t.nome || "", cognome: t.cognome || "", telefono: t.telefono || "",
       bio: t.bio || "", anni_esperienza: t.anni_esperienza || "",
@@ -89,6 +98,56 @@ export default function TerapistiPage() {
     });
     setError("");
     setShowForm(true);
+  };
+
+  const handleAdminPhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setEditFotoError("");
+    if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
+      setEditFotoError("Formato non supportato. Usa JPG, PNG o WEBP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setEditFotoError("Immagine troppo grande. Max 10MB.");
+      return;
+    }
+    setAdminCropperFile(file);
+  };
+
+  const handleAdminCroppedUpload = async (blob) => {
+    setAdminCropperFile(null);
+    if (!editing) return;
+    setEditFotoUploading(true);
+    setEditFotoError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", new File([blob], "profile.jpg", { type: "image/jpeg" }));
+      const res = await axios.post(`${API}/admin/terapisti/${editing}/foto`, fd, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setEditFotoUrl(res.data.foto_url);
+      load();
+    } catch (err) {
+      setEditFotoError(formatApiError(err, "Errore nel caricamento della foto"));
+    } finally {
+      setEditFotoUploading(false);
+    }
+  };
+
+  const handleAdminPhotoDelete = async () => {
+    if (!editing) return;
+    if (!window.confirm("Rimuovere la foto del terapeuta?")) return;
+    setEditFotoError("");
+    try {
+      await axios.delete(`${API}/admin/terapisti/${editing}/foto`, { withCredentials: true });
+      setEditFotoUrl(null);
+      load();
+    } catch (err) {
+      setEditFotoError(formatApiError(err, "Errore nella rimozione"));
+    }
   };
 
   const handleSave = async (e) => {
@@ -485,6 +544,59 @@ export default function TerapistiPage() {
             <form onSubmit={handleSave} className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
 
+              {/* Foto profilo (solo in modifica: serve un ID terapeuta) */}
+              {editing && (
+                <div className="pb-4 border-b border-[#0A0A0A]/10">
+                  <div className="text-xs font-semibold text-[#0A0A0A]/55 uppercase tracking-wider mb-3">Foto Profilo</div>
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      {editFotoUrl ? (
+                        <img
+                          data-testid="admin-foto-preview"
+                          src={editFotoUrl}
+                          alt="Foto terapeuta"
+                          className="w-20 h-20 rounded-2xl object-cover border border-[#0A0A0A]/15"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl border border-dashed border-red-300 bg-red-50/40 flex items-center justify-center text-red-500">
+                          <Camera className="w-6 h-6" />
+                        </div>
+                      )}
+                      {editFotoUrl && (
+                        <button
+                          type="button"
+                          data-testid="admin-foto-remove"
+                          onClick={handleAdminPhotoDelete}
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-[#0A0A0A]/15 text-[#0A0A0A]/70 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center shadow-sm"
+                          title="Rimuovi foto"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="inline-flex items-center gap-2 px-3 py-2 bg-[#0A0A0A] text-white rounded-xl text-xs font-medium cursor-pointer hover:bg-[#0A0A0A]/85 transition-colors">
+                        <Camera className="w-3.5 h-3.5" />
+                        {editFotoUploading ? "Caricamento..." : (editFotoUrl ? "Cambia foto" : "Carica foto")}
+                        <input
+                          data-testid="admin-foto-input"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={handleAdminPhotoSelect}
+                          disabled={editFotoUploading}
+                        />
+                      </label>
+                      <p className="text-xs text-[#0A0A0A]/55 mt-1.5">JPG, PNG o WEBP · verrà ritagliata in 1:1.</p>
+                      {!editFotoUrl && (
+                        <p className="text-xs text-red-600 mt-1">Manca la foto: senza foto non puoi approvare il terapeuta.</p>
+                      )}
+                      {editFotoError && <p className="text-xs text-red-600 mt-1">{editFotoError}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 {[["nome","Nome*"], ["cognome","Cognome*"]].map(([k,l]) => (
                   <div key={k}>
@@ -677,6 +789,14 @@ export default function TerapistiPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {adminCropperFile && (
+        <PhotoCropperModal
+          file={adminCropperFile}
+          onCancel={() => setAdminCropperFile(null)}
+          onConfirm={handleAdminCroppedUpload}
+        />
       )}
     </div>
   );

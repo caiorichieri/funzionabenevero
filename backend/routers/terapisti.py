@@ -611,6 +611,67 @@ async def sospendi_terapista(terapista_id: str, body: dict, user: dict = Depends
     return {"message": "Terapeuta sospeso" if sospeso else "Terapeuta riattivato", "sospeso": sospeso}
 
 
+@router.post("/admin/terapisti/{terapista_id}/foto")
+async def admin_upload_terapista_foto(
+    terapista_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_admin),
+):
+    """Admin uploads or replaces the profile photo of any therapist. Stored in
+    Emergent Object Storage (same location used by the therapist self-upload)."""
+    try:
+        oid = ObjectId(terapista_id)
+    except Exception:
+        raise HTTPException(400, "ID non valido")
+    t = await db.terapisti.find_one({"_id": oid})
+    if not t:
+        raise HTTPException(404, "Terapeuta non trovato")
+    ext = PHOTO_MIME_EXTS.get(file.content_type or "")
+    if not ext:
+        raise HTTPException(400, "Formato non supportato. Usa JPG, PNG o WEBP.")
+    data = await file.read()
+    if len(data) > MAX_PHOTO_SIZE:
+        raise HTTPException(400, f"Immagine troppo grande. Max {MAX_PHOTO_SIZE // (1024*1024)}MB.")
+    if len(data) == 0:
+        raise HTTPException(400, "File vuoto")
+
+    filename = f"{terapista_id}-{uuid.uuid4().hex}{ext}"
+    storage_path = f"{STORAGE_APP}/terapisti_photos/{filename}"
+    try:
+        put_object(storage_path, data, file.content_type)
+    except Exception as e:
+        logging.exception(f"[STORAGE] admin therapist photo upload failed: {e}")
+        raise HTTPException(503, "Impossibile caricare la foto. Riprova.")
+
+    foto_url = f"/api/media/therapists/{filename}"
+    await db.terapisti.update_one(
+        {"_id": oid},
+        {"$set": {
+            "foto_filename": filename,
+            "foto_storage_path": storage_path,
+            "foto_url": foto_url,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+    )
+    return {"foto_url": foto_url}
+
+
+@router.delete("/admin/terapisti/{terapista_id}/foto")
+async def admin_delete_terapista_foto(terapista_id: str, user: dict = Depends(require_admin)):
+    """Admin removes a therapist's photo reference (used to force re-upload)."""
+    try:
+        oid = ObjectId(terapista_id)
+    except Exception:
+        raise HTTPException(400, "ID non valido")
+    await db.terapisti.update_one(
+        {"_id": oid},
+        {"$unset": {"foto_filename": "", "foto_storage_path": "", "foto_url": ""},
+         "$set": {"updated_at": datetime.now(timezone.utc)}},
+    )
+    return {"message": "Foto rimossa"}
+
+
+
 @router.patch("/admin/terapisti/{terapista_id}/verifica")
 async def admin_verifica_terapista(terapista_id: str, body: dict, user: dict = Depends(require_admin)):
     """Admin toggles documenti_verificati. When True, therapist becomes publicly visible."""
