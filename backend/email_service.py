@@ -279,7 +279,7 @@ async def send_password_reset_email(email: str, reset_url: str, nome: str = "") 
             Abbiamo ricevuto una richiesta di reset della tua password. Clicca sul pulsante qui sotto per crearne una nuova.
           </p>
           <div style="text-align:center;margin:32px 0;">
-            <a href="{reset_url}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#F58A1F,#F5D419);color:#0A0A0A;text-decoration:none;font-weight:700;border-radius:999px;font-size:15px;">Imposta nuova password</a>
+            <a href="{reset_url}" style="display:inline-block;padding:14px 32px;background:#F58A1F;background-color:#F58A1F;color:#0A0A0A;text-decoration:none;font-weight:700;border-radius:999px;font-size:15px;">Imposta nuova password</a>
           </div>
           <p style="color:#0A0A0A;font-size:13px;line-height:1.6;margin:0 0 12px;">
             Se il pulsante non funziona, copia questo link nel tuo browser:<br/>
@@ -414,7 +414,7 @@ Per continuare a operare sulla piattaforma è necessario <strong style="color:#F
 </p>
 </td></tr>
 <tr><td style="padding:0 40px 24px;text-align:center;">
-<a href="{accept_url}" style="display:inline-block;padding:14px 30px;background:linear-gradient(135deg,#F58A1F,#F5D419);color:#0A0A0A;text-decoration:none;font-weight:bold;border-radius:100px;font-size:14px;">Vai alla piattaforma per firmare →</a>
+<a href="{accept_url}" style="display:inline-block;padding:14px 30px;background:#F58A1F;background-color:#F58A1F;color:#0A0A0A;text-decoration:none;font-weight:bold;border-radius:100px;font-size:14px;">Vai alla piattaforma per firmare →</a>
 </td></tr>
 <tr><td style="padding:16px 40px 24px;border-top:1px solid rgba(255,255,255,0.08);">
 <p style="color:rgba(230,226,216,0.55);font-size:12px;line-height:1.5;margin:0 0 8px 0;">
@@ -659,7 +659,7 @@ Il tuo profilo diventerà visibile ai pazienti <strong style="color:#F4F1ED;">so
 </p>
 </td></tr>
 <tr><td style="padding:20px 40px 28px;text-align:center;">
-<a href="{activation_url}" style="display:inline-block;background:linear-gradient(135deg,#F58A1F,#F5D419);color:#0A0A0A;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Attiva il mio profilo →</a>
+<a href="{activation_url}" style="display:inline-block;background:#F58A1F;background-color:#F58A1F;color:#0A0A0A;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Attiva il mio profilo →</a>
 </td></tr>
 <tr><td style="padding:0 40px 28px;text-align:center;">
 <p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0 0 8px;">Se il pulsante non funziona, copia questo link:</p>

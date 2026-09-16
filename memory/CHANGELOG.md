@@ -1,5 +1,23 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Fix: Pulsanti Email + Banner Detrazione 730 (P1)
+- **File**: `/app/backend/email_service.py`, `/app/frontend/src/pages/admin/FatturePage.jsx`.
+
+### Fix 1 — Pulsanti email invisibili (neri) in alcuni client
+- **Issue**: I pulsanti CTA nelle email usavano `background:linear-gradient(...)` che **non è supportato da molti client email** (Outlook, Gmail plain, Yahoo, ecc.). Fallback → sfondo trasparente → il pulsante appariva come testo nero senza cornice.
+- **Fix**: Sostituito il gradiente con **colore solido `#F58A1F`** (arancione del sito) su:
+  - Email attivazione terapeuta ("Attiva il mio profilo →")
+  - Email password reset ("Imposta nuova password")
+  - Email firma contratto ("Vai alla piattaforma per firmare →")
+- Testo nero (`#0A0A0A`) su fondo arancione: alto contrasto e leggibile su tutti i client email.
+
+### Fix 2 — Banner "Detraibile 730" mostrato anche al terapeuta
+- **Issue**: Il banner *"Queste fatture sono detraibili al 19%..."* appariva su `/terapeuta/fatture` — ma le fatture del terapeuta sono quelle **da lui emesse**, non ricevute → detrazione non applicabile.
+- **Root cause**: la condizione di visibilità era `!isAdmin`, che comprende anche i terapeuti (che condividono lo stesso componente `FatturePage isAdmin={false}`).
+- **Fix**: Nuova condizione `user.role === "paziente"` letta da `useAuth()`. Il banner ora appare **solo** sulla pagina fatture del paziente.
+
+
+
 ## 2026-02 — Feature: Admin Gestisce Documenti Terapeuta (P1)
 - **File**: `/app/backend/routers/terapisti.py` (nuovi endpoint admin), `/app/frontend/src/pages/admin/TerapistiPage.jsx`.
 - **Backend**:

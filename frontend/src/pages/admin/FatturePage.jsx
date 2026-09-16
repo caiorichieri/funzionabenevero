@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-import { API } from "@/contexts/AuthContext";
+import { API, useAuth } from "@/contexts/AuthContext";
 import { Download, FileText, Search, RefreshCw, Play, Loader2 } from "lucide-react";
 
 const KIND_LABELS = { sanitaria: "Sanitaria (paziente)", commissione: "Commissione B2B" };
@@ -17,6 +17,8 @@ const KIND_COLORS = {
  * `isAdmin=false` prop → mostra vista terapeuta (mine only).
  */
 export default function FatturePage({ isAdmin = true }) {
+  const { user } = useAuth();
+  const isPatient = user?.role === "paziente";
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterKind, setFilterKind] = useState("");
@@ -112,8 +114,8 @@ export default function FatturePage({ isAdmin = true }) {
         )}
       </div>
 
-      {/* Banner detrazione 730 — solo per paziente (isAdmin=false) */}
-      {!isAdmin && (
+      {/* Banner detrazione 730 — solo per paziente */}
+      {isPatient && (
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3" data-testid="banner-detrazione-730">
           <span className="text-2xl">💚</span>
           <div className="text-sm text-green-900">
