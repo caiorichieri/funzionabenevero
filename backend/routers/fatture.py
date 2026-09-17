@@ -16,6 +16,7 @@ from fatturazione import (
     next_fattura_number,
     generate_xml_sanitaria,
     generate_xml_commissione,
+    generate_xml_nota_credito_sanitaria,
     generate_pdf,
     COMMISSIONE_PERCENT, IVA_COMMISSIONE, BOLLO_SOGLIA, BIDOC,
 )
@@ -165,6 +166,149 @@ async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
         existing = await db.fatture.find_one({"appuntamento_id": appuntamento_id, "kind": "sanitaria"})
         return existing
     return doc
+
+
+async def _generate_nota_credito_paziente(fattura_id: str, motivo: str = "Rimborso richiesto") -> dict:
+    """Idempotent: emette una Nota di Credito TD04 collegata a una fattura sanitaria.
+    Se una NC esiste già per questa fattura, la restituisce.
+
+    Storno FULL: NC per l'intero importo della fattura originale.
+    """
+    existing = await db.fatture.find_one({"kind": "nota_credito_sanitaria", "fattura_originale_id": fattura_id})
+    if existing:
+        return existing
+
+    try:
+        oid = ObjectId(fattura_id)
+    except Exception:
+        raise ValueError(f"ID fattura non valido: {fattura_id}")
+
+    fattura_orig = await db.fatture.find_one({"_id": oid})
+    if not fattura_orig:
+        raise ValueError(f"Fattura {fattura_id} non trovata")
+    if fattura_orig.get("kind") != "sanitaria":
+        raise ValueError("Nota di credito supportata solo per fatture sanitarie")
+
+    terapeuta = await _get_terapeuta_full(fattura_orig.get("terapeuta_user_id"))
+    if not terapeuta:
+        raise ValueError("Terapeuta non trovato")
+    paziente = await _get_paziente_full(fattura_orig.get("paziente_user_id"))
+
+    importo = Decimal(str(fattura_orig.get("importo_totale", 0)))
+    if importo <= 0:
+        raise ValueError("Importo fattura originale non valido")
+
+    year = datetime.now(timezone.utc).year
+    data = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    causale = f"Storno fattura {fattura_orig.get('numero','')} — {motivo}"[:200]
+
+    _validate_anagrafica("terapeuta", terapeuta, ["nome", "cognome", "partita_iva", "codice_fiscale"])
+    _validate_anagrafica("paziente", paziente, ["nome", "cognome"])
+
+    numero = await next_fattura_number(db, "nota_credito_sanitaria", year)
+    fattura_riferimento = {
+        "numero": fattura_orig.get("numero"),
+        "data": fattura_orig.get("data"),
+    }
+
+    try:
+        xml_bytes = generate_xml_nota_credito_sanitaria(
+            numero=numero, data=data, terapeuta=terapeuta, paziente=paziente,
+            importo=importo, causale=causale, fattura_riferimento=fattura_riferimento,
+        )
+        pdf_bytes = generate_pdf(
+            fattura={
+                "numero": f"NC {numero}",
+                "data": data,
+                "totale": importo,
+                "imponibile": importo,
+                "imposta": Decimal("0"),
+                "linee": [{"descrizione": causale, "prezzo": importo}],
+                "causale": causale,
+                "is_nota_credito": True,
+                "fattura_riferimento": fattura_riferimento,
+            },
+            cedente_display=_safe_html_block(
+                f"<b>{escape(terapeuta.get('nome',''))} {escape(terapeuta.get('cognome',''))}</b>",
+                f"P.IVA {escape(terapeuta.get('partita_iva',''))}",
+                f"CF {escape(terapeuta.get('codice_fiscale',''))}",
+                escape(terapeuta.get('residenza_indirizzo','')),
+                f"{escape(terapeuta.get('residenza_cap',''))} {escape(terapeuta.get('residenza_comune',''))} {escape(terapeuta.get('residenza_provincia',''))}",
+            ),
+            cessionario_display=_safe_html_block(
+                f"<b>{escape(paziente.get('nome',''))} {escape(paziente.get('cognome',''))}</b>",
+                f"CF {escape(paziente.get('codice_fiscale','—'))}",
+                escape(paziente.get('indirizzo','')),
+                f"{escape(paziente.get('cap',''))} {escape(paziente.get('comune',''))} {escape(paziente.get('provincia',''))}",
+            ),
+            is_sanitaria=True,
+        )
+    except Exception as e:
+        logger.exception(f"[NOTA CREDITO] Content generation failed for {numero} fattura={fattura_id}: {e}")
+        await db.fattura_burned_numbers.insert_one({
+            "numero": numero, "kind": "nota_credito_sanitaria", "year": year,
+            "reason": str(e)[:500], "fattura_originale_id": fattura_id,
+            "burned_at": datetime.now(timezone.utc),
+        })
+        raise
+
+    xml_path = pdf_path = None
+    xml_b64 = pdf_b64 = None
+    try:
+        xml_result = await asyncio.to_thread(put_object, f"funzionabene/fatture/{numero}.xml", xml_bytes, "application/xml")
+        pdf_result = await asyncio.to_thread(put_object, f"funzionabene/fatture/{numero}.pdf", pdf_bytes, "application/pdf")
+        xml_path = xml_result.get("path")
+        pdf_path = pdf_result.get("path")
+    except Exception as e:
+        import base64
+        logger.warning(f"[NOTA CREDITO] Object Storage failed for {numero}, using inline: {e}")
+        xml_b64 = base64.b64encode(xml_bytes).decode("ascii")
+        pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+
+    doc = {
+        "kind": "nota_credito_sanitaria",
+        "numero": numero,
+        "data": data,
+        "fattura_originale_id": fattura_id,
+        "fattura_originale_numero": fattura_orig.get("numero"),
+        "appuntamento_id": fattura_orig.get("appuntamento_id"),
+        "terapeuta_user_id": fattura_orig.get("terapeuta_user_id"),
+        "paziente_user_id": fattura_orig.get("paziente_user_id"),
+        "importo_totale": -float(importo),  # segno negativo per contabilizzazione
+        "importo_imponibile": -float(importo),
+        "importo_iva": 0.0,
+        "aliquota_iva": 0.0,
+        "natura": "N4",
+        "marca_bollo": False,
+        "motivo_storno": motivo[:400],
+        "xml_storage_path": xml_path,
+        "pdf_storage_path": pdf_path,
+        "xml_inline_b64": xml_b64,
+        "pdf_inline_b64": pdf_b64,
+        "created_at": datetime.now(timezone.utc),
+        "trasmessa_sistema_ts": False,
+    }
+    try:
+        result = await db.fatture.insert_one(doc)
+        doc["_id"] = result.inserted_id
+    except DuplicateKeyError:
+        await db.fattura_burned_numbers.insert_one({
+            "numero": numero, "kind": "nota_credito_sanitaria", "year": year,
+            "reason": "concurrent duplicate", "fattura_originale_id": fattura_id,
+            "burned_at": datetime.now(timezone.utc),
+        })
+        existing = await db.fatture.find_one({"kind": "nota_credito_sanitaria", "fattura_originale_id": fattura_id})
+        return existing
+
+    # Mark the original fattura as stornata
+    await db.fatture.update_one(
+        {"_id": oid},
+        {"$set": {"stornata": True, "stornata_at": datetime.now(timezone.utc),
+                  "nota_credito_id": str(doc["_id"]), "nota_credito_numero": numero}},
+    )
+    return doc
+
+
 
 
 def _validate_anagrafica(who: str, data: dict, required: list[str]):
@@ -390,6 +534,20 @@ async def download_pdf(fid: str, user: dict = Depends(require_auth)):
 async def admin_gen_sanitaria(appuntamento_id: str, admin: dict = Depends(require_admin)):
     try:
         doc = await _generate_fattura_paziente(appuntamento_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _serialize(doc)
+
+
+@router.post("/admin/fatture/{fattura_id}/nota-credito")
+async def admin_gen_nota_credito(fattura_id: str, admin: dict = Depends(require_admin)):
+    """Manually emit a Nota di Credito (TD04) for a given fattura sanitaria.
+    Normally triggered automatically by /admin/refunds — this endpoint is for
+    manual/exceptional cases (e.g. refund done outside our platform)."""
+    from fastapi import Body
+    body_data = {}
+    try:
+        doc = await _generate_nota_credito_paziente(fattura_id, motivo="Storno manuale admin")
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _serialize(doc)

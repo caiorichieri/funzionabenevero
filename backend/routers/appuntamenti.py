@@ -79,31 +79,36 @@ async def update_stato_appuntamento(app_id: str, data: AppuntamentoStatoInput, u
         {"_id": ObjectId(app_id)},
         {"$set": {"stato": data.stato, "updated_at": datetime.now(timezone.utc)}},
     )
-    # Auto-generate fattura sanitaria when the session becomes chargeable
+    # Auto-generate fattura sanitaria as a FALLBACK for legacy paid appointments
+    # that were confirmed BEFORE the "fattura al pagamento" flow was introduced.
+    # New flow: fattura already emitted by _mark_payment_paid → this is idempotent
+    # and only sends email if we truly generated a NEW invoice here.
     if data.stato in ("completato", "cancellato_con_addebito"):
         try:
             from routers.fatture import _generate_fattura_paziente
             from email_service import send_signature_receipt_email
+            already_exists = await db.fatture.find_one({"appuntamento_id": app_id, "kind": "sanitaria"})
             fattura = await _generate_fattura_paziente(app_id)
-            # Notify patient
-            appt = await db.appuntamenti.find_one({"_id": ObjectId(app_id)})
-            paziente_user = await db.users.find_one({"_id": ObjectId(appt.get("paziente_user_id"))}) if appt else None
-            if paziente_user and paziente_user.get("email"):
-                import base64
-                pdf_bytes = base64.b64decode(fattura["pdf_inline_b64"]) if fattura.get("pdf_inline_b64") else b""
-                await send_signature_receipt_email(
-                    email=paziente_user["email"],
-                    nome=paziente_user.get("nome", ""),
-                    doc_titles=[
-                        f"Fattura {fattura['numero']} — € {fattura.get('importo_totale', 0):.2f}",
-                        "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
-                        "Conservala per almeno 5 anni",
-                    ],
-                    pdf_bytes=pdf_bytes,
-                )
+            if fattura and not already_exists:
+                # Only email if this call actually created the invoice
+                appt = await db.appuntamenti.find_one({"_id": ObjectId(app_id)})
+                paziente_user = await db.users.find_one({"_id": ObjectId(appt.get("paziente_user_id"))}) if appt else None
+                if paziente_user and paziente_user.get("email"):
+                    import base64
+                    pdf_bytes = base64.b64decode(fattura["pdf_inline_b64"]) if fattura.get("pdf_inline_b64") else b""
+                    await send_signature_receipt_email(
+                        email=paziente_user["email"],
+                        nome=paziente_user.get("nome", ""),
+                        doc_titles=[
+                            f"Fattura {fattura['numero']} — € {fattura.get('importo_totale', 0):.2f}",
+                            "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
+                            "Conservala per almeno 5 anni",
+                        ],
+                        pdf_bytes=pdf_bytes,
+                    )
         except Exception as e:
             import logging
-            logging.exception(f"[APPT COMPLETION] auto-fattura failed: {e}")
+            logging.exception(f"[APPT COMPLETION] auto-fattura fallback failed: {e}")
     return {"message": f"Stato aggiornato a: {data.stato}"}
 
 

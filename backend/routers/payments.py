@@ -63,6 +63,36 @@ async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] =
         if paziente_user:
             paziente_user["_id"] = str(paziente_user["_id"])
             await finalize_confirmed_booking(appt_id, paziente_user)
+
+        # Fiscal: emit fattura sanitaria immediately after payment (art. 6 DPR 633/72:
+        # fattura obbligatoria al momento del pagamento anche per prestazioni sanitarie).
+        # Idempotent: guarded by unique index on {appuntamento_id, kind:"sanitaria"}.
+        try:
+            from routers.fatture import _generate_fattura_paziente
+            from email_service import send_signature_receipt_email
+            fattura = await _generate_fattura_paziente(appt_id)
+            if fattura and paziente_user and paziente_user.get("email"):
+                import base64
+                pdf_bytes = base64.b64decode(fattura["pdf_inline_b64"]) if fattura.get("pdf_inline_b64") else b""
+                if not pdf_bytes and fattura.get("pdf_storage_path"):
+                    from object_storage import get_object
+                    try:
+                        pdf_bytes, _ = get_object(fattura["pdf_storage_path"])
+                    except Exception:
+                        pdf_bytes = b""
+                await send_signature_receipt_email(
+                    email=paziente_user["email"],
+                    nome=paziente_user.get("nome", ""),
+                    doc_titles=[
+                        f"Fattura {fattura['numero']} — € {fattura.get('importo_totale', 0):.2f}",
+                        "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
+                        "Conservala per almeno 5 anni",
+                    ],
+                    pdf_bytes=pdf_bytes,
+                )
+        except Exception as e:
+            import logging as _lg
+            _lg.exception(f"[PAYMENT PAID] auto-fattura failed for appt={appt_id}: {e}")
     return True
 
 
@@ -482,11 +512,51 @@ async def create_refund(body: RefundRequest, user: dict = Depends(require_admin)
             logging.warning(f"[REFUND] appointment cancel failed: {e}")
 
     logging.info(f"[REFUND] tx={body.transaction_id} refund_id={refund.id} amount={tx.get('amount')}")
+
+    # Fiscal: emit Nota di Credito (TD04) referencing the original fattura sanitaria.
+    # Idempotent: skipped if a NC already exists, no-op if there was no fattura yet.
+    nc_info = None
+    try:
+        if appt_id:
+            original = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+            if original:
+                from routers.fatture import _generate_nota_credito_paziente
+                from email_service import send_signature_receipt_email
+                nc = await _generate_nota_credito_paziente(
+                    str(original["_id"]),
+                    motivo=(body.admin_note or "Rimborso richiesto")[:200],
+                )
+                nc_info = {"numero": nc["numero"], "id": str(nc["_id"])}
+                # Email patient with the NC PDF
+                paziente_user = await find_user_by_id(tx["paziente_user_id"])
+                if nc and paziente_user and paziente_user.get("email"):
+                    import base64
+                    pdf_bytes = base64.b64decode(nc["pdf_inline_b64"]) if nc.get("pdf_inline_b64") else b""
+                    if not pdf_bytes and nc.get("pdf_storage_path"):
+                        from object_storage import get_object
+                        try:
+                            pdf_bytes, _ = get_object(nc["pdf_storage_path"])
+                        except Exception:
+                            pdf_bytes = b""
+                    await send_signature_receipt_email(
+                        email=paziente_user["email"],
+                        nome=paziente_user.get("nome", ""),
+                        doc_titles=[
+                            f"Nota di Credito {nc['numero']} — storno fattura {original['numero']}",
+                            f"Importo stornato: € {abs(nc.get('importo_totale', 0)):.2f}",
+                            "Conservala insieme alla fattura originale.",
+                        ],
+                        pdf_bytes=pdf_bytes,
+                    )
+    except Exception as e:
+        logging.exception(f"[REFUND] Nota di credito generation failed for tx={body.transaction_id}: {e}")
+
     return {
         "message": "Rimborso eseguito",
         "refund_id": refund.id,
         "amount": tx.get("amount"),
         "status": "refunded",
+        "nota_credito": nc_info,
     }
 
 

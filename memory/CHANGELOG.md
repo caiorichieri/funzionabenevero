@@ -1,5 +1,28 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Feature: Fattura al Pagamento + Nota di Credito (P0 fiscale)
+- **File**: `/app/backend/fatturazione.py`, `/app/backend/routers/fatture.py`, `/app/backend/routers/payments.py`, `/app/backend/routers/appuntamenti.py`.
+
+### Change 1 — Fattura sanitaria emessa immediatamente al pagamento
+- **Prima**: la fattura veniva emessa quando il terapeuta marcava la sessione come `completato`.
+- **Ora**: `_mark_payment_paid()` (chiamato dal webhook `checkout.session.completed`) genera la fattura sanitaria + invia email al paziente **subito dopo il pagamento**. L'appuntamento diventa `confermato` come prima.
+- **Fallback preservato**: `update_stato_appuntamento` continua a chiamare `_generate_fattura_paziente` (idempotent) per appuntamenti legacy pagati prima di questa modifica, ma **non invia più l'email** se la fattura esisteva già (evita duplicati).
+
+### Change 2 — Nota di Credito automatica su rimborso
+- **Nuovo XML FatturaPA TD04** (`generate_xml_nota_credito_sanitaria`) con `DatiFattureCollegate` che referenzia numero + data della fattura originale (art. 26 DPR 633/72).
+- **Numerazione separata**: nuovo contatore `NC-{year}-{NNNN}` in `next_fattura_number`.
+- **`_generate_nota_credito_paziente(fattura_id, motivo)`**: emette la NC per l'intero importo della fattura originale, PDF + XML in Object Storage, marca la fattura originale come `stornata: True` con riferimento a `nota_credito_numero`. Idempotent.
+- **Integrato in `POST /admin/refunds`**: dopo il rimborso Stripe genera automaticamente la NC e la invia al paziente via email.
+- **Endpoint manuale**: `POST /admin/fatture/{fattura_id}/nota-credito` per casi eccezionali.
+
+### Test E2E via script Python:
+- Fattura: `FZ-2026-0001` € 80
+- NC: `NC-2026-0001` € -80 con `TipoDocumento=TD04` + `<DatiFattureCollegate><IdDocumento>FZ-2026-0001</IdDocumento>...`
+- Fattura originale marcata `stornata: True`, `nota_credito_numero: NC-2026-0001`
+- Idempotency: chiamate ripetute restituiscono la stessa NC
+
+
+
 ## 2026-02 — Fix: Pulsanti Email + Banner Detrazione 730 (P1)
 - **File**: `/app/backend/email_service.py`, `/app/frontend/src/pages/admin/FatturePage.jsx`.
 

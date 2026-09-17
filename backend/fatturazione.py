@@ -63,8 +63,16 @@ def _now_utc() -> datetime:
 
 
 async def next_fattura_number(db, kind: str, year: int) -> str:
-    """Atomic counter — returns 'FZ-{year}-{NNNN}' for sanitaria or 'CM-{year}-{NNNN}' for commissione."""
-    prefix = "FZ" if kind == "sanitaria" else "CM"
+    """Atomic counter — returns 'FZ-{year}-{NNNN}' for sanitaria, 'CM-{year}-{NNNN}' for commissione,
+    'NC-{year}-{NNNN}' for nota_credito_sanitaria."""
+    if kind == "sanitaria":
+        prefix = "FZ"
+    elif kind == "commissione":
+        prefix = "CM"
+    elif kind == "nota_credito_sanitaria":
+        prefix = "NC"
+    else:
+        prefix = kind[:2].upper()
     counter_key = f"{prefix}-{year}"
     result = await db.fattura_counters.find_one_and_update(
         {"_id": counter_key},
@@ -167,11 +175,11 @@ def _build_common_header(root, cedente: dict, cessionario: dict, cedente_type: s
     _add(sede2, "Nazione", s.get("nazione", "IT"))
 
 
-def _build_body(root, fattura: dict, natura: str = None, aliquota_iva: Decimal = Decimal("0.00"), bollo: bool = False):
+def _build_body(root, fattura: dict, natura: str = None, aliquota_iva: Decimal = Decimal("0.00"), bollo: bool = False, tipo_documento: str = "TD01", fattura_riferimento: dict = None):
     body = _add(root, "FatturaElettronicaBody")
     dg = _add(body, "DatiGenerali")
     dgd = _add(dg, "DatiGeneraliDocumento")
-    _add(dgd, "TipoDocumento", "TD01")
+    _add(dgd, "TipoDocumento", tipo_documento)
     _add(dgd, "Divisa", "EUR")
     _add(dgd, "Data", fattura["data"])
     _add(dgd, "Numero", fattura["numero"])
@@ -182,6 +190,13 @@ def _build_body(root, fattura: dict, natura: str = None, aliquota_iva: Decimal =
     _add(dgd, "ImportoTotaleDocumento", _q(fattura["totale"]))
     if fattura.get("causale"):
         _add(dgd, "Causale", fattura["causale"][:200])
+
+    # For TD04 (Nota di Credito): reference the original fattura
+    if tipo_documento == "TD04" and fattura_riferimento:
+        dfc = _add(dg, "DatiFattureCollegate")
+        _add(dfc, "IdDocumento", str(fattura_riferimento.get("numero", "")))
+        if fattura_riferimento.get("data"):
+            _add(dfc, "Data", fattura_riferimento["data"])
 
     # DettaglioLinee
     dbb = _add(body, "DatiBeniServizi")
@@ -260,6 +275,57 @@ def generate_xml_sanitaria(*, numero: str, data: str, terapeuta: dict, paziente:
                 aliquota_iva=Decimal("0.00"),
                 bollo=bollo_needed)
     return _prettify(root)
+
+
+def generate_xml_nota_credito_sanitaria(
+    *, numero: str, data: str, terapeuta: dict, paziente: dict,
+    importo: Decimal, causale: str, fattura_riferimento: dict,
+) -> bytes:
+    """Genera XML FatturaPA TipoDocumento=TD04 (Nota di Credito) per una
+    prestazione sanitaria precedentemente fatturata. Referenzia il numero e la
+    data della fattura originale (art. 26 DPR 633/72)."""
+    root = ET.Element("p:FatturaElettronica", {"xmlns:p": NSMAP_ATTR["xmlns:p"]})
+    cedente = {
+        "piva": terapeuta.get("partita_iva", ""),
+        "cf": terapeuta.get("codice_fiscale", ""),
+        "nome": terapeuta.get("nome", ""),
+        "cognome": terapeuta.get("cognome", ""),
+        "regime_fiscale": REGIME_FISCALE_MAP.get(terapeuta.get("regime_fiscale", "forfettario"), "RF19"),
+        "sede": terapeuta.get("sede") or {
+            "indirizzo": terapeuta.get("residenza_indirizzo", "N/D"),
+            "cap": terapeuta.get("residenza_cap", "00000"),
+            "comune": terapeuta.get("residenza_comune", "N/D"),
+            "provincia": terapeuta.get("residenza_provincia", ""),
+            "nazione": "IT",
+        },
+    }
+    cessionario = {
+        "cf": paziente.get("codice_fiscale", ""),
+        "nome": paziente.get("nome", ""),
+        "cognome": paziente.get("cognome", ""),
+        "codice_sdi": "0000000",
+        "sede": {
+            "indirizzo": paziente.get("indirizzo", "N/D"),
+            "cap": paziente.get("cap", "00000"),
+            "comune": paziente.get("comune", "N/D"),
+            "provincia": paziente.get("provincia", ""),
+            "nazione": "IT",
+        },
+    }
+    _build_common_header(root, cedente, cessionario, "professionista", "privato")
+    _build_body(
+        root,
+        fattura={"numero": numero, "data": data, "totale": importo,
+                 "linee": [{"descrizione": causale, "prezzo": importo}],
+                 "causale": causale},
+        natura="N4",
+        aliquota_iva=Decimal("0.00"),
+        bollo=False,  # NC di solito non applica bollo (bollo dovuto sulla fattura originale)
+        tipo_documento="TD04",
+        fattura_riferimento=fattura_riferimento,
+    )
+    return _prettify(root)
+
 
 
 def generate_xml_commissione(*, numero: str, data: str, terapeuta: dict, importo_imponibile: Decimal, causale: str) -> bytes:
