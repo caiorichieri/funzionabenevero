@@ -3,6 +3,7 @@ import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { Wallet, Download, Check, Euro, Users, FileText, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { formatApiError } from "@/lib/apiError";
 
 const eur = (cents) => `€ ${((cents || 0) / 100).toFixed(2).replace(".", ",")}`;
 
@@ -87,15 +88,21 @@ export default function PagamentiPage() {
       "⚠️ Confermi il rimborso? L'importo verrà restituito sulla carta del paziente e l'appuntamento sarà cancellato. Operazione irreversibile."
     )) return;
     try {
-      await axios.post(`${apiBase}/admin/refunds`, {
+      const res = await axios.post(`${apiBase}/admin/refunds`, {
         transaction_id: transactionId,
         reason: "requested_by_customer",
         admin_note: nota || "",
       }, { withCredentials: true });
-      toast.success("Rimborso eseguito con successo");
+      const ncNumero = res?.data?.nota_credito?.numero;
+      toast.success(
+        ncNumero
+          ? `Rimborso eseguito · Nota di Credito ${ncNumero} generata e inviata al paziente`
+          : "Rimborso eseguito con successo",
+        { duration: 6000 },
+      );
       load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Errore durante il rimborso");
+      toast.error(formatApiError(e, "Errore durante il rimborso"));
     }
   };
 
@@ -267,8 +274,8 @@ export default function PagamentiPage() {
                         <button
                           data-testid={`refund-btn-${it.id}`}
                           onClick={() => refund(it.id)}
-                          className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
-                          title="Rimborsa (annulla la sessione e restituisce al paziente)"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+                          title="Rimborsa (annulla la sessione e restituisce al paziente + Nota di Credito automatica)"
                         >
                           <RotateCcw className="w-3.5 h-3.5" /> Rimborsa
                         </button>

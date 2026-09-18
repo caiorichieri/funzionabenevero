@@ -84,11 +84,18 @@ async def send_otp_email(email: str, otp_code: str, nome: str = "") -> bool:
 
 
 def _format_data_ora_it(iso: str) -> str:
-    from datetime import datetime as _dt
+    """Format an ISO datetime for Italian humans, always in Europe/Rome time.
+    Stored values are UTC (with +00:00), but the therapist and patient see
+    them in their local Rome time."""
+    from datetime import datetime as _dt, timezone as _tz
+    from zoneinfo import ZoneInfo
     GIORNI = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"]
     MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"]
     try:
         d = _dt.fromisoformat(iso.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=_tz.utc)
+        d = d.astimezone(ZoneInfo("Europe/Rome"))
         g = GIORNI[d.weekday()]
         return f"{g} {d.day} {MESI[d.month-1]} {d.year} · {d.hour:02d}:{d.minute:02d}"
     except Exception:

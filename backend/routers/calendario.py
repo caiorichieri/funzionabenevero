@@ -81,8 +81,18 @@ async def get_my_calendario(user: dict = Depends(require_auth)):
         "data_ora": {"$gte": now.isoformat()[:10], "$lt": horizon.isoformat()[:10]},
     })
     async for a in cursor:
-        date_key = a["data_ora"][:10]
-        ora = a["data_ora"][11:16]
+        # Stored data_ora is UTC ISO (e.g. "2026-02-15T08:50:00+00:00").
+        # Present it to the therapist in Europe/Rome local time.
+        try:
+            dt = datetime.fromisoformat(a["data_ora"].replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt_local = dt.astimezone(ROME_TZ)
+            date_key = dt_local.strftime("%Y-%m-%d")
+            ora = dt_local.strftime("%H:%M")
+        except Exception:
+            date_key = a["data_ora"][:10]
+            ora = a["data_ora"][11:16]
         pnome = "Paziente"
         try:
             p = await db.pazienti.find_one({"_id": ObjectId(a["paziente_id"])})
@@ -271,8 +281,17 @@ async def admin_calendario(anno: int, mese: int, user: dict = Depends(require_ad
         "data_ora": {"$gte": start_iso, "$lt": end_iso},
     }):
         data_ora = a.get("data_ora", "")
-        date_key = data_ora[:10]
-        ora = data_ora[11:16]
+        # Convert stored UTC to Europe/Rome for display in admin calendar
+        try:
+            dt = datetime.fromisoformat(data_ora.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt_local = dt.astimezone(ROME_TZ)
+            date_key = dt_local.strftime("%Y-%m-%d")
+            ora = dt_local.strftime("%H:%M")
+        except Exception:
+            date_key = data_ora[:10]
+            ora = data_ora[11:16]
         if date_key not in days_in_month:
             continue
 

@@ -10,6 +10,7 @@ import secrets as _secrets
 from datetime import datetime, timezone, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.jobstores.mongodb import MongoDBJobStore
 from bson import ObjectId
 
 from deps import db, find_user_by_id
@@ -18,8 +19,15 @@ from email_service import send_booking_confirmation_email, send_reminder_email
 from sms_service import send_sms_reminder
 from routers.informed_consents import ensure_consent_for_booking
 
-# Single scheduler instance used by the whole app.
-scheduler = AsyncIOScheduler()
+# Persistent scheduler — jobs survive backend restarts/deploys.
+# Uses MongoDB as the jobstore so reminder emails scheduled hours or days
+# in advance don't disappear when the pod restarts.
+_mongo_url = os.environ["MONGO_URL"]
+_db_name = os.environ["DB_NAME"]
+scheduler = AsyncIOScheduler(
+    jobstores={"default": MongoDBJobStore(database=_db_name, collection="apscheduler_jobs", host=_mongo_url)},
+    timezone="UTC",
+)
 
 # Reschedule link is valid up to appointment start
 RESCHEDULE_TOKEN_DAYS = 30

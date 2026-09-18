@@ -1,5 +1,27 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Fix Critici Post-Test Produzione (P0)
+Bug segnalati dopo un test in produzione: (1) email 15min non arrivata, (2) link "Entra" con orario sbagliato, (3) rimborso poco visibile.
+
+### Fix 1 — Reminder 15 min persi ad ogni deploy
+- **File**: `/app/backend/booking_service.py`.
+- **Root cause**: `AsyncIOScheduler()` usava il jobstore in memoria di default → **ad ogni redeploy tutti i reminder programmati venivano persi**.
+- **Fix**: usa `MongoDBJobStore(database=DB_NAME, collection="apscheduler_jobs")`. I lavori pianificati sopravvivono ai restart/deploy.
+- Test: dopo restart la collection `apscheduler_jobs` è creata, i job sono persistiti.
+
+### Fix 2 — Orari sbagliati (2h off) nell'email/dashboard terapeuta
+- **File**: `/app/backend/email_service.py` (`_format_data_ora_it`), `/app/backend/routers/calendario.py` (dashboard terapeuta + admin calendario).
+- **Root cause**: `data_ora` è salvato in UTC (es. `2026-02-15T08:50:00+00:00` per le 09:50 Rome inverno / 10:50 Rome estate) ma il backend renderizzava **le ore UTC direttamente** in email e nel dashboard. Il paziente aveva prenotato le 09:50 e vedeva orari sbagliati.
+- **Fix**: tutte le formattazioni server-side ora convertono UTC → `Europe/Rome` prima di mostrare l'ora, gestendo automaticamente ora solare/legale.
+- Test: `_format_data_ora_it("2026-02-15T08:50:00+00:00")` → "Domenica 15 febbraio 2026 · **09:50**" (inverno +1). `"2026-08-15T08:50:00+00:00"` → "Sabato 15 agosto 2026 · **10:50**" (estate +2).
+
+### Fix 3 — Pulsante Rimborsa poco visibile + gestione errori 422
+- **File**: `/app/frontend/src/pages/admin/PagamentiPage.jsx`.
+- **Change**: pulsante "Rimborsa" ora ha sfondo rosso chiaro con bordo (era solo testo con underline). Il tab "In attesa" resta il posto giusto. Uso di `formatApiError` per evitare React #31 su 422.
+- **UX Bonus**: il toast di successo ora mostra il numero della Nota di Credito generata (es. "Rimborso eseguito · Nota di Credito NC-2026-0001 generata e inviata al paziente").
+
+
+
 ## 2026-02 — Feature: Fattura al Pagamento + Nota di Credito (P0 fiscale)
 - **File**: `/app/backend/fatturazione.py`, `/app/backend/routers/fatture.py`, `/app/backend/routers/payments.py`, `/app/backend/routers/appuntamenti.py`.
 

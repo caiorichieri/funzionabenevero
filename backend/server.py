@@ -1319,7 +1319,10 @@ async def startup():
     except Exception as e:
         logging.warning(f"[STORAGE] init failed at startup (will retry on demand): {e}")
 
-    # Start scheduled background jobs (retention, legal decline processor)
+    # Start scheduled background jobs (retention, legal decline processor).
+    # NOTE: these are recurring cron jobs (recomputed on every start), so an
+    # in-memory jobstore is fine here — the reminder scheduler in booking_service
+    # uses MongoDB persistence for per-appointment jobs that must survive restarts.
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from scheduled_jobs import register_jobs
