@@ -12,9 +12,11 @@ function formatSlot(iso) {
   if (!iso) return "";
   try {
     const d = new Date(iso);
-    const giorno = GIORNI_IT[(d.getDay() + 6) % 7];
-    const dateStr = d.toLocaleDateString("it-IT", { day: "2-digit", month: "long" });
-    const timeStr = d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    const opts = { timeZone: "Europe/Rome" };
+    const weekday = new Intl.DateTimeFormat("it-IT", { ...opts, weekday: "long" }).format(d);
+    const giorno = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    const dateStr = new Intl.DateTimeFormat("it-IT", { ...opts, day: "2-digit", month: "long" }).format(d);
+    const timeStr = new Intl.DateTimeFormat("it-IT", { ...opts, hour: "2-digit", minute: "2-digit" }).format(d);
     return { giorno, dateStr, timeStr };
   } catch {
     return { giorno: "", dateStr: iso, timeStr: "" };

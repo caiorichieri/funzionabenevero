@@ -1,5 +1,13 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Fix Ulteriore Orario Sessione (Frontend Force Rome TZ) (P0)
+- **File nuovo**: `/app/frontend/src/lib/dateFormat.js` (helper `formatItalianDateTime/Time/Date`).
+- **File aggiornati**: `TerapistaDashboard.jsx`, `PazienteDashboard.jsx`, `PazienteHome.jsx`, `BookingSheet.jsx`, `PrenotaSubitoModal.jsx`.
+- **Root cause residua**: dopo il fix precedente (server → Europe/Rome), il frontend usava ancora `new Date(iso).toLocaleString("it-IT")` che rispetta il **timezone del browser**. Se il terapeuta o il paziente accedeva da un device con TZ non italiana, l'ora appariva sfalsata.
+- **Fix**: tutte le formattazioni frontend di `data_ora` ora usano `Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", ... })` — l'ora italiana è **sempre** mostrata, indipendentemente dal fuso del device. Anche i confronti "oggi/domani" nella card "Prossima Sessione" ora usano il fuso Europe/Rome.
+
+
+
 ## 2026-02 — Fix Critici Post-Test Produzione (P0)
 Bug segnalati dopo un test in produzione: (1) email 15min non arrivata, (2) link "Entra" con orario sbagliato, (3) rimborso poco visibile.
 

@@ -100,11 +100,18 @@ export default function PazienteHome() {
 function NextSessionCard({ app }) {
   const when = new Date(app.data_ora);
   const now = new Date();
-  const sameDay = when.toDateString() === now.toDateString();
-  const y = new Date(now); y.setDate(now.getDate() + 1);
-  const isTomorrow = when.toDateString() === y.toDateString();
-  const dayLabel = sameDay ? "OGGI" : isTomorrow ? "DOMANI" : when.toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "short" }).toUpperCase();
-  const time = when.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  // Compare "days" using Rome timezone so a 22:00 Rome slot doesn't wrongly
+  // appear as "tomorrow" for a user on a device set to another timezone.
+  const romeDate = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(d);
+  const sameDay = romeDate(when) === romeDate(now);
+  const y = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const isTomorrow = romeDate(when) === romeDate(y);
+  const dayLabel = sameDay ? "OGGI" : isTomorrow ? "DOMANI" : new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome", weekday: "short", day: "2-digit", month: "short",
+  }).format(when).toUpperCase();
+  const time = new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit",
+  }).format(when);
   const canJoin = (when.getTime() - now.getTime()) <= 15 * 60 * 1000 && (now.getTime() - when.getTime()) <= 60 * 60 * 1000;
 
   return (
@@ -165,7 +172,7 @@ function MioTerapeutaCard({ mio }) {
         <div className="mt-4">
           {nextSlot && (
             <div className="text-xs text-white/70 mb-2">
-              Prossimo slot: <strong className="text-white">{nextSlot.toLocaleDateString("it-IT", { day: "2-digit", month: "long" })} · {nextSlot.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</strong>
+              Prossimo slot: <strong className="text-white">{new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "long" }).format(nextSlot)} · {new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(nextSlot)}</strong>
             </div>
           )}
           <Link

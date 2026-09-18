@@ -6,6 +6,7 @@ import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle } from "
 import ChatPanel from "@/components/shared/ChatPanel";
 import Mascotte from "@/components/shared/Mascotte";
 import { formatApiError } from "@/lib/apiError";
+import { formatItalianDateTime } from "@/lib/dateFormat";
 
 function canJoin(dataOra, durata = 50) {
   const now = new Date();
@@ -202,7 +203,7 @@ export default function PazienteDashboard() {
                     </div>
                     <div className="min-w-0">
                       <div className="font-medium text-[#0A0A0A] text-sm truncate">{a.terapeuta_nome || "Terapeuta"}</div>
-                      <div className="text-xs text-[#0A0A0A]/55">{new Date(a.data_ora).toLocaleString("it-IT")} · {a.durata_minuti} min</div>
+                      <div className="text-xs text-[#0A0A0A]/55">{formatItalianDateTime(a.data_ora)} · {a.durata_minuti} min</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
