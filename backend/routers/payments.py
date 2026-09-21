@@ -70,14 +70,14 @@ async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] =
         try:
             from routers.fatture import _generate_fattura_paziente
             from email_service import send_signature_receipt_email
+            from storage_service import get_object as _sto_get
             fattura = await _generate_fattura_paziente(appt_id)
             if fattura and paziente_user and paziente_user.get("email"):
                 import base64
                 pdf_bytes = base64.b64decode(fattura["pdf_inline_b64"]) if fattura.get("pdf_inline_b64") else b""
                 if not pdf_bytes and fattura.get("pdf_storage_path"):
-                    from object_storage import get_object
                     try:
-                        pdf_bytes, _ = get_object(fattura["pdf_storage_path"])
+                        pdf_bytes, _ = _sto_get(fattura["pdf_storage_path"])
                     except Exception:
                         pdf_bytes = b""
                 await send_signature_receipt_email(
@@ -531,11 +531,11 @@ async def create_refund(body: RefundRequest, user: dict = Depends(require_admin)
                 paziente_user = await find_user_by_id(tx["paziente_user_id"])
                 if nc and paziente_user and paziente_user.get("email"):
                     import base64
+                    from storage_service import get_object as _sto_get
                     pdf_bytes = base64.b64decode(nc["pdf_inline_b64"]) if nc.get("pdf_inline_b64") else b""
                     if not pdf_bytes and nc.get("pdf_storage_path"):
-                        from object_storage import get_object
                         try:
-                            pdf_bytes, _ = get_object(nc["pdf_storage_path"])
+                            pdf_bytes, _ = _sto_get(nc["pdf_storage_path"])
                         except Exception:
                             pdf_bytes = b""
                     await send_signature_receipt_email(

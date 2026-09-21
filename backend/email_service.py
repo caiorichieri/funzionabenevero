@@ -487,11 +487,12 @@ BIDOC SRL · P.IVA 01985930930 · privacy@bidoc.it
         "to": [email],
         "subject": "Ricevuta di sottoscrizione — Funzionabene",
         "html": html,
-        "attachments": [{
+    }
+    if pdf_bytes:
+        params["attachments"] = [{
             "filename": "ricevuta_sottoscrizione.pdf",
             "content": base64.b64encode(pdf_bytes).decode("utf-8"),
-        }],
-    }
+        }]
     try:
         result = await asyncio.to_thread(resend.Emails.send, params)
         logger.info(f"[EMAIL SENT] Receipt to {email} (id={result.get('id') if isinstance(result, dict) else result})")

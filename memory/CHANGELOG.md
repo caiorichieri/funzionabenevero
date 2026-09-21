@@ -1,5 +1,18 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Test E2E in Preview per caioricchieri@gmail.com
+- **Script**: `/app/backend/scripts/e2e_caio_test.py` (test end-to-end completo) e `/app/backend/scripts/fire_reminder_now.py` (test manuale reminder).
+- **Cosa fa**: crea terapeuta+paziente demo, prenota una sessione 17 min nel futuro, marca come pagato, genera fattura, aspetta 3 min, poi rimborsa e genera Nota di Credito. Tutto invia email a `caioricchieri@gmail.com`.
+- **Bugfix scoperto durante il test**:
+  - `send_signature_receipt_email` falliva quando `pdf_bytes=b""` con errore Resend "Attachment must have content or path". Fix: allegato omesso quando vuoto (email va comunque).
+  - In `_mark_payment_paid` e `create_refund` l'import era `from object_storage` (modulo inesistente) → catturato dal try/except, PDF veniva perso. Fix: `from storage_service import get_object`.
+- **Risultato test**:
+  - Fattura `FZ-2026-0001` (PDF 2636 bytes) generata + emailed
+  - Nota di Credito `NC-2026-0001` (PDF 2668 bytes) generata + emailed
+  - Email inviate (Resend API OK): 4 emails a caio (prenotazione confermata, fattura, reminder 15-min, nota di credito)
+
+
+
 ## 2026-02 — Fix Ulteriore Orario Sessione (Frontend Force Rome TZ) (P0)
 - **File nuovo**: `/app/frontend/src/lib/dateFormat.js` (helper `formatItalianDateTime/Time/Date`).
 - **File aggiornati**: `TerapistaDashboard.jsx`, `PazienteDashboard.jsx`, `PazienteHome.jsx`, `BookingSheet.jsx`, `PrenotaSubitoModal.jsx`.
