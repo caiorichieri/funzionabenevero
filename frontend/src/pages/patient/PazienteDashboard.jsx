@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
-import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle } from "lucide-react";
+import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle, Sparkles } from "lucide-react";
 import ChatPanel from "@/components/shared/ChatPanel";
 import Mascotte from "@/components/shared/Mascotte";
 import { formatApiError } from "@/lib/apiError";
@@ -78,6 +78,18 @@ export default function PazienteDashboard() {
 
   const prossime = appuntamenti.filter(a => new Date(a.data_ora) > new Date());
   const passate = appuntamenti.filter(a => new Date(a.data_ora) <= new Date());
+  // Identify the therapist from the most-recent session (if any) so the patient
+  // can always book another session with them without going through the
+  // matching questionnaire again.
+  const mioTerapeuta = (() => {
+    const all = [...appuntamenti].sort((a, b) => new Date(b.data_ora) - new Date(a.data_ora));
+    for (const a of all) {
+      if (a.terapeuta_id) {
+        return { id: a.terapeuta_id, nome: a.terapeuta_nome || "il tuo terapeuta" };
+      }
+    }
+    return null;
+  })();
 
   if (loading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -187,6 +199,24 @@ export default function PazienteDashboard() {
           </form>
         )}
       </div>
+
+      {/* Prenota nuova seduta — CTA sempre visibile quando c'è un terapeuta noto */}
+      {mioTerapeuta && (
+        <div className="bg-gradient-to-br from-[#0A0A0A] to-[#1a1a1a] rounded-2xl p-6 shadow-md text-white flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] tracking-[0.22em] uppercase font-semibold text-[#F5D419] mb-1">Il tuo terapeuta</div>
+            <div className="font-bold text-lg text-white truncate">Dr. {mioTerapeuta.nome}</div>
+            <p className="text-sm text-white/65 mt-1">Prenota una nuova seduta scegliendo tra gli orari disponibili sul suo profilo.</p>
+          </div>
+          <Link
+            to={`/terapeuti/${mioTerapeuta.id}?prenota=1`}
+            data-testid="dashboard-prenota-mio-terapeuta"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-br from-[#F58A1F] to-[#F5D419] text-[#0A0A0A] font-semibold text-sm hover:opacity-90 transition-opacity flex-shrink-0 whitespace-nowrap"
+          >
+            <Calendar className="w-4 h-4" /> Prenota una seduta
+          </Link>
+        </div>
+      )}
 
       {/* Prossime sessioni */}
       {prossime.length > 0 ? (

@@ -1,5 +1,15 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — UX: Paziente può sempre riprenotare col suo terapeuta (P1)
+- **File**: `/app/frontend/src/pages/patient/PazienteDashboard.jsx`, `/app/frontend/src/pages/patient/PazienteHome.jsx`.
+- **Issue segnalato**: dopo una sessione completata il paziente vedeva solo il pulsante "Trova un altro terapeuta / Questionario" — nessun CTA per prenotare una nuova seduta con lo stesso terapeuta.
+- **Fix**:
+  - `PazienteDashboard`: nuovo banner nero in cima "Il tuo terapeuta — Dr. X" con pulsante "Prenota una seduta" (arancione). Deducimos il terapeuta dall'appuntamento più recente. Sempre visibile finché c'è almeno una sessione (passata o futura).
+  - `PazienteHome` (PWA): quando il terapeuta non ha disponibilità nei prossimi 30 giorni, ora mostra **entrambi** i pulsanti "Vedi disponibilità" (link diretto al profilo con auto-apertura del booking sheet) e "Messaggio" — non solo "Manda un messaggio" come prima.
+- Il pulsante linka a `/terapeuti/{id}?prenota=1` che apre automaticamente il BookingSheet sul primo slot disponibile.
+
+
+
 ## 2026-02 — Test E2E in Preview per caioricchieri@gmail.com
 - **Script**: `/app/backend/scripts/e2e_caio_test.py` (test end-to-end completo) e `/app/backend/scripts/fire_reminder_now.py` (test manuale reminder).
 - **Cosa fa**: crea terapeuta+paziente demo, prenota una sessione 17 min nel futuro, marca come pagato, genera fattura, aspetta 3 min, poi rimborsa e genera Nota di Credito. Tutto invia email a `caioricchieri@gmail.com`.
