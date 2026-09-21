@@ -92,7 +92,10 @@ async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] =
                 )
         except Exception as e:
             import logging as _lg
-            _lg.exception(f"[PAYMENT PAID] auto-fattura failed for appt={appt_id}: {e}")
+            _lg.exception(
+                f"[PAYMENT PAID] auto-fattura failed for appt={appt_id} "
+                f"paziente_user={tx.get('paziente_user_id')} terapeuta_user={tx.get('terapeuta_user_id')}: {e}"
+            )
     return True
 
 

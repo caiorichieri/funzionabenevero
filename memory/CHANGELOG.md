@@ -1,5 +1,20 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Fix: Auto-select Slot + Migrazione Fatture Mancanti (P1)
+Bug segnalati: (1) cliccando "Prenota una seduta" dalla dashboard, il sistema **sceglieva da solo** il primo slot disponibile invece di lasciare al paziente la scelta; (2) fattura non arrivata dopo il pagamento.
+
+### Fix 1 — Auto-select rimosso
+- **File**: `/app/frontend/src/pages/public/TerapistaPublicPage.jsx`.
+- Prima: `?prenota=1` apriva automaticamente il BookingSheet sul primo slot disponibile → toglieva scelta al paziente.
+- Ora: scrolla semplicemente alla sezione slot per far scegliere l'orario. Il BookingSheet si apre solo dopo un click esplicito.
+
+### Fix 2 — Logging + Migrazione Fatture Mancanti
+- **File**: `/app/backend/routers/payments.py`, `/app/backend/server.py`.
+- **Log migliorato**: `[PAYMENT PAID] auto-fattura failed for appt=X paziente_user=Y terapeuta_user=Z: {error}` — così si può diagnosticare in produzione (dati fiscali incompleti, storage down, validazione anagrafica, ecc.).
+- **Nuova migrazione idempotente in `seed_data()`**: al boot cerca appuntamenti `stato in ("confermato","completato","cancellato_con_addebito")` con `paid_at` ma **senza fattura sanitaria** e le genera. Fix retroattivo per pazienti che hanno pagato prima di questo deploy o che sono passati attraverso una failure silenziosa.
+
+
+
 ## 2026-02 — UX: Paziente può sempre riprenotare col suo terapeuta (P1)
 - **File**: `/app/frontend/src/pages/patient/PazienteDashboard.jsx`, `/app/frontend/src/pages/patient/PazienteHome.jsx`.
 - **Issue segnalato**: dopo una sessione completata il paziente vedeva solo il pulsante "Trova un altro terapeuta / Questionario" — nessun CTA per prenotare una nuova seduta con lo stesso terapeuta.

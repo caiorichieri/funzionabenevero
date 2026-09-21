@@ -1787,6 +1787,33 @@ async def seed_data():
     except Exception as e:
         logging.error(f"[MIGRATION] Realign approval_status failed: {e}")
 
+    # Idempotent migration: emit fatture for paid appointments that never got one
+    # (e.g. paid before the "fattura at payment" feature was deployed, or the
+    # auto-fattura call raised silently). Runs at boot, non-blocking on failure.
+    try:
+        paid_appts = await db.appuntamenti.find({
+            "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
+            "paid_at": {"$exists": True},
+        }, {"_id": 1}).to_list(500)
+        emitted = 0
+        failed = 0
+        for a in paid_appts:
+            appt_id = str(a["_id"])
+            existing = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+            if existing:
+                continue
+            try:
+                from routers.fatture import _generate_fattura_paziente
+                await _generate_fattura_paziente(appt_id)
+                emitted += 1
+            except Exception as e:
+                failed += 1
+                logging.warning(f"[MIGRATION][FATTURE] failed for appt={appt_id}: {e}")
+        if emitted or failed:
+            logging.info(f"[MIGRATION][FATTURE] emitted={emitted} failed={failed} out of {len(paid_appts)} paid appts")
+    except Exception as e:
+        logging.error(f"[MIGRATION][FATTURE] boot backfill failed: {e}")
+
     # Skip demo data in production. Set SEED_DEMO_DATA=true to enable in dev/staging.
     if os.environ.get("SEED_DEMO_DATA", "false").lower() != "true":
         logging.info("[SEED] SEED_DEMO_DATA is false — skipping demo therapists/patients/payouts")
