@@ -50,6 +50,39 @@ async def _get_paziente_full(user_id: str) -> dict:
     }
 
 
+async def _resolve_terapeuta_user_id(appt: dict) -> str | None:
+    """Return the therapist's users._id for an appointment.
+
+    Real bookings created via /payments/checkout/booking store only `terapeuta_id`
+    (points to terapisti._id). Older/test bookings also store `terapeuta_user_id`.
+    This resolver handles both, and backfills the missing field on the appointment
+    so downstream flows (monthly commissione aggregation, etc.) see it too.
+    """
+    uid = appt.get("terapeuta_user_id")
+    if uid:
+        return uid
+    tid = appt.get("terapeuta_id")
+    if not tid:
+        return None
+    try:
+        t = await db.terapisti.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        t = None
+    if not t:
+        return None
+    uid = t.get("user_id")
+    if uid:
+        # Best-effort backfill; safe if it fails (we already have the value).
+        try:
+            await db.appuntamenti.update_one(
+                {"_id": appt["_id"]},
+                {"$set": {"terapeuta_user_id": str(uid)}},
+            )
+        except Exception:
+            pass
+    return uid
+
+
 async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
     """Idempotent + race-safe: unique index on {appuntamento_id, kind} guarantees
     only one fattura sanitaria per appuntamento. Number is allocated AFTER content
@@ -60,14 +93,20 @@ async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
     appt = await db.appuntamenti.find_one({"_id": ObjectId(appuntamento_id)})
     if not appt:
         raise ValueError(f"Appuntamento {appuntamento_id} non trovato")
-    terapeuta = await _get_terapeuta_full(appt.get("terapeuta_user_id"))
+    terapeuta_user_id = await _resolve_terapeuta_user_id(appt)
+    terapeuta = await _get_terapeuta_full(terapeuta_user_id) if terapeuta_user_id else None
     if not terapeuta:
         raise ValueError("Terapeuta non trovato")
     if not (terapeuta.get("partita_iva") and terapeuta.get("codice_fiscale")):
         raise ValueError("Dati fiscali terapeuta incompleti (P.IVA/CF)")
     paziente = await _get_paziente_full(appt.get("paziente_user_id"))
 
-    importo = Decimal(str(appt.get("prezzo", terapeuta.get("tariffa", 70))))
+    importo = Decimal(str(
+        appt.get("prezzo")
+        or terapeuta.get("prezzo_sessione")
+        or terapeuta.get("tariffa")
+        or 70
+    ))
     year = datetime.now(timezone.utc).year
     data = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     causale = f"Prestazione psicologica del {appt.get('data_ora', '')[:10]}"
@@ -136,7 +175,7 @@ async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
         "numero": numero,
         "data": data,
         "appuntamento_id": appuntamento_id,
-        "terapeuta_user_id": appt.get("terapeuta_user_id"),
+        "terapeuta_user_id": terapeuta_user_id,
         "paziente_user_id": appt.get("paziente_user_id"),
         "importo_totale": float(importo),
         "importo_imponibile": float(importo),
@@ -510,15 +549,31 @@ async def admin_fatture_diagnostics(admin: dict = Depends(require_admin)):
             continue
         # Fetch patient + therapist names for the UI
         pu = await db.users.find_one({"_id": ObjectId(a["paziente_user_id"])}) if a.get("paziente_user_id") else None
-        tu = await db.users.find_one({"_id": ObjectId(a["terapeuta_user_id"])}) if a.get("terapeuta_user_id") else None
+        tu_id = a.get("terapeuta_user_id")
+        if not tu_id and a.get("terapeuta_id"):
+            try:
+                _t = await db.terapisti.find_one({"_id": ObjectId(a["terapeuta_id"])})
+                tu_id = _t.get("user_id") if _t else None
+            except Exception:
+                tu_id = None
+        tu = None
+        if tu_id:
+            try:
+                tu = await db.users.find_one({"_id": ObjectId(tu_id)})
+            except Exception:
+                tu = None
+        # Look up last known failure on the linked payment_transaction
+        tx = await db.payment_transactions.find_one({"appointment_id": appt_id})
         missing.append({
             "appuntamento_id": appt_id,
             "data_ora": a.get("data_ora"),
             "stato": a.get("stato"),
             "paid_at": a.get("paid_at").isoformat() if hasattr(a.get("paid_at"), "isoformat") else str(a.get("paid_at")),
             "prezzo": a.get("prezzo"),
+            "last_error": (tx or {}).get("fattura_error"),
+            "last_error_step": (tx or {}).get("fattura_error_step"),
             "paziente": {"user_id": a.get("paziente_user_id"), "nome": pu.get("nome") if pu else "", "cognome": pu.get("cognome") if pu else "", "email": pu.get("email") if pu else ""},
-            "terapeuta": {"user_id": a.get("terapeuta_user_id"), "nome": tu.get("nome") if tu else "", "cognome": tu.get("cognome") if tu else ""},
+            "terapeuta": {"user_id": tu_id, "nome": tu.get("nome") if tu else "", "cognome": tu.get("cognome") if tu else ""},
         })
 
     # Refunded transactions without a nota di credito
@@ -612,11 +667,16 @@ async def admin_generate_missing_nc(admin: dict = Depends(require_admin)):
 @router.post("/admin/fatture/generate-missing")
 async def admin_generate_missing_fatture(admin: dict = Depends(require_admin)):
     """Try to generate fatture sanitarie for ALL paid appointments that don't have one.
+    Also emails each PDF to the corresponding patient (best-effort).
     Returns per-appointment success/error so the admin can see what still fails."""
     paid_appts = await db.appuntamenti.find({
         "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
         "paid_at": {"$exists": True},
     }).sort("data_ora", -1).limit(500).to_list(500)
+
+    from email_service import send_signature_receipt_email
+    from storage_service import get_object as _sto_get
+    import base64
 
     generated = []
     errors = []
@@ -628,9 +688,136 @@ async def admin_generate_missing_fatture(admin: dict = Depends(require_admin)):
         try:
             f = await _generate_fattura_paziente(appt_id)
             generated.append({"appuntamento_id": appt_id, "numero": f.get("numero")})
+            # Clear error on the linked tx
+            await db.payment_transactions.update_one(
+                {"appointment_id": appt_id},
+                {"$set": {
+                    "fattura_sanitaria_status": "emessa",
+                    "fattura_id": str(f["_id"]),
+                    "fattura_numero": f.get("numero"),
+                    "fattura_emessa_at": datetime.now(timezone.utc),
+                }, "$unset": {"fattura_error": "", "fattura_error_step": ""}},
+            )
+            # Email best-effort
+            pu = await db.users.find_one({"_id": ObjectId(a["paziente_user_id"])}) if a.get("paziente_user_id") else None
+            if pu and pu.get("email"):
+                pdf_bytes = base64.b64decode(f["pdf_inline_b64"]) if f.get("pdf_inline_b64") else b""
+                if not pdf_bytes and f.get("pdf_storage_path"):
+                    try:
+                        pdf_bytes, _ = _sto_get(f["pdf_storage_path"])
+                    except Exception as e:
+                        logger.warning(f"[GEN MISSING] storage fetch failed for {f.get('numero')}: {e}")
+                try:
+                    ok = await send_signature_receipt_email(
+                        email=pu["email"],
+                        nome=pu.get("nome", ""),
+                        doc_titles=[
+                            f"Fattura {f['numero']} — € {f.get('importo_totale', 0):.2f}",
+                            "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
+                            "Conservala per almeno 5 anni",
+                        ],
+                        pdf_bytes=pdf_bytes,
+                    )
+                    if ok:
+                        await db.fatture.update_one(
+                            {"_id": f["_id"]},
+                            {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                        )
+                except Exception as e:
+                    logger.warning(f"[GEN MISSING] email send failed for {f.get('numero')}: {e}")
         except Exception as e:
             errors.append({"appuntamento_id": appt_id, "error": str(e)[:300]})
+            # Persist error on the linked tx so it surfaces in diagnostics
+            try:
+                await db.payment_transactions.update_one(
+                    {"appointment_id": appt_id},
+                    {"$set": {
+                        "fattura_error": str(e)[:500],
+                        "fattura_error_step": "generate_fattura",
+                        "fattura_error_at": datetime.now(timezone.utc),
+                    }},
+                )
+            except Exception:
+                pass
     return {"generated_count": len(generated), "generated": generated, "errors_count": len(errors), "errors": errors}
+
+
+@router.post("/admin/fatture/retry/{appuntamento_id}")
+async def admin_retry_fattura(appuntamento_id: str, admin: dict = Depends(require_admin)):
+    """Per-row retry for a single paid appointment missing its fattura.
+
+    Generates fattura + emails PDF to patient. Idempotent — if a fattura already
+    exists it's returned as-is and the email is retried best-effort.
+    """
+    from email_service import send_signature_receipt_email
+    from storage_service import get_object as _sto_get
+    import base64
+    try:
+        appt = await db.appuntamenti.find_one({"_id": ObjectId(appuntamento_id)})
+    except Exception:
+        raise HTTPException(400, "ID appuntamento non valido")
+    if not appt:
+        raise HTTPException(404, "Appuntamento non trovato")
+    try:
+        f = await _generate_fattura_paziente(appuntamento_id)
+    except Exception as e:
+        # Persist error on tx
+        try:
+            await db.payment_transactions.update_one(
+                {"appointment_id": appuntamento_id},
+                {"$set": {
+                    "fattura_error": str(e)[:500],
+                    "fattura_error_step": "generate_fattura",
+                    "fattura_error_at": datetime.now(timezone.utc),
+                }},
+            )
+        except Exception:
+            pass
+        raise HTTPException(422, str(e)[:400])
+
+    pu = await db.users.find_one({"_id": ObjectId(appt["paziente_user_id"])}) if appt.get("paziente_user_id") else None
+    email_sent = False
+    if pu and pu.get("email"):
+        pdf_bytes = base64.b64decode(f["pdf_inline_b64"]) if f.get("pdf_inline_b64") else b""
+        if not pdf_bytes and f.get("pdf_storage_path"):
+            try:
+                pdf_bytes, _ = _sto_get(f["pdf_storage_path"])
+            except Exception as e:
+                logger.warning(f"[RETRY FATTURA] storage fetch failed: {e}")
+        try:
+            email_sent = await send_signature_receipt_email(
+                email=pu["email"],
+                nome=pu.get("nome", ""),
+                doc_titles=[
+                    f"Fattura {f['numero']} — € {f.get('importo_totale', 0):.2f}",
+                    "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
+                    "Conservala per almeno 5 anni",
+                ],
+                pdf_bytes=pdf_bytes,
+            )
+            if email_sent:
+                await db.fatture.update_one(
+                    {"_id": f["_id"]},
+                    {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                )
+        except Exception as e:
+            logger.warning(f"[RETRY FATTURA] email send failed: {e}")
+
+    await db.payment_transactions.update_one(
+        {"appointment_id": appuntamento_id},
+        {"$set": {
+            "fattura_sanitaria_status": "emessa",
+            "fattura_id": str(f["_id"]),
+            "fattura_numero": f.get("numero"),
+            "fattura_emessa_at": datetime.now(timezone.utc),
+        }, "$unset": {"fattura_error": "", "fattura_error_step": ""}},
+    )
+    return {
+        "numero": f.get("numero"),
+        "id": str(f["_id"]),
+        "email_sent": email_sent,
+        "paziente_email": pu.get("email") if pu else None,
+    }
 
 
 async def _fetch_and_serve(fid: str, fmt: str, user: dict):

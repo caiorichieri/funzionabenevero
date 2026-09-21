@@ -62,41 +62,97 @@ async def _mark_payment_paid(session_id: str, payment_intent_id: Optional[str] =
         paziente_user = await find_user_by_id(tx["paziente_user_id"])
         if paziente_user:
             paziente_user["_id"] = str(paziente_user["_id"])
-            await finalize_confirmed_booking(appt_id, paziente_user)
+            try:
+                await finalize_confirmed_booking(appt_id, paziente_user)
+            except Exception as e:
+                import logging as _lg
+                _lg.exception(f"[PAYMENT PAID] finalize_confirmed_booking failed for appt={appt_id}: {e}")
 
         # Fiscal: emit fattura sanitaria immediately after payment (art. 6 DPR 633/72:
         # fattura obbligatoria al momento del pagamento anche per prestazioni sanitarie).
-        # Idempotent: guarded by unique index on {appuntamento_id, kind:"sanitaria"}.
-        try:
-            from routers.fatture import _generate_fattura_paziente
-            from email_service import send_signature_receipt_email
-            from storage_service import get_object as _sto_get
-            fattura = await _generate_fattura_paziente(appt_id)
-            if fattura and paziente_user and paziente_user.get("email"):
-                import base64
-                pdf_bytes = base64.b64decode(fattura["pdf_inline_b64"]) if fattura.get("pdf_inline_b64") else b""
-                if not pdf_bytes and fattura.get("pdf_storage_path"):
-                    try:
-                        pdf_bytes, _ = _sto_get(fattura["pdf_storage_path"])
-                    except Exception:
-                        pdf_bytes = b""
-                await send_signature_receipt_email(
-                    email=paziente_user["email"],
-                    nome=paziente_user.get("nome", ""),
-                    doc_titles=[
-                        f"Fattura {fattura['numero']} — € {fattura.get('importo_totale', 0):.2f}",
-                        "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
-                        "Conservala per almeno 5 anni",
-                    ],
-                    pdf_bytes=pdf_bytes,
-                )
-        except Exception as e:
-            import logging as _lg
-            _lg.exception(
-                f"[PAYMENT PAID] auto-fattura failed for appt={appt_id} "
-                f"paziente_user={tx.get('paziente_user_id')} terapeuta_user={tx.get('terapeuta_user_id')}: {e}"
-            )
+        # Runs step-by-step so a failure in email/upload doesn't discard the fattura,
+        # and errors are persisted onto the transaction so admin sees them in /admin/fatture.
+        await _emit_fattura_for_paid_tx(str(tx["_id"]), appt_id, paziente_user)
     return True
+
+
+async def _emit_fattura_for_paid_tx(tx_id: str, appt_id: str, paziente_user: Optional[dict]) -> Optional[dict]:
+    """Attempts fattura generation + email delivery for a paid tx.
+
+    Persists per-step outcome on the transaction so /admin/fatture/diagnostics
+    can surface exactly what failed without reading logs. Never raises to caller.
+    Idempotent — the underlying _generate_fattura_paziente guards on a unique index.
+    """
+    import logging as _lg
+    from bson import ObjectId as _Oid
+    step = "start"
+    try:
+        step = "generate_fattura"
+        from routers.fatture import _generate_fattura_paziente
+        fattura = await _generate_fattura_paziente(appt_id)
+        if not fattura:
+            raise RuntimeError("fattura not returned")
+
+        # Fattura exists → clear any prior error and mark as emitted.
+        await db.payment_transactions.update_one(
+            {"_id": _Oid(tx_id)},
+            {"$set": {
+                "fattura_sanitaria_status": "emessa",
+                "fattura_id": str(fattura["_id"]),
+                "fattura_numero": fattura.get("numero"),
+                "fattura_emessa_at": datetime.now(timezone.utc),
+            }, "$unset": {"fattura_error": "", "fattura_error_step": ""}},
+        )
+
+        # Email is a best-effort delivery. If it fails, fattura stays emessa
+        # and admin can reinvia from the UI (patient can always download from dashboard).
+        if paziente_user and paziente_user.get("email"):
+            step = "send_email"
+            import base64
+            pdf_bytes = base64.b64decode(fattura["pdf_inline_b64"]) if fattura.get("pdf_inline_b64") else b""
+            if not pdf_bytes and fattura.get("pdf_storage_path"):
+                try:
+                    from storage_service import get_object as _sto_get
+                    pdf_bytes, _ = _sto_get(fattura["pdf_storage_path"])
+                except Exception as e:
+                    _lg.warning(f"[PAYMENT PAID] storage fetch failed for fattura={fattura.get('numero')}: {e}")
+            from email_service import send_signature_receipt_email
+            ok = await send_signature_receipt_email(
+                email=paziente_user["email"],
+                nome=paziente_user.get("nome", ""),
+                doc_titles=[
+                    f"Fattura {fattura['numero']} — € {fattura.get('importo_totale', 0):.2f}",
+                    "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
+                    "Conservala per almeno 5 anni",
+                ],
+                pdf_bytes=pdf_bytes,
+            )
+            if ok:
+                await db.fatture.update_one(
+                    {"_id": fattura["_id"]},
+                    {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                )
+            else:
+                await db.fatture.update_one(
+                    {"_id": fattura["_id"]},
+                    {"$set": {"email_error": "send returned False",
+                              "email_last_attempt_at": datetime.now(timezone.utc)}},
+                )
+        return fattura
+    except Exception as e:
+        _lg.exception(f"[PAYMENT PAID] auto-fattura failed step={step} tx={tx_id} appt={appt_id}: {e}")
+        try:
+            await db.payment_transactions.update_one(
+                {"_id": _Oid(tx_id)},
+                {"$set": {
+                    "fattura_error": str(e)[:500],
+                    "fattura_error_step": step,
+                    "fattura_error_at": datetime.now(timezone.utc),
+                }},
+            )
+        except Exception:
+            pass
+        return None
 
 
 @router.post("/payments/checkout/booking")
@@ -123,6 +179,9 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
     prezzo = terapista.get("prezzo_sessione") or 0
     if prezzo <= 0:
         raise HTTPException(400, "Prezzo sessione non configurato per questo terapista")
+    terapeuta_user_id = terapista.get("user_id")
+    if terapeuta_user_id is not None:
+        terapeuta_user_id = str(terapeuta_user_id)
 
     # Defense-in-depth: reject if slot conflicts with any active booking for the same therapist.
     # Compares as UTC datetimes with duration overlap, not string match, to catch cases where
@@ -163,6 +222,7 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
 
     appt_doc = {
         "terapeuta_id": req.terapeuta_id,
+        "terapeuta_user_id": terapeuta_user_id,
         "paziente_id": req.paziente_id,
         "paziente_user_id": user["_id"],
         "data_ora": req.data_ora,
@@ -171,6 +231,7 @@ async def create_booking_checkout(req: CheckoutBookingRequest, user: dict = Depe
         "modalita": req.modalita,
         "note": req.note,
         "stato": "in_attesa_pagamento",
+        "prezzo": prezzo,
         "created_at": datetime.now(timezone.utc),
     }
     ins = await db.appuntamenti.insert_one(appt_doc)

@@ -28,6 +28,7 @@ export default function FatturePage({ isAdmin = true }) {
   const [busyJob, setBusyJob] = useState(null);
   const [missing, setMissing] = useState(null); // { missing_count, missing[] }
   const [busyGenerate, setBusyGenerate] = useState(false);
+  const [retryingAppt, setRetryingAppt] = useState(null);
 
   const loadDiagnostics = useCallback(async () => {
     if (!isAdmin) return;
@@ -71,6 +72,25 @@ export default function FatturePage({ isAdmin = true }) {
       toast.error(formatApiError(e, "Errore durante la generazione delle note di credito"));
     } finally {
       setBusyGenerate(false);
+    }
+  };
+
+  const handleRetryOne = async (apptId, patientLabel) => {
+    if (!window.confirm(`Riprovo la generazione della fattura per ${patientLabel}? Verrà anche inviata via email.`)) return;
+    setRetryingAppt(apptId);
+    try {
+      const r = await axios.post(`${API}/admin/fatture/retry/${apptId}`, {}, { withCredentials: true });
+      if (r.data?.email_sent) {
+        toast.success(`Fattura ${r.data.numero} generata e inviata a ${r.data.paziente_email}`, { duration: 6000 });
+      } else {
+        toast.success(`Fattura ${r.data.numero} generata (email non inviata — riprova con "Reinvia")`, { duration: 8000 });
+      }
+      await load();
+      await loadDiagnostics();
+    } catch (e) {
+      toast.error(formatApiError(e, "Errore durante la generazione"));
+    } finally {
+      setRetryingAppt(null);
     }
   };
 
@@ -254,13 +274,32 @@ export default function FatturePage({ isAdmin = true }) {
               <p className="text-xs text-red-800/85 mt-0.5">
                 Ci sono appuntamenti pagati per cui non è stata ancora emessa la fattura sanitaria. Clicca qui sotto per generarle e inviarle ai pazienti.
               </p>
-              <ul className="text-xs text-red-900/70 mt-2 space-y-0.5 max-h-32 overflow-y-auto">
-                {missing.missing.slice(0, 5).map(m => (
-                  <li key={m.appuntamento_id}>
-                    · {m.paziente?.nome} {m.paziente?.cognome} ({m.paziente?.email}) — {m.data_ora?.slice(0,10)} · € {m.prezzo?.toFixed?.(2) ?? m.prezzo}
+              <ul className="text-xs text-red-900/70 mt-2 space-y-1.5 max-h-56 overflow-y-auto">
+                {missing.missing.slice(0, 10).map(m => (
+                  <li key={m.appuntamento_id} className="flex items-start justify-between gap-2 border-l-2 border-red-300 pl-2">
+                    <div className="flex-1 min-w-0">
+                      <div>
+                        · {m.paziente?.nome} {m.paziente?.cognome} ({m.paziente?.email}) — {m.data_ora?.slice(0,10)} · € {m.prezzo?.toFixed?.(2) ?? m.prezzo}
+                      </div>
+                      {m.last_error && (
+                        <div className="text-red-800 mt-0.5 font-mono text-[10px]">
+                          ⚠ [{m.last_error_step || "?"}] {m.last_error}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRetryOne(m.appuntamento_id, `${m.paziente?.nome} ${m.paziente?.cognome}`)}
+                      disabled={retryingAppt === m.appuntamento_id}
+                      data-testid={`retry-fattura-${m.appuntamento_id}`}
+                      className="shrink-0 px-2 py-1 text-[10px] font-semibold rounded-full border border-red-300 text-red-800 hover:bg-red-100 disabled:opacity-50 inline-flex items-center gap-1"
+                    >
+                      {retryingAppt === m.appuntamento_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                      Riprova
+                    </button>
                   </li>
                 ))}
-                {missing.missing_count > 5 && <li>… e altri {missing.missing_count - 5}</li>}
+                {missing.missing_count > 10 && <li>… e altri {missing.missing_count - 10}</li>}
               </ul>
               <button
                 type="button"

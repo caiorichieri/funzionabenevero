@@ -1790,11 +1790,13 @@ async def seed_data():
     # Idempotent migration: emit fatture for paid appointments that never got one
     # (e.g. paid before the "fattura at payment" feature was deployed, or the
     # auto-fattura call raised silently). Runs at boot, non-blocking on failure.
+    # Also sends the PDF via email to the patient so the fix reaches them without
+    # requiring an admin click.
     try:
         paid_appts = await db.appuntamenti.find({
             "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
             "paid_at": {"$exists": True},
-        }, {"_id": 1}).to_list(500)
+        }, {"_id": 1, "paziente_user_id": 1}).to_list(500)
         emitted = 0
         failed = 0
         for a in paid_appts:
@@ -1804,11 +1806,70 @@ async def seed_data():
                 continue
             try:
                 from routers.fatture import _generate_fattura_paziente
-                await _generate_fattura_paziente(appt_id)
+                from email_service import send_signature_receipt_email
+                from storage_service import get_object as _sto_get
+                import base64
+                f = await _generate_fattura_paziente(appt_id)
                 emitted += 1
+                # Best-effort: email PDF to patient
+                pu_id = a.get("paziente_user_id")
+                if pu_id:
+                    try:
+                        pu = await db.users.find_one({"_id": ObjectId(pu_id)})
+                    except Exception:
+                        pu = None
+                    if pu and pu.get("email"):
+                        pdf_bytes = base64.b64decode(f["pdf_inline_b64"]) if f.get("pdf_inline_b64") else b""
+                        if not pdf_bytes and f.get("pdf_storage_path"):
+                            try:
+                                pdf_bytes, _ = _sto_get(f["pdf_storage_path"])
+                            except Exception:
+                                pdf_bytes = b""
+                        try:
+                            ok = await send_signature_receipt_email(
+                                email=pu["email"],
+                                nome=pu.get("nome", ""),
+                                doc_titles=[
+                                    f"Fattura {f['numero']} — € {f.get('importo_totale', 0):.2f}",
+                                    "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
+                                    "Conservala per almeno 5 anni",
+                                ],
+                                pdf_bytes=pdf_bytes,
+                            )
+                            if ok:
+                                await db.fatture.update_one(
+                                    {"_id": f["_id"]},
+                                    {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                                )
+                        except Exception as e:
+                            logging.warning(f"[MIGRATION][FATTURE] email send failed for {f.get('numero')}: {e}")
+                # Clear stale error on the linked tx
+                try:
+                    await db.payment_transactions.update_one(
+                        {"appointment_id": appt_id},
+                        {"$set": {
+                            "fattura_sanitaria_status": "emessa",
+                            "fattura_id": str(f["_id"]),
+                            "fattura_numero": f.get("numero"),
+                            "fattura_emessa_at": datetime.now(timezone.utc),
+                        }, "$unset": {"fattura_error": "", "fattura_error_step": ""}},
+                    )
+                except Exception:
+                    pass
             except Exception as e:
                 failed += 1
                 logging.warning(f"[MIGRATION][FATTURE] failed for appt={appt_id}: {e}")
+                try:
+                    await db.payment_transactions.update_one(
+                        {"appointment_id": appt_id},
+                        {"$set": {
+                            "fattura_error": str(e)[:500],
+                            "fattura_error_step": "boot_backfill",
+                            "fattura_error_at": datetime.now(timezone.utc),
+                        }},
+                    )
+                except Exception:
+                    pass
         if emitted or failed:
             logging.info(f"[MIGRATION][FATTURE] emitted={emitted} failed={failed} out of {len(paid_appts)} paid appts")
     except Exception as e:
