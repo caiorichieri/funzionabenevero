@@ -495,7 +495,8 @@ async def admin_fatture(kind: str = None, admin: dict = Depends(require_admin)):
 @router.get("/admin/fatture/diagnostics")
 async def admin_fatture_diagnostics(admin: dict = Depends(require_admin)):
     """Diagnostic endpoint: return paid appointments that DON'T have a fattura
-    sanitaria yet. Helps the admin see if the auto-emit at payment failed silently."""
+    sanitaria yet AND refunded transactions that DON'T have a nota di credito yet.
+    Helps the admin see if the auto-emit at payment/refund failed silently."""
     paid_appts = await db.appuntamenti.find({
         "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
         "paid_at": {"$exists": True},
@@ -519,7 +520,93 @@ async def admin_fatture_diagnostics(admin: dict = Depends(require_admin)):
             "paziente": {"user_id": a.get("paziente_user_id"), "nome": pu.get("nome") if pu else "", "cognome": pu.get("cognome") if pu else "", "email": pu.get("email") if pu else ""},
             "terapeuta": {"user_id": a.get("terapeuta_user_id"), "nome": tu.get("nome") if tu else "", "cognome": tu.get("cognome") if tu else ""},
         })
-    return {"missing_count": len(missing), "checked_paid_count": len(paid_appts), "missing": missing}
+
+    # Refunded transactions without a nota di credito
+    refunded = await db.payment_transactions.find({
+        "$or": [{"payment_status": "refunded"}, {"is_refunded": True}, {"status": "refunded"}],
+    }).sort("refunded_at", -1).limit(200).to_list(200)
+    missing_nc = []
+    for tx in refunded:
+        appt_id = tx.get("appointment_id")
+        if not appt_id:
+            continue
+        original = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+        if not original:
+            continue  # Can't emit NC without a source invoice — surfaces in the fatture-missing list above
+        nc_exists = await db.fatture.find_one({"kind": "nota_credito_sanitaria", "fattura_originale_id": str(original["_id"])})
+        if nc_exists:
+            continue
+        pu = await db.users.find_one({"_id": ObjectId(tx["paziente_user_id"])}) if tx.get("paziente_user_id") else None
+        missing_nc.append({
+            "transaction_id": str(tx["_id"]),
+            "appuntamento_id": appt_id,
+            "fattura_id": str(original["_id"]),
+            "fattura_numero": original.get("numero"),
+            "refunded_at": tx.get("refunded_at").isoformat() if hasattr(tx.get("refunded_at"), "isoformat") else str(tx.get("refunded_at")),
+            "paziente": {"user_id": tx.get("paziente_user_id"), "nome": pu.get("nome") if pu else "", "cognome": pu.get("cognome") if pu else "", "email": pu.get("email") if pu else ""},
+            "importo": tx.get("amount", 0) / 100 if isinstance(tx.get("amount"), (int, float)) else 0,
+        })
+    return {
+        "missing_count": len(missing),
+        "checked_paid_count": len(paid_appts),
+        "missing": missing,
+        "missing_nc_count": len(missing_nc),
+        "checked_refunded_count": len(refunded),
+        "missing_nc": missing_nc,
+    }
+
+
+@router.post("/admin/fatture/generate-missing-nc")
+async def admin_generate_missing_nc(admin: dict = Depends(require_admin)):
+    """Emit nota di credito for every refunded transaction that doesn't have one yet,
+    and email each PDF to the corresponding patient."""
+    refunded = await db.payment_transactions.find({
+        "$or": [{"payment_status": "refunded"}, {"is_refunded": True}, {"status": "refunded"}],
+    }).sort("refunded_at", -1).limit(500).to_list(500)
+
+    generated = []
+    errors = []
+    from email_service import send_signature_receipt_email
+    from storage_service import get_object as _sto_get
+    import base64
+    for tx in refunded:
+        appt_id = tx.get("appointment_id")
+        if not appt_id:
+            continue
+        original = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+        if not original:
+            continue
+        nc_exists = await db.fatture.find_one({"kind": "nota_credito_sanitaria", "fattura_originale_id": str(original["_id"])})
+        if nc_exists:
+            continue
+        try:
+            nc = await _generate_nota_credito_paziente(
+                str(original["_id"]),
+                motivo=tx.get("refund_admin_note") or "Rimborso Stripe",
+            )
+            generated.append({"transaction_id": str(tx["_id"]), "numero": nc["numero"], "fattura_originale": original.get("numero")})
+            # Email the patient the NC PDF
+            pu = await db.users.find_one({"_id": ObjectId(tx["paziente_user_id"])})
+            if pu and pu.get("email"):
+                pdf_bytes = base64.b64decode(nc["pdf_inline_b64"]) if nc.get("pdf_inline_b64") else b""
+                if not pdf_bytes and nc.get("pdf_storage_path"):
+                    try:
+                        pdf_bytes, _ = _sto_get(nc["pdf_storage_path"])
+                    except Exception:
+                        pdf_bytes = b""
+                await send_signature_receipt_email(
+                    email=pu["email"],
+                    nome=pu.get("nome", ""),
+                    doc_titles=[
+                        f"Nota di Credito {nc['numero']} — storno fattura {original.get('numero','')}",
+                        f"Importo stornato: € {abs(nc.get('importo_totale', 0)):.2f}",
+                        "Conservala insieme alla fattura originale.",
+                    ],
+                    pdf_bytes=pdf_bytes,
+                )
+        except Exception as e:
+            errors.append({"transaction_id": str(tx["_id"]), "error": str(e)[:300]})
+    return {"generated_count": len(generated), "generated": generated, "errors_count": len(errors), "errors": errors}
 
 
 @router.post("/admin/fatture/generate-missing")

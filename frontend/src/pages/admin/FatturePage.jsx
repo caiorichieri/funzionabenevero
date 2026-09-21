@@ -56,6 +56,24 @@ export default function FatturePage({ isAdmin = true }) {
     }
   };
 
+  const handleGenerateMissingNC = async () => {
+    if (!window.confirm("Genero le note di credito per tutti i rimborsi che ancora non ne hanno una? Verranno inviate ai pazienti via email.")) return;
+    setBusyGenerate(true);
+    try {
+      const r = await axios.post(`${API}/admin/fatture/generate-missing-nc`, {}, { withCredentials: true });
+      toast.success(`Note di credito generate: ${r.data.generated_count} · Errori: ${r.data.errors_count}`, { duration: 8000 });
+      if (r.data.errors_count > 0) {
+        toast.error(`Prima causa: ${r.data.errors[0].error}`, { duration: 10000 });
+      }
+      await load();
+      await loadDiagnostics();
+    } catch (e) {
+      toast.error(formatApiError(e, "Errore durante la generazione delle note di credito"));
+    } finally {
+      setBusyGenerate(false);
+    }
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -253,6 +271,42 @@ export default function FatturePage({ isAdmin = true }) {
               >
                 {busyGenerate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 {busyGenerate ? "Genero le fatture..." : `Genera ${missing.missing_count} fatture mancanti`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAdmin && missing && missing.missing_nc_count > 0 && (
+        <div data-testid="fatture-missing-nc-banner" className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Send className="w-4 h-4 text-amber-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-amber-900 text-sm">
+                {missing.missing_nc_count} rimbors{missing.missing_nc_count === 1 ? "o senza nota di credito" : "i senza nota di credito"}
+              </div>
+              <p className="text-xs text-amber-800/85 mt-0.5">
+                Ci sono rimborsi già eseguiti su Stripe per cui la nota di credito (TD04) non è stata ancora emessa. Cliccando qui sotto vengono generate e inviate via email ai pazienti.
+              </p>
+              <ul className="text-xs text-amber-900/70 mt-2 space-y-0.5 max-h-32 overflow-y-auto">
+                {missing.missing_nc.slice(0, 5).map(m => (
+                  <li key={m.transaction_id}>
+                    · {m.paziente?.nome} {m.paziente?.cognome} ({m.paziente?.email}) — storno fattura {m.fattura_numero} · € {m.importo?.toFixed?.(2) ?? m.importo}
+                  </li>
+                ))}
+                {missing.missing_nc_count > 5 && <li>… e altri {missing.missing_nc_count - 5}</li>}
+              </ul>
+              <button
+                type="button"
+                data-testid="generate-missing-nc"
+                onClick={handleGenerateMissingNC}
+                disabled={busyGenerate}
+                className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold disabled:opacity-50"
+              >
+                {busyGenerate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                {busyGenerate ? "Genero le note di credito..." : `Genera ${missing.missing_nc_count} note di credito mancanti`}
               </button>
             </div>
           </div>

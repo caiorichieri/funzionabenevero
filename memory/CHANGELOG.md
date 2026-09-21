@@ -1,5 +1,21 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Feature: Diagnostica + Rigenerazione Note di Credito (P0)
+Bug in produzione: dopo un refund Stripe, il paziente NON riceveva la Nota di Credito. La generazione della NC nel flusso di rimborso poteva fallire silenziosamente.
+
+### Backend — nuovi endpoint
+- `GET /admin/fatture/diagnostics` (esteso): ora include anche `missing_nc_count` + lista `missing_nc[]` con i rimborsi che non hanno la corrispondente NC.
+- `POST /admin/fatture/generate-missing-nc` — genera automaticamente le NC per tutti i rimborsi orfani + invia il PDF al paziente via email. Ritorna i successi + gli errori con motivo.
+- **Migrazione idempotente al boot** (`seed_data`): auto-recupera le NC mancanti per rimborsi precedenti al prossimo deploy.
+
+### Frontend — banner ambrato in `/admin/fatture`
+- Nuovo banner ambrato (accanto a quello rosso delle fatture mancanti) che elenca fino a 5 rimborsi senza NC e ha il pulsante **"Genera N note di credito mancanti"**.
+- Toast di conferma con conteggio successi/errori + prima causa d'errore visibile.
+
+- **Test E2E**: preview → `missing_nc_count: 0`. Endpoint funzionante.
+
+
+
 ## 2026-02 — Feature: Diagnostica + Genera Fatture Mancanti (P0)
 Bug in produzione: pagamenti/storni fatti prima del deploy della funzionalità "fattura al pagamento" **non hanno generato fattura**, e l'admin non aveva modo di vederli o recuperarli.
 

@@ -1814,6 +1814,37 @@ async def seed_data():
     except Exception as e:
         logging.error(f"[MIGRATION][FATTURE] boot backfill failed: {e}")
 
+    # Idempotent migration: emit nota di credito for refunded transactions that
+    # never got one (bug: NC generation raised silently during refund). Auto-runs
+    # at boot so any missed NC gets recovered on next deploy.
+    try:
+        refunded = await db.payment_transactions.find({
+            "$or": [{"payment_status": "refunded"}, {"is_refunded": True}, {"status": "refunded"}],
+        }).to_list(500)
+        nc_emitted = 0
+        nc_failed = 0
+        for tx in refunded:
+            appt_id = tx.get("appointment_id")
+            if not appt_id:
+                continue
+            original = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+            if not original:
+                continue
+            nc_exists = await db.fatture.find_one({"kind": "nota_credito_sanitaria", "fattura_originale_id": str(original["_id"])})
+            if nc_exists:
+                continue
+            try:
+                from routers.fatture import _generate_nota_credito_paziente
+                await _generate_nota_credito_paziente(str(original["_id"]), motivo=tx.get("refund_admin_note") or "Rimborso Stripe")
+                nc_emitted += 1
+            except Exception as e:
+                nc_failed += 1
+                logging.warning(f"[MIGRATION][NC] failed for tx={tx.get('_id')}: {e}")
+        if nc_emitted or nc_failed:
+            logging.info(f"[MIGRATION][NC] emitted={nc_emitted} failed={nc_failed} out of {len(refunded)} refunded tx")
+    except Exception as e:
+        logging.error(f"[MIGRATION][NC] boot backfill failed: {e}")
+
     # Skip demo data in production. Set SEED_DEMO_DATA=true to enable in dev/staging.
     if os.environ.get("SEED_DEMO_DATA", "false").lower() != "true":
         logging.info("[SEED] SEED_DEMO_DATA is false — skipping demo therapists/patients/payouts")
