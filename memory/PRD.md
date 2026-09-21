@@ -1475,3 +1475,31 @@ ELSE                        → NoTerapeutaCard (questionario)
 - Structured markup per Recensioni (Review, AggregateRating) sul profilo terapeuta.
 - Sitemap index if list grows beyond 50k URLs.
 - Add Google Search Console verification tag.
+
+
+---
+
+## 🩹 Bug fix P0 — 2026-09-21 · Pagamento → Fattura silent failure
+
+**Sintoma reportato dall'utente**: fatto un pagamento reale, sessione prenotata + email di conferma inviata, MA fattura sanitaria non generata (paziente non riceve nulla; admin vede banner "1 pagamento senza fattura" ma la lista fatture è vuota).
+
+**Root cause**: gli appuntamenti creati da `/payments/checkout/booking` scrivevano solo `terapeuta_id` (→ `terapisti._id`), mai `terapeuta_user_id` (→ `users._id`). Il generatore fattura leggeva `appt.terapeuta_user_id → None`, `_get_terapeuta_full(None) → None`, `ValueError("Terapeuta non trovato")`, catturato silenziosamente dal try/except del webhook.
+
+**Fix (9/9 test regression PASS)**:
+- `_resolve_terapeuta_user_id` (nuovo helper): fallback `terapisti._id → user_id` + backfill sul documento appuntamento.
+- `create_booking_checkout` scrive `terapeuta_user_id` + `prezzo` sull'appuntamento al momento della creazione.
+- `_emit_fattura_for_paid_tx` (nuovo helper step-by-step): persiste `fattura_error` / `fattura_error_step` sul `payment_transactions` quando fallisce; il webhook Stripe non fallisce mai.
+- `POST /admin/fatture/retry/{appuntamento_id}` (nuovo endpoint): retry per-riga con generazione + email + aggiornamento tx.
+- Migration boot `server.py` ora invia anche il PDF via email + registra errori.
+- Frontend `FatturePage.jsx`: banner rosso mostra errore per riga + bottone **"Riprova"** per row.
+- Diagnostica endpoint espone `last_error` + `last_error_step` per riga.
+
+**Effetto sul caso Silvia Drigo (produzione)**: al prossimo deploy la migration boot rigenererà automaticamente la fattura e invierà il PDF al paziente. In alternativa immediata, admin può cliccare "Riprova" sulla riga del banner rosso.
+
+**File toccati**:
+- `/app/backend/routers/fatture.py` — `_resolve_terapeuta_user_id`, `_generate_fattura_paziente` (uso resolver + fallback prezzo), `/admin/fatture/diagnostics` (last_error), `/admin/fatture/generate-missing` (ora emette anche email), nuovo `/admin/fatture/retry/{id}`.
+- `/app/backend/routers/payments.py` — `_mark_payment_paid` refactor + nuovo `_emit_fattura_for_paid_tx`, `create_booking_checkout` scrive `terapeuta_user_id`+`prezzo`.
+- `/app/backend/server.py` — migration boot invia email + persiste errori.
+- `/app/frontend/src/pages/admin/FatturePage.jsx` — retry per riga + errori inline.
+- `/app/backend/tests/test_fattura_auto_emit.py` + `test_fattura_retry_flow.py` + `conftest.py` — regression.
+

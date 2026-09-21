@@ -1,0 +1,52 @@
+{
+  "summary": "Backend regression testing for the auto-emit fattura sanitaria bug fix (production-shape appointments with only terapeuta_id, missing terapeuta_user_id). Seeded production-shape data directly in MongoDB (payment_transactions + appuntamenti WITHOUT terapeuta_user_id), then exercised the resolver, diagnostics endpoint, per-row retry endpoint, and idempotency. All 9 tests pass — the bug fix works end-to-end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_fattura_retry_flow.py",
+    "/app/backend/tests/test_fattura_auto_emit.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/iter27_fattura_retry.xml"
+  ],
+  "action_items": [
+    "Update /app/memory/test_credentials.md — the file lists admin@funzionabene.it/admin2026 but the actual working admin is hr@funzionabene.it/@Bidoc2026! (login returns 401 with the documented creds). This will trip up every future testing agent."
+  ],
+  "critical_code_review_comments": [
+    "routers/fatture.py::_generate_fattura_paziente — good: fiscal number is allocated AFTER validation and burned on failure. Race-safe via unique index.",
+    "routers/payments.py::_emit_fattura_for_paid_tx — per-step error persistence on the tx (fattura_error + fattura_error_step) is exactly what admin diagnostics needs. Errors never propagate to the webhook/success flow, so payment confirmation is not blocked by fattura failures. Good.",
+    "routers/payments.py::create_booking_checkout — now writes both terapeuta_user_id (from terapista.user_id) AND prezzo to the appointment at creation time. This closes the root-cause gap.",
+    "Suggestion (non-blocking): the routers/fatture.py `admin_gen_sanitaria` endpoint at /admin/fatture/generate/paziente/{id} does the same work as /admin/fatture/retry/{id} but without the email + tx state update. Consider deprecating the older one to avoid divergence, or make it call the retry impl.",
+    "Suggestion: /admin/fatture/diagnostics builds N+1 queries (per missing appt: users lookup + terapisti lookup + tx lookup). For the current volume it's fine but consider $lookup aggregation if the missing list grows > 100.",
+    "test_credentials.md drift is a real hazard — the seed logic in server.py::seed_data must be the source of truth; consider auto-generating this file at seed time."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_fattura_retry_flow.py (new)",
+    "/app/backend/tests/conftest.py (new — loads backend/.env so MONGO_URL is available)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "n/a — frontend testing was explicitly skipped"},
+  "test_credentials": "Admin: hr@funzionabene.it / @Bidoc2026! (working). Documented admin@funzionabene.it/admin2026 does NOT work — returns 401.",
+  "seed_data_creation": "Each test seeds its own therapist/paziente/appointment/payment_transactions (production shape: appt has terapeuta_id but NO terapeuta_user_id) and cleans up afterwards. No lingering data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_fattura_retry_flow.py and test_fattura_auto_emit.py. Both need /app/backend/tests/conftest.py to load MONGO_URL from backend/.env. Use admin creds from env vars TEST_ADMIN_EMAIL/TEST_ADMIN_PASSWORD or the defaults hr@funzionabene.it / @Bidoc2026!. All 9 tests currently pass against preview DB.",
+  "coverage_matrix": {
+    "resolver_fallback": "test_1_resolver_fallback_to_terapisti_user_id — PASS",
+    "resolver_preference_when_set": "included in test_1 — PASS",
+    "diagnostics_reports_missing_with_last_error": "test_2 — PASS",
+    "retry_generates_fattura_and_backfills": "test_3 (via API) + test_1 (via helper) — PASS",
+    "retry_clears_tx_error_and_marks_emessa": "test_3 — PASS",
+    "diagnostics_clean_after_retry": "test_4 — PASS",
+    "paziente_fattura_visible_by_paziente_user_id": "test_5 (DB-level, mirrors /fatture/mine query) — PASS",
+    "end_to_end_emit_fattura_persists_tx": "test_6 — PASS",
+    "idempotency": "test_7 + test_generate_fattura_when_appt_missing_terapeuta_user_id — PASS (only one fattura in DB after 2 calls)",
+    "create_booking_writes_terapeuta_user_id": "test_8 (static source assertion — Stripe checkout not invokable in tests due to phone-verification precondition) — PASS"
+  },
+  "rca of the issue": "Root cause: /payments/checkout/booking used to write only `terapeuta_id` (terapisti._id) on the appointment; the fattura generator read `terapeuta_user_id` (users._id), which was never populated → _get_terapeuta_full(None) returned None → raised ValueError → swallowed by the try/except in the webhook path. User saw: payment succeeded, appt confirmed, email confirmation sent, but no fattura. Fix (verified by tests): (a) _resolve_terapeuta_user_id looks up terapisti._id → user_id and backfills the appointment; (b) _emit_fattura_for_paid_tx persists per-step error onto the transaction so admin diagnostics + FatturePage banner surface the failure; (c) /admin/fatture/retry/{id} lets admin re-run one row; (d) create_booking_checkout now writes terapeuta_user_id at creation time so new bookings never hit the bug. Reproduction: insert appuntamenti doc with only terapeuta_id (production shape) and a paid payment_transactions row → GET /admin/fatture/diagnostics returns it in `missing`; POST /admin/fatture/retry/{appt_id} generates FZ-YYYY-NNNN, backfills terapeuta_user_id, clears fattura_error, and email_sent flag returns."
+}

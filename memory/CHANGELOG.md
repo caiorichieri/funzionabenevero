@@ -1,5 +1,32 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-21 — Bug fix P0: Fattura sanitaria non generata dopo pagamento reale
+Reproduzione: pagamento Stripe reale, appuntamento confermato, email di conferma inviata, ma nessuna fattura generata. Admin vedeva "1 pagamento senza fattura"; paziente non riceveva PDF né vedeva fattura nel proprio dashboard.
+
+### Root cause
+Gli appuntamenti creati da `/payments/checkout/booking` scrivevano solo `terapeuta_id` (→ `terapisti._id`); mai `terapeuta_user_id` (→ `users._id`). Il generatore fattura leggeva `appt.terapeuta_user_id` → `None` → `_get_terapeuta_full(None)` → `None` → `ValueError("Terapeuta non trovato")` → catturato silenziosamente nel try/except del webhook.
+
+### Fix (verificato con 9 test regression)
+- **`routers/fatture.py::_resolve_terapeuta_user_id`** — nuovo helper che risolve `terapeuta_user_id` da `terapisti._id` come fallback, e fa backfill sull'appuntamento.
+- **`routers/fatture.py::_generate_fattura_paziente`** — usa il resolver + fallback a `terapeuta.prezzo_sessione` se `appt.prezzo` è mancante.
+- **`routers/payments.py::create_booking_checkout`** — ora scrive `terapeuta_user_id` + `prezzo` sull'appuntamento alla creazione, così i nuovi flussi non ricadono mai nel bug.
+- **`routers/payments.py::_emit_fattura_for_paid_tx`** — nuovo helper step-by-step (generate → email) che persiste su `payment_transactions` sia il successo (`fattura_id`, `fattura_numero`, `fattura_emessa_at`, `fattura_sanitaria_status=emessa`) sia il fallimento per passo (`fattura_error`, `fattura_error_step`, `fattura_error_at`). Il webhook Stripe non fallisce mai per errori di fattura.
+- **`routers/fatture.py`** — endpoint `POST /admin/fatture/retry/{appuntamento_id}` per retry per-riga (genera fattura + invia email + aggiorna stato tx). L'endpoint `/admin/fatture/generate-missing` ora invia anche email + persiste stato di errore.
+- **`server.py`** — la migration di boot per fatture mancanti ora invia anche il PDF via email e persiste lo stato di errore quando fallisce.
+- **`routers/fatture.py::admin_fatture_diagnostics`** — la lista `missing[]` include `last_error` + `last_error_step` per ogni riga, così l'admin vede il motivo del fallimento senza aprire i log.
+- **Frontend `FatturePage.jsx`** — banner rosso mostra fino a 10 righe, ognuna con errore fiscale + pulsante **"Riprova"** che chiama `/admin/fatture/retry/{id}`.
+
+### Test regression
+- `/app/backend/tests/test_fattura_auto_emit.py` — resolver + backfill + idempotency (production-shape appointment).
+- `/app/backend/tests/test_fattura_retry_flow.py` — end-to-end diagnostics + retry endpoint (creato dal testing agent).
+- `/app/backend/tests/conftest.py` — carica `backend/.env` per MONGO_URL.
+- Risultato: **9/9 test PASS**.
+
+### Note operative
+- Al prossimo deploy, la migration boot rigenererà automaticamente la fattura per il pagamento di Silvia Drigo (21/09/2026) e le invierà il PDF via email.
+- Se serve invio manuale immediato in produzione: `POST /api/admin/fatture/retry/{appuntamento_id}` (ora disponibile in UI come "Riprova" sulla riga del banner rosso).
+
+
 ## 2026-02 — Feature: Diagnostica + Rigenerazione Note di Credito (P0)
 Bug in produzione: dopo un refund Stripe, il paziente NON riceveva la Nota di Credito. La generazione della NC nel flusso di rimborso poteva fallire silenziosamente.
 
