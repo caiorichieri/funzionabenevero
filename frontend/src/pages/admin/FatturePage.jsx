@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
-import { Download, FileText, Search, RefreshCw, Play, Loader2 } from "lucide-react";
+import { Download, FileText, Search, RefreshCw, Play, Loader2, Send } from "lucide-react";
+import { toast } from "sonner";
+import { formatApiError } from "@/lib/apiError";
 
 const KIND_LABELS = { sanitaria: "Sanitaria (paziente)", commissione: "Commissione B2B" };
 const KIND_COLORS = {
@@ -74,6 +76,17 @@ export default function FatturePage({ isAdmin = true }) {
     const a = document.createElement("a"); a.href = url;
     a.download = `fatture_export_${new Date().toISOString().split("T")[0]}.csv`;
     a.click(); URL.revokeObjectURL(url);
+  };
+
+  const reinvia = async (f) => {
+    if (!window.confirm(`Reinviare la fattura ${f.numero} al paziente via email?`)) return;
+    try {
+      const r = await axios.post(`${API}/admin/fatture/${f.id}/reinvia`, {}, { withCredentials: true });
+      toast.success(`Fattura ${f.numero} reinviata a ${r.data.email}`, { duration: 5000 });
+      load();
+    } catch (e) {
+      toast.error(formatApiError(e, "Errore durante l'invio email"));
+    }
   };
 
   return (
@@ -233,6 +246,17 @@ export default function FatturePage({ isAdmin = true }) {
                              className="p-1.5 hover:bg-[#0A0A0A]/5 rounded" title="Scarica PDF">
                             <Download className="w-4 h-4 text-[#F58A1F]" />
                           </a>
+                        )}
+                        {isAdmin && f.kind !== "commissione" && (
+                          <button
+                            type="button"
+                            data-testid={`reinvia-fattura-${f.numero}`}
+                            onClick={() => reinvia(f)}
+                            className="p-1.5 hover:bg-green-50 rounded"
+                            title="Reinvia al paziente via email"
+                          >
+                            <Send className="w-4 h-4 text-green-600" />
+                          </button>
                         )}
                       </div>
                     </td>

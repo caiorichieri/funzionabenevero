@@ -553,6 +553,62 @@ async def admin_gen_nota_credito(fattura_id: str, admin: dict = Depends(require_
     return _serialize(doc)
 
 
+@router.post("/admin/fatture/{fattura_id}/reinvia")
+async def admin_reinvia_fattura(fattura_id: str, admin: dict = Depends(require_admin)):
+    """Resend the fattura PDF via email to the patient. Works for both
+    fatture sanitarie and note di credito."""
+    try:
+        oid = ObjectId(fattura_id)
+    except Exception:
+        raise HTTPException(400, "ID non valido")
+    f = await db.fatture.find_one({"_id": oid})
+    if not f:
+        raise HTTPException(404, "Fattura non trovata")
+    paziente = await db.users.find_one({"_id": ObjectId(f["paziente_user_id"])})
+    if not paziente or not paziente.get("email"):
+        raise HTTPException(400, "Email paziente mancante")
+
+    # Load PDF: preferably from Object Storage, fallback to inline base64.
+    import base64
+    pdf_bytes = base64.b64decode(f["pdf_inline_b64"]) if f.get("pdf_inline_b64") else b""
+    if not pdf_bytes and f.get("pdf_storage_path"):
+        from storage_service import get_object
+        try:
+            pdf_bytes, _ = get_object(f["pdf_storage_path"])
+        except Exception as e:
+            logger.error(f"[REINVIA] failed to fetch PDF from storage: {e}")
+
+    is_nc = f.get("kind") == "nota_credito_sanitaria"
+    imp = abs(float(f.get("importo_totale", 0)))
+    if is_nc:
+        titles = [
+            f"Nota di Credito {f['numero']} — storno fattura {f.get('fattura_originale_numero','')}",
+            f"Importo stornato: € {imp:.2f}",
+            "Conservala insieme alla fattura originale.",
+        ]
+    else:
+        titles = [
+            f"Fattura {f['numero']} — € {imp:.2f}",
+            "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
+            "Conservala per almeno 5 anni",
+        ]
+    from email_service import send_signature_receipt_email
+    ok = await send_signature_receipt_email(
+        email=paziente["email"],
+        nome=paziente.get("nome", ""),
+        doc_titles=titles,
+        pdf_bytes=pdf_bytes,
+    )
+    if not ok:
+        raise HTTPException(503, "Invio email fallito")
+    await db.fatture.update_one(
+        {"_id": oid},
+        {"$set": {"resent_at": datetime.now(timezone.utc), "resent_by_admin": admin["_id"]}},
+    )
+    return {"message": "Fattura reinviata", "email": paziente["email"], "numero": f["numero"]}
+
+
+
 @router.post("/admin/fatture/generate/commissione/{year}/{month}")
 async def admin_gen_commissione(year: int, month: int, admin: dict = Depends(require_admin)):
     if not (1 <= month <= 12):

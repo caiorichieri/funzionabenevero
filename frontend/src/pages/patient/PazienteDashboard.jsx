@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
-import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle, Sparkles } from "lucide-react";
+import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle, Sparkles, FileText } from "lucide-react";
 import ChatPanel from "@/components/shared/ChatPanel";
 import Mascotte from "@/components/shared/Mascotte";
 import { formatApiError } from "@/lib/apiError";
@@ -217,6 +217,22 @@ export default function PazienteDashboard() {
           </Link>
         </div>
       )}
+
+      {/* Le mie fatture — link diretto per il paziente */}
+      <Link
+        to="/paziente/fatture"
+        data-testid="dashboard-fatture-link"
+        className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-[#0A0A0A]/10 hover:border-[#0A0A0A]/20 hover:shadow-sm transition-all"
+      >
+        <div className="w-10 h-10 rounded-xl bg-[#F5D419]/15 flex items-center justify-center flex-shrink-0">
+          <FileText className="w-5 h-5 text-[#F58A1F]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-[#0A0A0A] text-sm">Le mie fatture</div>
+          <div className="text-xs text-[#0A0A0A]/55">Scarica le fatture sanitarie · Detraibili al 19% (730)</div>
+        </div>
+        <span className="text-[#0A0A0A]/40 text-lg">→</span>
+      </Link>
 
       {/* Prossime sessioni */}
       {prossime.length > 0 ? (

@@ -1,5 +1,21 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — UX: Pulsanti Fatture Paziente + Reinvia Admin (P1)
+- **File**: `/app/backend/routers/fatture.py` (nuovo endpoint reinvia), `/app/frontend/src/pages/patient/PazienteDashboard.jsx` (link "Le mie fatture"), `/app/frontend/src/pages/admin/FatturePage.jsx` (bottone Reinvia).
+
+### 1. Fattura al Pagamento (verificato)
+- Il flusso `_mark_payment_paid()` che emette la fattura al momento del pagamento è **già indipendente dal canale d'acquisto**: sia che il paziente prenoti dal questionario di matching sia direttamente dal profilo del terapeuta, entrambi arrivano allo stesso Stripe Checkout → webhook → fattura. Nessuna modifica necessaria.
+
+### 2. Pulsante "Le mie fatture" nella dashboard paziente
+- Nuovo box grande sotto il banner "Il tuo terapeuta" con icona `FileText` arancione, link a `/paziente/fatture`. Sempre visibile — se non ci sono fatture la pagina interna mostra empty state.
+
+### 3. Pulsante "Reinvia" nella dashboard admin
+- **Nuovo backend endpoint** `POST /admin/fatture/{id}/reinvia` — carica PDF (da Object Storage o inline) e lo rispedisce al paziente via email. Traccia `resent_at` + `resent_by_admin` per audit.
+- **Frontend**: icona `Send` verde nella riga di ogni fattura sanitaria o nota di credito. Confirm dialog + toast con l'email del paziente.
+- Test E2E: `POST /api/admin/fatture/FZ-2026-0001/reinvia` → 200 `{"email":"caioricchieri@gmail.com","numero":"FZ-2026-0001"}`.
+
+
+
 ## 2026-02 — Fix: Auto-select Slot + Migrazione Fatture Mancanti (P1)
 Bug segnalati: (1) cliccando "Prenota una seduta" dalla dashboard, il sistema **sceglieva da solo** il primo slot disponibile invece di lasciare al paziente la scelta; (2) fattura non arrivata dopo il pagamento.
 
