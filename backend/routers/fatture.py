@@ -484,12 +484,66 @@ async def my_fatture(user: dict = Depends(require_auth)):
 async def admin_fatture(kind: str = None, admin: dict = Depends(require_admin)):
     """Admin BIDOC cassetto — tutte le fatture con filtro kind opzionale."""
     q = {}
-    if kind in ("sanitaria", "commissione"):
+    if kind in ("sanitaria", "commissione", "nota_credito_sanitaria"):
         q["kind"] = kind
     items = []
     async for f in db.fatture.find(q).sort("created_at", -1).limit(2000):
         items.append(_serialize(f))
     return {"items": items, "count": len(items)}
+
+
+@router.get("/admin/fatture/diagnostics")
+async def admin_fatture_diagnostics(admin: dict = Depends(require_admin)):
+    """Diagnostic endpoint: return paid appointments that DON'T have a fattura
+    sanitaria yet. Helps the admin see if the auto-emit at payment failed silently."""
+    paid_appts = await db.appuntamenti.find({
+        "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
+        "paid_at": {"$exists": True},
+    }).sort("data_ora", -1).limit(200).to_list(200)
+
+    missing = []
+    for a in paid_appts:
+        appt_id = str(a["_id"])
+        existing = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+        if existing:
+            continue
+        # Fetch patient + therapist names for the UI
+        pu = await db.users.find_one({"_id": ObjectId(a["paziente_user_id"])}) if a.get("paziente_user_id") else None
+        tu = await db.users.find_one({"_id": ObjectId(a["terapeuta_user_id"])}) if a.get("terapeuta_user_id") else None
+        missing.append({
+            "appuntamento_id": appt_id,
+            "data_ora": a.get("data_ora"),
+            "stato": a.get("stato"),
+            "paid_at": a.get("paid_at").isoformat() if hasattr(a.get("paid_at"), "isoformat") else str(a.get("paid_at")),
+            "prezzo": a.get("prezzo"),
+            "paziente": {"user_id": a.get("paziente_user_id"), "nome": pu.get("nome") if pu else "", "cognome": pu.get("cognome") if pu else "", "email": pu.get("email") if pu else ""},
+            "terapeuta": {"user_id": a.get("terapeuta_user_id"), "nome": tu.get("nome") if tu else "", "cognome": tu.get("cognome") if tu else ""},
+        })
+    return {"missing_count": len(missing), "checked_paid_count": len(paid_appts), "missing": missing}
+
+
+@router.post("/admin/fatture/generate-missing")
+async def admin_generate_missing_fatture(admin: dict = Depends(require_admin)):
+    """Try to generate fatture sanitarie for ALL paid appointments that don't have one.
+    Returns per-appointment success/error so the admin can see what still fails."""
+    paid_appts = await db.appuntamenti.find({
+        "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
+        "paid_at": {"$exists": True},
+    }).sort("data_ora", -1).limit(500).to_list(500)
+
+    generated = []
+    errors = []
+    for a in paid_appts:
+        appt_id = str(a["_id"])
+        existing = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+        if existing:
+            continue
+        try:
+            f = await _generate_fattura_paziente(appt_id)
+            generated.append({"appuntamento_id": appt_id, "numero": f.get("numero")})
+        except Exception as e:
+            errors.append({"appuntamento_id": appt_id, "error": str(e)[:300]})
+    return {"generated_count": len(generated), "generated": generated, "errors_count": len(errors), "errors": errors}
 
 
 async def _fetch_and_serve(fid: str, fmt: str, user: dict):

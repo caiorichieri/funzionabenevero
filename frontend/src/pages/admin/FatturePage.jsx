@@ -26,6 +26,35 @@ export default function FatturePage({ isAdmin = true }) {
   const [filterKind, setFilterKind] = useState("");
   const [search, setSearch] = useState("");
   const [busyJob, setBusyJob] = useState(null);
+  const [missing, setMissing] = useState(null); // { missing_count, missing[] }
+  const [busyGenerate, setBusyGenerate] = useState(false);
+
+  const loadDiagnostics = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const r = await axios.get(`${API}/admin/fatture/diagnostics`, { withCredentials: true });
+      setMissing(r.data);
+    } catch { /* silent — admin may not care */ }
+  }, [isAdmin]);
+
+  const handleGenerateMissing = async () => {
+    if (!window.confirm("Genero le fatture per tutti i pagamenti che ancora non ne hanno una? Verrà tentata la generazione — se qualcuna fallisce vedrai il motivo.")) return;
+    setBusyGenerate(true);
+    try {
+      const r = await axios.post(`${API}/admin/fatture/generate-missing`, {}, { withCredentials: true });
+      toast.success(`Generate: ${r.data.generated_count} · Errori: ${r.data.errors_count}`, { duration: 8000 });
+      if (r.data.errors_count > 0) {
+        const first = r.data.errors[0];
+        toast.error(`Prima causa d'errore: ${first.error}`, { duration: 10000 });
+      }
+      await load();
+      await loadDiagnostics();
+    } catch (e) {
+      toast.error(formatApiError(e, "Errore durante la generazione"));
+    } finally {
+      setBusyGenerate(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,6 +70,7 @@ export default function FatturePage({ isAdmin = true }) {
   }, [isAdmin, filterKind]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadDiagnostics(); }, [loadDiagnostics]);
 
   const runJob = async (endpoint, label) => {
     if (!confirm(`Esegui: ${label}?`)) return;
@@ -192,6 +222,42 @@ export default function FatturePage({ isAdmin = true }) {
           <Download className="w-3.5 h-3.5" /> Export CSV
         </button>
       </div>
+
+      {isAdmin && missing && missing.missing_count > 0 && (
+        <div data-testid="fatture-missing-banner" className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 text-red-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-red-900 text-sm">
+                {missing.missing_count} pagament{missing.missing_count === 1 ? "o senza fattura" : "i senza fattura"}
+              </div>
+              <p className="text-xs text-red-800/85 mt-0.5">
+                Ci sono appuntamenti pagati per cui non è stata ancora emessa la fattura sanitaria. Clicca qui sotto per generarle e inviarle ai pazienti.
+              </p>
+              <ul className="text-xs text-red-900/70 mt-2 space-y-0.5 max-h-32 overflow-y-auto">
+                {missing.missing.slice(0, 5).map(m => (
+                  <li key={m.appuntamento_id}>
+                    · {m.paziente?.nome} {m.paziente?.cognome} ({m.paziente?.email}) — {m.data_ora?.slice(0,10)} · € {m.prezzo?.toFixed?.(2) ?? m.prezzo}
+                  </li>
+                ))}
+                {missing.missing_count > 5 && <li>… e altri {missing.missing_count - 5}</li>}
+              </ul>
+              <button
+                type="button"
+                data-testid="generate-missing-fatture"
+                onClick={handleGenerateMissing}
+                disabled={busyGenerate}
+                className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold disabled:opacity-50"
+              >
+                {busyGenerate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                {busyGenerate ? "Genero le fatture..." : `Genera ${missing.missing_count} fatture mancanti`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-[#0A0A0A]/10 shadow-sm overflow-hidden">
         {loading ? (

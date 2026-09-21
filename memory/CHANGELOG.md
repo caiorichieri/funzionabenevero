@@ -1,5 +1,24 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-02 — Feature: Diagnostica + Genera Fatture Mancanti (P0)
+Bug in produzione: pagamenti/storni fatti prima del deploy della funzionalità "fattura al pagamento" **non hanno generato fattura**, e l'admin non aveva modo di vederli o recuperarli.
+
+### Backend — nuovi endpoint
+- `GET /admin/fatture/diagnostics` — restituisce elenco appuntamenti pagati (stato `confermato`/`completato`/`cancellato_con_addebito`) che **non hanno una fattura sanitaria**. Include dati paziente + terapeuta per identificarli velocemente.
+- `POST /admin/fatture/generate-missing` — tenta di generare le fatture mancanti per TUTTI questi appuntamenti. Restituisce lista dei successi + lista dei fallimenti con motivo dettagliato (P.IVA mancante, storage down, anagrafica invalida, ecc.).
+- Filtro `kind` esteso a `nota_credito_sanitaria` in `/admin/fatture`.
+
+### Frontend — banner rosso in `/admin/fatture`
+- Se ci sono pagamenti senza fattura, appare un banner rosso con:
+  - Contatore pagamenti mancanti
+  - Prime 5 righe (paziente + email + data + prezzo)
+  - Pulsante "Genera N fatture mancanti" (chiama `generate-missing`).
+- Toast con conteggio generate/errori. Se ci sono errori, un secondo toast mostra la prima causa (così sai subito che deve correggere prima di riprovare).
+
+- **Test E2E**: preview con 0 pagamenti → `missing_count: 0` (nessun banner). Dopo il deploy in produzione, l'admin vedrà finalmente sia i pagamenti orfani sia il pulsante per rigenerare le fatture.
+
+
+
 ## 2026-02 — UX: Pulsanti Fatture Paziente + Reinvia Admin (P1)
 - **File**: `/app/backend/routers/fatture.py` (nuovo endpoint reinvia), `/app/frontend/src/pages/patient/PazienteDashboard.jsx` (link "Le mie fatture"), `/app/frontend/src/pages/admin/FatturePage.jsx` (bottone Reinvia).
 
