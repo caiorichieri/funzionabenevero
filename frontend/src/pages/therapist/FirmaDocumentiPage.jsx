@@ -212,7 +212,11 @@ export default function FirmaDocumentiPage() {
               >
                 {docLoading
                   ? <div className="py-16 text-center text-[#0A0A0A]/55">Caricamento…</div>
-                  : <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(docHtml) }} />
+                  : <div
+                      // Content is sanitised via DOMPurify (sanitizeHtml).
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(docHtml) }}
+                    />
                 }
               </div>
               <div className={`p-3 border-t text-sm flex items-center justify-between ${currentRead ? "bg-green-50 border-green-200" : "bg-[#F5D419]/10 border-[#F58A1F]/20"}`}>

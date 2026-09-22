@@ -181,8 +181,8 @@ export default function PrivacyUtentePage() {
             <FileText className="w-5 h-5 text-[#0A0A0A]/60" /> Storico consensi
           </h2>
           <ul className="divide-y divide-[#0A0A0A]/10 max-h-80 overflow-y-auto">
-            {consents.history.map((h, idx) => (
-              <li key={idx} className="py-2 text-xs text-[#0A0A0A]/70 flex items-center justify-between gap-2">
+            {consents.history.map((h) => (
+              <li key={`${h.timestamp}-${h.consent_type}-${h.action}`} className="py-2 text-xs text-[#0A0A0A]/70 flex items-center justify-between gap-2">
                 <span>
                   <span className={h.action === "grant" ? "text-green-700" : "text-red-700"}>
                     {h.action === "grant" ? "Concesso" : "Revocato"}

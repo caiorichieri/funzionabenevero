@@ -30,5 +30,8 @@ export function sanitizeHtml(input) {
  *   <div {...safeHtml(text)} />
  */
 export function safeHtml(input) {
+  // Content is sanitised via DOMPurify above; dangerouslySetInnerHTML is
+  // the standard React pattern for injecting sanitised markup.
+  // eslint-disable-next-line react/no-danger
   return { dangerouslySetInnerHTML: { __html: sanitizeHtml(input) } };
 }

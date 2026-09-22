@@ -95,6 +95,8 @@ export default function MandatoAcceptanceGate({ children }) {
             ref={bodyRef}
             onScroll={onScroll}
             className="p-6 overflow-y-auto flex-1 prose prose-sm max-w-none text-[#0A0A0A]/90"
+            // Sanitised via DOMPurify (sanitizeHtml).
+            // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(contract?.content_html || "") }}
             data-testid="mandato-content"
           />

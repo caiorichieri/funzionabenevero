@@ -139,7 +139,7 @@ export default function SedutaLogsSection() {
                         <div className="text-[10px] uppercase tracking-widest text-[#0A0A0A]/40 mb-1">Partecipanti (Daily.co)</div>
                         <ul className="space-y-1">
                           {it.presenze.map((p, i) => (
-                            <li key={i} className="flex items-center gap-2 pl-2 border-l-2 border-[#0A0A0A]/10">
+                            <li key={`${p.user_name || "anon"}-${p.join_time || i}`} className="flex items-center gap-2 pl-2 border-l-2 border-[#0A0A0A]/10">
                               <User className="w-3 h-3 text-[#0A0A0A]/40" />
                               <span>{p.user_name || "—"}</span>
                               {p.join_time && <span className="text-[#0A0A0A]/45">· join {new Date(p.join_time).toLocaleString("it-IT", { timeZone: "Europe/Rome" })}</span>}
