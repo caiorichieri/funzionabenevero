@@ -1503,3 +1503,27 @@ ELSE                        → NoTerapeutaCard (questionario)
 - `/app/frontend/src/pages/admin/FatturePage.jsx` — retry per riga + errori inline.
 - `/app/backend/tests/test_fattura_auto_emit.py` + `test_fattura_retry_flow.py` + `conftest.py` — regression.
 
+
+
+---
+
+## 🩹 Feature P0 — 2026-09-22 · Sessione video: accesso, no-show, log presenze
+
+**Sintomi reportati**: pulsante "Entra" del paziente scompare esattamente all'orario di inizio; terapeuta non vede mai il pulsante; link email 15 min prima "sembra aprire ma non apre"; nessun rilevamento no-show; log presenze non consultabili.
+
+**Cambiamenti**:
+- **Finestre chiare**: pulsante `[start-15, start+15]` per entrambi; token Daily.co `nbf = start-20min` per assorbire scarti di orologio; magic link scade a `start+15min` (cut-off no-show).
+- **Nuovo `no_show_service.py`**: check automatico a start+15min via APScheduler → persiste snapshot in `db.seduta_logs` → tagga appuntamento con `outcome` (entrambi_presenti / no_show_paziente / no_show_terapeuta / no_show_entrambi) → dispatch email di follow-up + alert a `hr@funzionabene.it`. Idempotente.
+- **5 nuovi template email** per il flusso no-show (paziente, terapeuta, admin — con CTA differenziati).
+- **HTTP 425/410 gating**: `POST /appuntamenti/{id}/video-token` e `GET /videocall-magic/{id}` ritornano codici semantici con `available_at`/`start_at` per il countdown frontend + `role_hint` per il messaggio giusto (rebook vs contatta hr@).
+- **`VideoCallPage.jsx` rewritten**: countdown MM:SS + auto-retry su 425; messaggio esplicito + CTA su 410 (rebook per paziente, mailto hr@ per terapeuta).
+- **`SedutaLogsSection` in AppuntamentiPage admin**: lista log con filtri esito / periodo, espansione per vedere partecipanti Daily.co con orari di join.
+- Rimborsi: solo etichetta + notifica admin. Nessuna decisione automatica (motivazione: falsi positivi tecnici).
+- Registrazione video/audio: NON attivata (solo metadati di presenza, GDPR-friendly).
+
+**Test**: 18/18 PASS in `/app/backend/tests/test_no_show_and_video_gating.py` (bug testing agent iterazione 28).
+
+**File toccati**:
+- Backend: `daily_service.py`, `booking_service.py`, `routers/appuntamenti.py`, `email_service.py`, `no_show_service.py` (nuovo).
+- Frontend: `VideoCallPage.jsx` (rewrite), `PazienteDashboard.jsx`, `TerapistaDashboard.jsx`, `PazienteHome.jsx`, `SedutaLogsSection.jsx` (nuovo), `AppuntamentiPage.jsx`.
+

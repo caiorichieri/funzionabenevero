@@ -1,0 +1,47 @@
+{
+  "summary": "Backend regression + new-feature testing for iteration 28 (no-show detection + video-call access gating). 18 tests, all pass. Covered: (1) video-token endpoint returns 425/too_early when now < start-20min and 410/session_closed when now > close_at; (2) videocall-magic endpoint returns 425, 410 with role_hint='paziente', and 403 on invalid token; (3) daily_service.create_room_for_appointment + create_meeting_token use nbf = start - 20min (verified by intercepting the httpx payload with a stub); (4) no_show_service.run_no_show_check produces the correct outcome (OUTCOME_NONE with empty presenze; OUTCOME_NO_TER when only patient attended), persists a seduta_logs snapshot, marks appuntamenti.stato + outcome, is idempotent on no_show_notified_at; (5) booking_service.schedule_reminders registers 3 additional APScheduler jobs with ids noshow-final-{id}/noshow-post-{id}/noshow-24h-{id}; (6) booking_service._ensure_videocall_magic_token sets videocall_magic_expires = start + 15 min; (7) admin/seduta-logs returns {items,count}, honours filters (outcome, terapeuta_id, from_date, to_date), and returns 403 for paziente/terapeuta; (8) appuntamenti/{id}/presenze prefers snapshot source over live, forbids paziente; (9) all 5 no-show email templates return False (no raise) when SEND_EMAILS=false, and their signatures accept the documented ctx dict.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_no_show_and_video_gating.py",
+    "/app/test_reports/pytest/iter28_noshow.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "no_show_service._match_participant does a two-way substring match (target in name OR name in target). With target list ['','paziente'] this could produce a false positive on any user_name containing 'paziente'. Currently guarded because patient full name is prepended and empty targets are skipped, but consider tightening to strict substring-of-name-only or exact-match-after-normalisation to remove the ambiguity.",
+    "no_show_service.run_no_show_check: idempotency is enforced on the email-dispatch side (no_show_notified_at guard), but _mark_appointment_outcome is called every run — safe because it's a $set with the same value, but note that a manual admin change to stato (other than the guarded completato/cancellato) would be overwritten on the next scheduled run (start+durata+15 / +24h with is_final=False DO NOT call _mark, so this is fine — worth a comment).",
+    "routers/appuntamenti.py::videocall_magic — role_hint hard-codes 'paziente'. Correct today since magic links are patient-facing, but if the flow is later extended to therapists, this will silently mislead the frontend.",
+    "routers/appuntamenti.py::get_video_token — the close window is start + durata + 15 min, while the magic-link window is start + 15 min. This is intentional (logged-in users can rejoin mid-session) but the divergence deserves a docstring so future readers don't 'fix' it into consistency.",
+    "booking_service.schedule_reminders — no-show scheduling is wrapped in try/except but does not remove already-scheduled jobs if the reminder loop is called again with a different data_ora (reschedule). APScheduler replace_existing=True is set on the no-show jobs (good) but note that the OTHER jobs (rem1d, rem1h, sms30m, rem15m, review) also use replace_existing=True — so overall behaviour is idempotent per app_id. OK.",
+    "email_service SEND_EMAILS gate: only send_no_show_admin_alert falls through to _send_raw which does the gate; the four patient/terapist templates all delegate to _send_raw too — good, verified in test."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_no_show_and_video_gating.py (new)"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "n/a — skipped per request"},
+  "test_credentials": "Admin: hr@funzionabene.it / @Bidoc2026! (working). demo.paziente@funzionabene.it and demo.terapeuta@funzionabene.it are ABSENT in current preview DB — tests seed their own users (test_noshow_paz_* / test_noshow_ter_*) and clean up.",
+  "seed_data_creation": "Session fixture creates one test paziente + terapeuta (users + pazienti + terapisti + informed_consent granted) marked with test_seed=true. Each test also seeds its own appuntamenti + seduta_logs rows. Teardown deletes all rows with test_seed=true + any seduta_logs with room_name starting with 'appuntamento-TEST_'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reusable regression tests live at /app/backend/tests/test_no_show_and_video_gating.py. They require MONGO_URL/DB_NAME (loaded by conftest.py from backend/.env) and REACT_APP_BACKEND_URL. Test users are self-seeded so no dependency on demo seed data. If iteration 29+ touches JOIN_OPEN_BEFORE_MIN / JOIN_CLOSE_AFTER_MIN or the seduta_logs schema, re-run this file first — it's the fastest signal.",
+  "coverage_matrix": {
+    "video_token_425_too_early": "TestVideoToken::test_425_too_early_when_more_than_20min_before — PASS",
+    "video_token_410_session_closed": "TestVideoToken::test_410_session_closed_when_past_close — PASS",
+    "video_token_200_in_window": "TestVideoToken::test_200_in_window — PASS",
+    "magic_403_invalid": "TestVideocallMagic::test_403_invalid_token — PASS",
+    "magic_425_too_early": "TestVideocallMagic::test_425_too_early — PASS",
+    "magic_410_role_hint_paziente": "TestVideocallMagic::test_410_with_role_hint_paziente — PASS",
+    "daily_nbf_room": "TestDailyNbfOffset::test_create_room_uses_nbf_start_minus_20 — PASS",
+    "daily_nbf_token": "TestDailyNbfOffset::test_create_meeting_token_uses_nbf_start_minus_20 — PASS",
+    "no_show_outcome_none_and_idempotent": "TestNoShowService::test_run_no_show_check_no_show_entrambi_and_idempotent — PASS",
+    "no_show_outcome_no_ter": "TestNoShowService::test_run_no_show_paziente_only — PASS",
+    "scheduler_registers_noshow_jobs": "TestScheduleReminders::test_schedule_reminders_registers_noshow_jobs — PASS",
+    "magic_expires_start_plus_15": "TestMagicTokenExpiry::test_magic_expires_is_start_plus_15min — PASS",
+    "seduta_logs_403_paziente": "TestSedutaLogs::test_admin_seduta_logs_403_for_paziente — PASS",
+    "seduta_logs_403_terapeuta": "TestSedutaLogs::test_admin_seduta_logs_403_for_terapeuta — PASS",
+    "seduta_logs_filters": "TestSedutaLogs::test_admin_seduta_logs_lists_and_filters — PASS",
+    "presenze_snapshot_preferred": "TestPresenzeEndpoint::test_snapshot_source_preferred — PASS",
+    "presenze_403_paziente": "TestPresenzeEndpoint::test_presenze_403_for_paziente — PASS",
+    "email_templates_send_false_fallback": "TestEmailTemplatesFallback::test_all_five_no_show_templates_return_false_when_disabled — PASS"
+  }
+}

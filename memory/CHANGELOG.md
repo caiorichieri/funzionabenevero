@@ -1,5 +1,50 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-22 — Feature P0: Sessione video — accesso, no-show, log presenze
+Bug reportato: (1) email "15 min prima" arriva puntuale ma il link "sembra aprire ma non apre" all'orario esatto di inizio; (2) pulsante "Entra" del paziente sparisce esattamente allo scoccare dell'ora; (3) dashboard terapeuta non mostra mai il pulsante "Entra"; (4) nessun rilevamento automatico di no-show; (5) log presenze consultabili solo via query live a Daily.co.
+
+### Backend
+- **`daily_service.py`** — `nbf` di stanza + token spostato a `start − 20 min` (era 15) per assorbire scarti di orologio e tempi di consegna email.
+- **`booking_service.py::_ensure_videocall_magic_token`** — `videocall_magic_expires = start + 15 min` (era `start + durata + 15`). Coincide col cut-off no-show.
+- **`routers/appuntamenti.py`** — nuovi gate temporali:
+  - `POST /appuntamenti/{id}/video-token` (utente loggato) → HTTP **425** `{code:'too_early', available_at, start_at}` se `now < start-20min`, HTTP **410** `{code:'session_closed'}` se `now > start + durata + 15`. Loggati possono rientrare fino a fine seduta.
+  - `GET /videocall-magic/{id}?token=X` → 425/410 con `role_hint:'paziente'`. Chiuso al no-show cut-off.
+- **`no_show_service.py`** (nuovo) — `run_no_show_check(app_id, is_final)`:
+  - Interroga Daily.co per partecipanti effettivi.
+  - Calcola esito: `entrambi_presenti` / `no_show_paziente` / `no_show_terapeuta` / `no_show_entrambi`.
+  - Persiste snapshot in `db.seduta_logs` (upsert per `appuntamento_id`).
+  - Marca `appuntamenti.stato` + `outcome` (non sovrascrive stati manuali).
+  - Idempotente sul dispatch email (`no_show_notified_at` guard).
+  - `schedule_no_show_check(scheduler, id, start_iso, durata)` registra 3 job APScheduler: `final` (start+15min, invia email), `post` (start+durata+15, aggiorna log), `24h` (log finale).
+- **`booking_service.py::schedule_reminders`** — chiama `schedule_no_show_check` in coda ai reminder esistenti.
+- **`email_service.py`** — 5 nuovi template:
+  - `send_no_show_paziente_email` — paziente assente, CTA "prenota un'altra seduta" sul profilo dello stesso terapista.
+  - `send_no_show_terapeuta_email` — informa il terapista dell'assenza del paziente.
+  - `send_terapeuta_absent_paziente_email` — scusa a nome della piattaforma + CTA rebook.
+  - `send_terapeuta_absent_terapeuta_email` — chiede al terapista di scrivere a `hr@funzionabene.it`.
+  - `send_no_show_admin_alert` — email interna a `hr@funzionabene.it` per ogni no-show.
+- **Endpoint admin nuovi/estesi**:
+  - `GET /admin/seduta-logs?outcome=&from_date=&to_date=&terapeuta_id=` — lista paginata dei log.
+  - `GET /appuntamenti/{id}/presenze` — preferisce lo snapshot durevole in `seduta_logs`, fallback a query live Daily.
+
+### Frontend
+- **`VideoCallPage.jsx`** (rewrite) — gestisce le 3 risposte del backend:
+  - 200 → apre iframe Daily.co come prima.
+  - 425 → mostra countdown MM:SS a `available_at` + retry manuale + auto-retry al termine.
+  - 410 → messaggio "finestra chiusa" + CTA differenziato: paziente vede "Prenota un'altra seduta"; terapeuta vede "Scrivi a hr@funzionabene.it".
+- **`PazienteDashboard.jsx`** + **`TerapistaDashboard.jsx`** — filtro `isStillActive` tiene l'appuntamento nella lista fino a `start + 15 min`; `canJoin` ristretto a `[start-15, start+15]` (era `[start-15, end+15]`). Fix del pulsante che spariva allo scoccare dell'ora.
+- **`PazienteHome.jsx`** (PWA) — stessa finestra `[start-15, start+15]`; card "prossima seduta" rimane visibile fino a start+15.
+- **`SedutaLogsSection.jsx`** (nuovo) — vista admin in `AppuntamentiPage` con filtri esito/periodo, snapshot Daily.co dei partecipanti, espansione per riga.
+
+### Test regression (18/18 PASS)
+- `/app/backend/tests/test_no_show_and_video_gating.py` (nuovo): copre 425/410 su entrambi endpoint, nbf a 20 min, no-show detection idempotency, filtri admin/seduta-logs + permessi 403, preferenza snapshot su live, fallback SEND_EMAILS=false.
+
+### Note operative
+- Rimborsi: **nessuna decisione automatica**. Un no-show marca solo l'appuntamento ed emette alert a hr@. Il rimborso resta scelta umana dal pannello admin.
+- Retention: i `seduta_logs` non hanno scadenza (rimangono insieme all'appuntamento).
+- Registrazione video/audio: **NON attivata**. Solo metadati di presenza (chi/quando/quanto).
+
+
 ## 2026-09-21 — Bug fix P0: Fattura sanitaria non generata dopo pagamento reale
 Reproduzione: pagamento Stripe reale, appuntamento confermato, email di conferma inviata, ma nessuna fattura generata. Admin vedeva "1 pagamento senza fattura"; paziente non riceveva PDF né vedeva fattura nel proprio dashboard.
 
