@@ -1,0 +1,1050 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="76" failures="44" skipped="29" tests="301" time="56.047" timestamp="2026-09-22T15:40:28.097396+00:00" hostname="agent-env-d367edc9-16ce-4583-914a-d90a373dacc0"><testcase classname="tests.test_blog_slots.TestBlogAdmin" name="test_get_blog_articles_as_admin" time="0.001"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogAdmin" name="test_create_article_as_admin" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogAdmin" name="test_admin_created_article_is_published" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogAdmin" name="test_update_article_as_admin" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogAdmin" name="test_delete_article_as_admin" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogTherapist" name="test_therapist_can_create_article" time="0.001"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:24: in therapist_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=THERAPIST_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogTherapist" name="test_admin_can_approve_therapist_article" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogTherapist" name="test_admin_can_reject_article" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestBlogTherapist" name="test_cleanup_therapist_article" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_blog_slots.py:17: in admin_token
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN_CREDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_blog_slots.TestSlots" name="test_slots_endpoint_returns_200" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?">tests/test_blog_slots.py:158: in test_slots_endpoint_returns_200
+    resp = requests.get(f"{BASE_URL}/api/terapisti/{DEMO_THERAPIST_ID}/slots")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?</failure></testcase><testcase classname="tests.test_blog_slots.TestSlots" name="test_slots_count_approx_52" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?">tests/test_blog_slots.py:162: in test_slots_count_approx_52
+    resp = requests.get(f"{BASE_URL}/api/terapisti/{DEMO_THERAPIST_ID}/slots")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?</failure></testcase><testcase classname="tests.test_blog_slots.TestSlots" name="test_slots_have_data_ora_fmt" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?">tests/test_blog_slots.py:170: in test_slots_have_data_ora_fmt
+    resp = requests.get(f"{BASE_URL}/api/terapisti/{DEMO_THERAPIST_ID}/slots")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?</failure></testcase><testcase classname="tests.test_blog_slots.TestSlots" name="test_slots_have_disponibile_field" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?">tests/test_blog_slots.py:183: in test_slots_have_disponibile_field
+    resp = requests.get(f"{BASE_URL}/api/terapisti/{DEMO_THERAPIST_ID}/slots")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?</failure></testcase><testcase classname="tests.test_blog_slots.TestSlots" name="test_slots_available_are_true" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?">tests/test_blog_slots.py:191: in test_slots_available_are_true
+    resp = requests.get(f"{BASE_URL}/api/terapisti/{DEMO_THERAPIST_ID}/slots")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/terapisti/69e32acb30c5ac20c77a35d3/slots': No scheme supplied. Perhaps you meant https:///api/terapisti/69e32acb30c5ac20c77a35d3/slots?</failure></testcase><testcase classname="tests.test_fattura_auto_emit" name="test_generate_fattura_when_appt_missing_terapeuta_user_id" time="0.635" /><testcase classname="tests.test_fattura_retry_flow" name="test_1_resolver_fallback_to_terapisti_user_id" time="0.108" /><testcase classname="tests.test_fattura_retry_flow" name="test_2_diagnostics_reports_missing_with_last_error" time="0.595" /><testcase classname="tests.test_fattura_retry_flow" name="test_3_retry_endpoint_generates_fattura_and_emails" time="1.463" /><testcase classname="tests.test_fattura_retry_flow" name="test_4_diagnostics_clean_after_retry" time="1.979" /><testcase classname="tests.test_fattura_retry_flow" name="test_5_paziente_sees_fattura_in_mine" time="1.257" /><testcase classname="tests.test_fattura_retry_flow" name="test_6_end_to_end_emit_fattura_persists_tx_state" time="7.905" /><testcase classname="tests.test_fattura_retry_flow" name="test_7_generate_fattura_idempotent" time="0.379" /><testcase classname="tests.test_fattura_retry_flow" name="test_8_create_booking_writes_terapeuta_user_id" time="0.000" /><testcase classname="tests.test_finalize_refactor.TestHelperImports" name="test_import_all_seven_helpers" time="0.000" /><testcase classname="tests.test_finalize_refactor.TestHelperImports" name="test_async_helpers_are_coroutines" time="0.000" /><testcase classname="tests.test_finalize_refactor.TestHelperImports" name="test_parse_start_utility" time="0.000" /><testcase classname="tests.test_finalize_refactor" name="test_finalize_confirmed_booking_end_to_end" time="0.016" /><testcase classname="tests.test_finalize_refactor.TestVideoTokenConsentGate" name="test_412_without_consent" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/auth/register': No scheme supplied. Perhaps you meant https:///api/auth/register?">tests/test_finalize_refactor.py:225: in test_412_without_consent
+    r = self._register_paziente(s, email, password)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_finalize_refactor.py:208: in _register_paziente
+    r = session.post(f"{BASE_URL}/api/auth/register", json={
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/register': No scheme supplied. Perhaps you meant https:///api/auth/register?</failure></testcase><testcase classname="tests.test_funzionabene.TestAuth" name="test_admin_login_returns_role" time="0.000"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?">tests/test_funzionabene.py:48: in test_admin_login_returns_role
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</failure></testcase><testcase classname="tests.test_funzionabene.TestAuth" name="test_terapeuta_login" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?">tests/test_funzionabene.py:55: in test_terapeuta_login
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": TERAPEUTA_EMAIL, "password": TERAPEUTA_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</failure></testcase><testcase classname="tests.test_funzionabene.TestAuth" name="test_paziente_login" time="0.000"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?">tests/test_funzionabene.py:61: in test_paziente_login
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": PAZIENTE_EMAIL, "password": PAZIENTE_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</failure></testcase><testcase classname="tests.test_funzionabene.TestAuth" name="test_invalid_credentials" time="0.000"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?">tests/test_funzionabene.py:67: in test_invalid_credentials
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "wrong@test.it", "password": "wrong"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</failure></testcase><testcase classname="tests.test_funzionabene.TestAuth" name="test_auth_me_with_cookie" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_funzionabene.TestAuth" name="test_register_otp_flow" time="0.000"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/auth/register': No scheme supplied. Perhaps you meant https:///api/auth/register?">tests/test_funzionabene.py:81: in test_register_otp_flow
+    r = requests.post(f"{BASE_URL}/api/auth/register", json={
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/register': No scheme supplied. Perhaps you meant https:///api/auth/register?</failure></testcase><testcase classname="tests.test_funzionabene.TestAuth" name="test_logout" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_funzionabene.TestDashboard" name="test_get_stats" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_funzionabene.TestDashboard" name="test_stats_unauthorized" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/dashboard/stats': No scheme supplied. Perhaps you meant https:///api/dashboard/stats?">tests/test_funzionabene.py:114: in test_stats_unauthorized
+    r = requests.get(f"{BASE_URL}/api/dashboard/stats")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/dashboard/stats': No scheme supplied. Perhaps you meant https:///api/dashboard/stats?</failure></testcase><testcase classname="tests.test_funzionabene.TestTerapisti" name="test_list_terapisti" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_funzionabene.TestTerapisti" name="test_create_and_delete_terapista" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_funzionabene.TestPazienti" name="test_list_pazienti" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_funzionabene.TestPazienti" name="test_create_and_delete_paziente" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_funzionabene.TestAppuntamenti" name="test_list_appuntamenti" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?&quot;">tests/test_funzionabene.py:19: in admin_session
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:640: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:578: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:487: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:369: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:440: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?</error></testcase><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_list_terapisti_public_or_auth" time="0.181"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_get_single_terapista" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_iban_regex_bad" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_iban_valid_and_empty" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_terapista_slots" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_profilo_me_admin_404" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_profilo_me_therapist_200" time="0.449" /><testcase classname="tests.test_iteration10_refactor.TestTerapistiRouter" name="test_therapist_documents_list" time="0.100" /><testcase classname="tests.test_iteration10_refactor.TestAppuntamentiRouter" name="test_admin_list" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestAppuntamentiRouter" name="test_therapist_list" time="0.079" /><testcase classname="tests.test_iteration10_refactor.TestAppuntamentiRouter" name="test_patient_list" time="0.437" /><testcase classname="tests.test_iteration10_refactor.TestAppuntamentiRouter" name="test_stato_invalid_400" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestAppuntamentiRouter" name="test_unauth_list_401" time="0.125" /><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_status_unknown_session_404" time="0.165" /><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_webhook_no_signature_400" time="0.158" /><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_therapist_earnings" time="0.094" /><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_therapist_earnings_forbidden_for_admin" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_admin_payouts" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_admin_payouts_pending_filter" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_admin_payouts_forbidden_non_admin" time="0.069" /><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_checkout_booking_requires_paziente" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestPaymentsRouter" name="test_checkout_booking_patient_needs_sms" time="0.078" /><testcase classname="tests.test_iteration10_refactor.TestCruscottoStillWorks" name="test_cruscotto" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestCruscottoStillWorks" name="test_cruscotto_pdf" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestUntouchedEndpoints" name="test_dashboard_stats" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestUntouchedEndpoints" name="test_users_list" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration10_refactor.py:41: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration10_refactor.py:35: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration10_refactor.TestUntouchedEndpoints" name="test_articoli_list" time="0.187" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_login_valid_returns_200_and_sets_cookie" time="0.146"><failure message="assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration11_refactor.py:64: in test_login_valid_returns_200_and_sets_cookie
+    assert r.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_login_wrong_password_401" time="0.124" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_login_unknown_user_401" time="0.174" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_me_authenticated" time="0.170"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_me_unauthenticated_401" time="0.140" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_logout_clears_cookies" time="0.145"><failure message="AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration11_refactor.py:91: in test_logout_clears_cookies
+    s = _login(*ADMIN)
+        ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_forgot_password_generic_response_existing" time="0.405" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_forgot_password_generic_response_unknown" time="0.365" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_reset_password_bad_token_400" time="0.158" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_register_new_patient_returns_otp_dev_or_message" time="0.137"><failure message="AssertionError: {&quot;detail&quot;:&quot;I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione&quot;}&#10;assert 400 == 200&#10; +  where 400 = &lt;Response [400]&gt;.status_code">tests/test_iteration11_refactor.py:129: in test_register_new_patient_returns_otp_dev_or_message
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione"}
+E   assert 400 == 200
+E    +  where 400 = &lt;Response [400]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_register_duplicate_email_400" time="0.154" /><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_verify_otp_bad_code_400" time="0.146"><failure message="assert 400 == 200&#10; +  where 400 = &lt;Response [400]&gt;.status_code">tests/test_iteration11_refactor.py:157: in test_verify_otp_bad_code_400
+    assert rr.status_code == 200
+E   assert 400 == 200
+E    +  where 400 = &lt;Response [400]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration11_refactor.TestAuthRouter" name="test_resend_otp_unknown_email_404" time="0.158" /><testcase classname="tests.test_iteration11_refactor.TestBlogRouter" name="test_list_blog_admin_sees_all" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestBlogRouter" name="test_list_blog_therapist_sees_only_own" time="0.437" /><testcase classname="tests.test_iteration11_refactor.TestBlogRouter" name="test_public_blog_no_auth_only_published" time="0.161" /><testcase classname="tests.test_iteration11_refactor.TestBlogRouter" name="test_therapist_create_bozza_then_admin_approves" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestBlogRouter" name="test_admin_create_publishes_directly" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestBlogRouter" name="test_patient_cannot_create_blog" time="0.473" /><testcase classname="tests.test_iteration11_refactor.TestBlogRouter" name="test_unauthenticated_cannot_list_blog" time="0.224" /><testcase classname="tests.test_iteration11_refactor.TestPaymentsDirectImport" name="test_webhook_no_signature_400" time="0.135" /><testcase classname="tests.test_iteration11_refactor.TestPaymentsDirectImport" name="test_status_unknown_session_404" time="0.179" /><testcase classname="tests.test_iteration11_refactor.TestPaymentsDirectImport" name="test_finalize_confirmed_booking_is_directly_imported" time="0.000" /><testcase classname="tests.test_iteration11_refactor.TestBookingServiceScheduler" name="test_scheduler_started_at_boot" time="0.185"><failure message="AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration11_refactor.py:293: in test_scheduler_started_at_boot
+    s = _login(*ADMIN)
+        ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration11_refactor.TestBookingServiceScheduler" name="test_scheduler_module_singleton_exists" time="0.000" /><testcase classname="tests.test_iteration11_refactor.TestUntouchedStillWorking" name="test_public_terapisti" time="0.131" /><testcase classname="tests.test_iteration11_refactor.TestUntouchedStillWorking" name="test_cruscotto" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestUntouchedStillWorking" name="test_dashboard_stats" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestUntouchedStillWorking" name="test_admin_utenti" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestUntouchedStillWorking" name="test_admin_payouts" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration11_refactor.py:45: in admin
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration11_refactor.py:39: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration11_refactor.TestUntouchedStillWorking" name="test_faq_public" time="0.638" /><testcase classname="tests.test_iteration12_calendario.TestTherapistCalendario" name="test_get_my_calendario" time="0.429" /><testcase classname="tests.test_iteration12_calendario.TestTherapistCalendario" name="test_get_calendario_non_therapist_forbidden" time="0.419" /><testcase classname="tests.test_iteration12_calendario.TestTherapistCalendario" name="test_put_valid_calendario_publishes" time="0.102"><failure message="KeyError: '2026-02-20'">tests/test_iteration12_calendario.py:75: in test_put_valid_calendario_publishes
+    assert data["calendario"]["2026-02-20"] == ["09:00", "14:00"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: '2026-02-20'</failure></testcase><testcase classname="tests.test_iteration12_calendario.TestTherapistCalendario" name="test_put_invalid_date_400" time="0.104" /><testcase classname="tests.test_iteration12_calendario.TestTherapistCalendario" name="test_put_invalid_time_400" time="0.083" /><testcase classname="tests.test_iteration12_calendario.TestTherapistCalendario" name="test_put_empty_clears" time="0.248" /><testcase classname="tests.test_iteration12_calendario.TestTherapistCalendario" name="test_pubblica_endpoint" time="0.249" /><testcase classname="tests.test_iteration12_calendario.TestAdminCalendario" name="test_admin_calendario_feb_2026" time="0.551"><failure message="assert 0 &gt;= 1">tests/test_iteration12_calendario.py:123: in test_admin_calendario_feb_2026
+    assert d20["terapisti_count"] &gt;= 1
+E   assert 0 &gt;= 1</failure></testcase><testcase classname="tests.test_iteration12_calendario.TestAdminCalendario" name="test_admin_calendario_invalid_month" time="0.131" /><testcase classname="tests.test_iteration12_calendario.TestAdminCalendario" name="test_admin_calendario_forbidden_for_paziente" time="0.082" /><testcase classname="tests.test_iteration12_calendario.TestPublicTerapistaCalendario" name="test_public_calendario" time="0.163" /><testcase classname="tests.test_iteration12_calendario.TestRescheduleFlow" name="test_validate_valid_token" time="0.149" /><testcase classname="tests.test_iteration12_calendario.TestRescheduleFlow" name="test_validate_invalid_token" time="0.149" /><testcase classname="tests.test_iteration12_calendario.TestRescheduleFlow" name="test_confirm_missing_slot" time="0.197" /><testcase classname="tests.test_iteration12_calendario.TestRescheduleFlow" name="test_confirm_success" time="0.177"><failure message="AssertionError: {&quot;detail&quot;:&quot;Scegli uno slot almeno 2 ore nel futuro&quot;}&#10;assert 400 == 200&#10; +  where 400 = &lt;Response [400]&gt;.status_code">tests/test_iteration12_calendario.py:233: in test_confirm_success
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Scegli uno slot almeno 2 ore nel futuro"}
+E   assert 400 == 200
+E    +  where 400 = &lt;Response [400]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration12_calendario.TestBookingServiceReminders" name="test_only_one_day_reminder" time="0.004" /><testcase classname="tests.test_iteration13_slots_refund_replica.TestSlotsMigration" name="test_slots_source_calendar" time="0.151"><failure message="AssertionError: {&quot;detail&quot;:&quot;Terapeuta non trovato&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">tests/test_iteration13_slots_refund_replica.py:89: in test_slots_source_calendar
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Terapeuta non trovato"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestSlotsMigration" name="test_slots_filter_past" time="0.171"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">tests/test_iteration13_slots_refund_replica.py:113: in test_slots_filter_past
+    assert r.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestSlotsMigration" name="test_slots_booked_marked_unavailable" time="0.193"><failure message="KeyError: 'slots'">tests/test_iteration13_slots_refund_replica.py:139: in test_slots_booked_marked_unavailable
+    aug10_9 = [s for s in data["slots"] if s["data_ora"].startswith("2026-08-10T09:")]
+                          ^^^^^^^^^^^^^
+E   KeyError: 'slots'</failure></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestSlotsMigration" name="test_slots_fallback_legacy_weekly" time="0.167"><failure message="AttributeError: 'NoneType' object has no attribute 'get'">tests/test_iteration13_slots_refund_replica.py:162: in test_slots_fallback_legacy_weekly
+    assert r.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code
+
+During handling of the above exception, another exception occurred:
+tests/test_iteration13_slots_refund_replica.py:172: in test_slots_fallback_legacy_weekly
+    "disponibilita": original.get("disponibilita", []),
+                     ^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'get'</failure></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestRescheduleEmail" name="test_email_service_helper_exists" time="0.000" /><testcase classname="tests.test_iteration13_slots_refund_replica.TestRescheduleEmail" name="test_reschedule_confirm_invokes_email_wrapper" time="0.145"><failure message="AssertionError: {&quot;detail&quot;:&quot;Scegli uno slot almeno 2 ore nel futuro&quot;}&#10;assert 400 == 200&#10; +  where 400 = &lt;Response [400]&gt;.status_code">tests/test_iteration13_slots_refund_replica.py:219: in test_reschedule_confirm_invokes_email_wrapper
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Scegli uno slot almeno 2 ore nel futuro"}
+E   assert 400 == 200
+E    +  where 400 = &lt;Response [400]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestRefundEndpoint" name="test_refund_requires_admin" time="0.449" /><testcase classname="tests.test_iteration13_slots_refund_replica.TestRefundEndpoint" name="test_refund_invalid_objectid" time="0.167"><error message="failed on setup with &quot;AssertionError: Login admin@funzionabene.it failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration13_slots_refund_replica.py:33: in admin_session
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration13_slots_refund_replica.py:27: in _login
+    assert r.status_code == 200, f"Login {email} failed: {r.status_code} {r.text}"
+E   AssertionError: Login admin@funzionabene.it failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestRefundEndpoint" name="test_refund_not_found" time="0.000"><error message="failed on setup with &quot;AssertionError: Login admin@funzionabene.it failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration13_slots_refund_replica.py:33: in admin_session
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration13_slots_refund_replica.py:27: in _login
+    assert r.status_code == 200, f"Login {email} failed: {r.status_code} {r.text}"
+E   AssertionError: Login admin@funzionabene.it failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestRefundEndpoint" name="test_refund_not_paid" time="0.000"><error message="failed on setup with &quot;AssertionError: Login admin@funzionabene.it failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration13_slots_refund_replica.py:33: in admin_session
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration13_slots_refund_replica.py:27: in _login
+    assert r.status_code == 200, f"Login {email} failed: {r.status_code} {r.text}"
+E   AssertionError: Login admin@funzionabene.it failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestRefundEndpoint" name="test_refund_payout_already_paid" time="0.000"><error message="failed on setup with &quot;AssertionError: Login admin@funzionabene.it failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration13_slots_refund_replica.py:33: in admin_session
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration13_slots_refund_replica.py:27: in _login
+    assert r.status_code == 200, f"Login {email} failed: {r.status_code} {r.text}"
+E   AssertionError: Login admin@funzionabene.it failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestRefundEndpoint" name="test_refund_missing_payment_intent" time="0.000"><error message="failed on setup with &quot;AssertionError: Login admin@funzionabene.it failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration13_slots_refund_replica.py:33: in admin_session
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration13_slots_refund_replica.py:27: in _login
+    assert r.status_code == 200, f"Login {email} failed: {r.status_code} {r.text}"
+E   AssertionError: Login admin@funzionabene.it failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration13_slots_refund_replica.TestRefundEndpoint" name="test_refund_already_refunded" time="0.002"><error message="failed on setup with &quot;AssertionError: Login admin@funzionabene.it failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration13_slots_refund_replica.py:33: in admin_session
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration13_slots_refund_replica.py:27: in _login
+    assert r.status_code == 200, f"Login {email} failed: {r.status_code} {r.text}"
+E   AssertionError: Login admin@funzionabene.it failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error><error message="failed on teardown with &quot;AttributeError: 'NoneType' object has no attribute 'get'&quot;">tests/test_iteration13_slots_refund_replica.py:75: in maria_with_aug_calendar
+    "disponibilita_calendario": original.get("disponibilita_calendario") or {},
+                                ^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'get'</error></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestPending" name="test_pending_paziente_empty" time="0.442" /><testcase classname="tests.test_iteration16_gdpr_signature.TestPending" name="test_pending_terapeuta_four_docs" time="0.123"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:89: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestSign" name="test_sign_wrong_name_400" time="0.000"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:102: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestSign" name="test_sign_correct_name_case_insensitive" time="0.000"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:115: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestSign" name="test_sign_scroll_flag_false" time="0.000"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:140: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestReceipt" name="test_receipt_download_owner" time="0.000"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:155: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestReceipt" name="test_receipt_forbidden_other_user" time="0.000"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:176: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestReceipt" name="test_list_signatures_grouped" time="0.000"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:192: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestMajorAndDecline" name="test_notify_major_and_decline" time="0.000"><skipped type="pytest.skip" message="Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_iteration16_gdpr_signature.py:213: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_iteration16_gdpr_signature.TestGdprUserRights" name="test_gdpr_export" time="0.465" /><testcase classname="tests.test_iteration16_gdpr_signature.TestGdprUserRights" name="test_gdpr_delete_wrong_confirm" time="0.090" /><testcase classname="tests.test_iteration16_gdpr_signature.TestGdprUserRights" name="test_consents_get_and_update" time="0.377" /><testcase classname="tests.test_iteration17_gdpr_fase13.TestRegisterConsents" name="test_paziente_missing_termini_rejected" time="0.164" /><testcase classname="tests.test_iteration17_gdpr_fase13.TestRegisterConsents" name="test_paziente_missing_privacy_rejected" time="0.161" /><testcase classname="tests.test_iteration17_gdpr_fase13.TestRegisterConsents" name="test_paziente_all_consents_ok_and_history" time="0.786"><failure message="AssertionError: otp_dev not exposed — cannot complete verify&#10;assert None">tests/test_iteration17_gdpr_fase13.py:69: in test_paziente_all_consents_ok_and_history
+    assert otp, "otp_dev not exposed — cannot complete verify"
+E   AssertionError: otp_dev not exposed — cannot complete verify
+E   assert None</failure></testcase><testcase classname="tests.test_iteration17_gdpr_fase13.TestRegisterConsents" name="test_paziente_partial_optional_consents" time="0.579" /><testcase classname="tests.test_iteration17_gdpr_fase13.TestRegisterConsents" name="test_terapeuta_only_privacy_ok" time="0.172"><failure message="AssertionError: {&quot;detail&quot;:&quot;La registrazione diretta dei terapeuti non è più disponibile. Compila il modulo di candidatura e verrai contattato dal nostro team.&quot;}&#10;assert 403 == 200&#10; +  where 403 = &lt;Response [403]&gt;.status_code">tests/test_iteration17_gdpr_fase13.py:112: in test_terapeuta_only_privacy_ok
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"La registrazione diretta dei terapeuti non è più disponibile. Compila il modulo di candidatura e verrai contattato dal nostro team."}
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration17_gdpr_fase13.TestScheduledJobs" name="test_retention_run_admin" time="0.499" /><testcase classname="tests.test_iteration17_gdpr_fase13.TestScheduledJobs" name="test_retention_run_forbidden_to_anon" time="0.196" /><testcase classname="tests.test_iteration17_gdpr_fase13.TestScheduledJobs" name="test_legal_decline_run_admin" time="0.095" /><testcase classname="tests.test_iteration17_gdpr_fase13.TestScheduledJobs" name="test_retention_idempotent" time="0.179" /><testcase classname="tests.test_iteration17_jobs_e2e.TestRetentionJobE2E" name="test_retention_anonymizes_stale_paziente" time="0.484" /><testcase classname="tests.test_iteration17_jobs_e2e.TestRetentionJobE2E" name="test_retention_skips_paziente_with_recent_appointment" time="0.095" /><testcase classname="tests.test_iteration17_jobs_e2e.TestLegalDeclineJobE2E" name="test_legal_decline_hard_deactivates_terapeuta" time="0.088" /><testcase classname="tests.test_iteration17_jobs_e2e.TestLegalDeclineJobE2E" name="test_legal_decline_idempotent" time="0.157" /><testcase classname="tests.test_iteration18_consent_reviews.TestInformedConsent" name="test_get_consent_unknown_id_returns_404" time="0.127" /><testcase classname="tests.test_iteration18_consent_reviews.TestInformedConsent" name="test_accept_consent_unknown_id_returns_404" time="0.139" /><testcase classname="tests.test_iteration18_consent_reviews.TestInformedConsent" name="test_therapist_update_consent_requires_auth" time="0.162" /><testcase classname="tests.test_iteration18_consent_reviews.TestInformedConsent" name="test_mia_consent_status_requires_auth" time="0.164" /><testcase classname="tests.test_iteration18_consent_reviews.TestCancellationPolicy" name="test_get_policy_is_public" time="0.154" /><testcase classname="tests.test_iteration18_consent_reviews.TestCancellationPolicy" name="test_cancel_requires_auth" time="0.153" /><testcase classname="tests.test_iteration18_consent_reviews.TestCancellationPolicy" name="test_preview_requires_auth" time="0.148" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviews" name="test_public_reviews_unknown_therapist" time="0.166" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviews" name="test_submit_review_requires_auth" time="0.151" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviews" name="test_pending_appointments_requires_auth" time="0.163" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviews" name="test_admin_pending_requires_admin" time="0.142" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviews" name="test_admin_approve_requires_admin" time="0.173" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviews" name="test_admin_reject_requires_admin" time="0.129" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviews" name="test_admin_count_pending_requires_admin" time="0.130" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviewsAdminE2E" name="test_admin_can_list_pending" time="0.457" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviewsAdminE2E" name="test_admin_can_count_pending" time="0.075" /><testcase classname="tests.test_iteration18_consent_reviews.TestReviewsAdminE2E" name="test_admin_approve_unknown_returns_404" time="0.103" /><testcase classname="tests.test_iteration4.TestComputeCF" name="test_compute_cf_italian_male" time="0.155"><error message="failed on setup with &quot;AssertionError: Login failed: {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration4.py:26: in setup
+    assert login_res.status_code == 200, f"Login failed: {login_res.text}"
+E   AssertionError: Login failed: {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration4.TestComputeCF" name="test_compute_cf_italian_female" time="0.146"><error message="failed on setup with &quot;AssertionError: Login failed: {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration4.py:26: in setup
+    assert login_res.status_code == 200, f"Login failed: {login_res.text}"
+E   AssertionError: Login failed: {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration4.TestComputeCF" name="test_compute_cf_estero_brasile" time="0.170"><error message="failed on setup with &quot;AssertionError: Login failed: {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration4.py:26: in setup
+    assert login_res.status_code == 200, f"Login failed: {login_res.text}"
+E   AssertionError: Login failed: {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration4.TestComputeCF" name="test_compute_cf_invalid_gender_altro" time="0.160"><error message="failed on setup with &quot;AssertionError: Login failed: {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration4.py:26: in setup
+    assert login_res.status_code == 200, f"Login failed: {login_res.text}"
+E   AssertionError: Login failed: {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration4.TestComputeCF" name="test_compute_cf_invalid_gender_preferisco" time="0.156"><error message="failed on setup with &quot;AssertionError: Login failed: {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration4.py:26: in setup
+    assert login_res.status_code == 200, f"Login failed: {login_res.text}"
+E   AssertionError: Login failed: {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration4.TestComputeCF" name="test_compute_cf_requires_auth" time="0.170"><error message="failed on setup with &quot;AssertionError: Login failed: {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration4.py:26: in setup
+    assert login_res.status_code == 200, f"Login failed: {login_res.text}"
+E   AssertionError: Login failed: {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration4.TestConversazioni" name="test_conversazioni_paziente" time="0.164"><failure message="assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration4.py:132: in test_conversazioni_paziente
+    assert login_res.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration4.TestConversazioni" name="test_conversazioni_terapeuta" time="0.346"><failure message="assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration4.py:153: in test_conversazioni_terapeuta
+    assert login_res.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration4.TestConversazioni" name="test_conversazioni_requires_auth" time="0.150" /><testcase classname="tests.test_iteration4.TestMessaggi" name="test_get_messaggi" time="0.232" /><testcase classname="tests.test_iteration4.TestMessaggi" name="test_send_message_paziente" time="0.240" /><testcase classname="tests.test_iteration4.TestMessaggi" name="test_send_message_terapeuta" time="0.440" /><testcase classname="tests.test_iteration4.TestBookingFlow" name="test_prenota_creates_confermato_appointment" time="0.155"><failure message="assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration4.py:253: in test_prenota_creates_confermato_appointment
+    assert login_res.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration4.TestBookingFlow" name="test_prenota_requires_paziente_role" time="0.381"><failure message="assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration4.py:300: in test_prenota_requires_paziente_role
+    assert login_res.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration4.TestEmailReminders" name="test_booking_triggers_email_logs" time="0.130"><failure message="assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration4.py:325: in test_booking_triggers_email_logs
+    assert login_res.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration6.TestAuth" name="test_admin_login" time="0.139"><failure message="AssertionError: Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration6.py:60: in test_admin_login
+    s, u = _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration6.py:47: in _login
+    assert r.status_code == 200, f"Login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration6.TestAuth" name="test_terapeuta_login" time="0.353" /><testcase classname="tests.test_iteration6.TestAuth" name="test_paziente_login" time="0.430" /><testcase classname="tests.test_iteration6.TestPasswordReset" name="test_forgot_password_existing_and_missing_return_same" time="0.711" /><testcase classname="tests.test_iteration6.TestPasswordReset" name="test_reset_password_fake_token_returns_generic_400" time="0.120" /><testcase classname="tests.test_iteration6.TestMandato" name="test_public_mandato_current" time="0.151" /><testcase classname="tests.test_iteration6.TestMandato" name="test_admin_list_contracts_and_acceptances" time="0.164"><failure message="AssertionError: Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration6.py:107: in test_admin_list_contracts_and_acceptances
+    s, _ = _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration6.py:47: in _login
+    assert r.status_code == 200, f"Login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration6.TestMandato" name="test_non_admin_cannot_list_contracts" time="0.488" /><testcase classname="tests.test_iteration6.TestStripeCheckout" name="test_checkout_requires_auth" time="0.128" /><testcase classname="tests.test_iteration6.TestStripeCheckout" name="test_checkout_requires_sms_verification" time="0.890" /><testcase classname="tests.test_iteration6.TestStripeCheckout" name="test_checkout_success_returns_stripe_url_and_split" time="1.226" /><testcase classname="tests.test_iteration6.TestStripeCheckout" name="test_marca_da_bollo_threshold" time="0.001" /><testcase classname="tests.test_iteration6.TestAuditConsent" name="test_post_consent_log" time="0.153" /><testcase classname="tests.test_iteration6.TestAuditConsent" name="test_admin_can_list_consents" time="0.171"><failure message="AssertionError: Login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_iteration6.py:240: in test_admin_can_list_consents
+    s, _ = _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration6.py:47: in _login
+    assert r.status_code == 200, f"Login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: Login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_iteration7_payouts.TestAuthGuard" name="test_payouts_requires_auth" time="0.200" /><testcase classname="tests.test_iteration7_payouts.TestAuthGuard" name="test_fattura_sanitaria_requires_auth" time="0.157" /><testcase classname="tests.test_iteration7_payouts.TestAuthGuard" name="test_fattura_commissione_requires_auth" time="0.187" /><testcase classname="tests.test_iteration7_payouts.TestPayoutsList" name="test_list_all_schema" time="0.162"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestPayoutsList" name="test_seed_transaction_present" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestPayoutsList" name="test_filter_pending" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestPayoutsList" name="test_filter_paid" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestMarkPaid" name="test_mark_paid_and_verify" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestMarkPaid" name="test_mark_paid_empty_ids" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestFatturaPDF" name="test_fattura_sanitaria_pdf" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestFatturaPDF" name="test_fattura_commissione_pdf" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestFatturaPDF" name="test_fattura_commissione_bad_period" time="0.000"><error message="failed on setup with &quot;AssertionError: Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration7_payouts.py:19: in admin_session
+    assert r.status_code == 200, f"Admin login failed: {r.status_code} {r.text}"
+E   AssertionError: Admin login failed: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration7_payouts.TestSMSServiceModule" name="test_env_vars_present" time="0.000" /><testcase classname="tests.test_iteration7_payouts.TestSMSServiceModule" name="test_sms_service_imports_and_client" time="0.003" /><testcase classname="tests.test_iteration7_payouts.TestSMSServiceModule" name="test_normalize_phone" time="0.000" /><testcase classname="tests.test_iteration8_cruscotto.TestCruscottoAuth" name="test_unauth_returns_401_or_403" time="0.140" /><testcase classname="tests.test_iteration8_cruscotto.TestCruscottoAuth" name="test_non_admin_returns_403" time="0.441" /><testcase classname="tests.test_iteration8_cruscotto.TestCruscottoAuth" name="test_admin_returns_200" time="0.156"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration8_cruscotto.py:24: in admin_client
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration8_cruscotto.py:18: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration8_cruscotto.TestCruscottoSchema" name="test_response_schema" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration8_cruscotto.py:24: in admin_client
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration8_cruscotto.py:18: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration8_cruscotto.TestCruscottoSchema" name="test_types_are_ints" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration8_cruscotto.py:24: in admin_client
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration8_cruscotto.py:18: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration8_cruscotto.TestIbanPersistence" name="test_put_iban_persists_and_uppercases_via_get" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration8_cruscotto.py:24: in admin_client
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration8_cruscotto.py:18: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration8_cruscotto.TestIbanPersistence" name="test_missing_iban_shows_in_alert" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration8_cruscotto.py:24: in admin_client
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration8_cruscotto.py:18: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration8_cruscotto.TestRevenueAggregation" name="test_pending_payouts_matches_admin_payouts_list" time="0.001"><error message="failed on setup with &quot;AssertionError: login failed for admin@funzionabene.it: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration8_cruscotto.py:24: in admin_client
+    return _login(*ADMIN)
+           ^^^^^^^^^^^^^^
+tests/test_iteration8_cruscotto.py:18: in _login
+    assert r.status_code == 200, f"login failed for {email}: {r.status_code} {r.text}"
+E   AssertionError: login failed for admin@funzionabene.it: 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_cruscotto_schema_full" time="0.124"><error message="failed on setup with &quot;AssertionError: login failed 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration9.py:29: in admin_headers
+    return _login(ADMIN_EMAIL, ADMIN_PASS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iteration9.py:23: in _login
+    assert r.status_code == 200, f"login failed {r.status_code} {r.text}"
+E   AssertionError: login failed 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_cruscotto_forbidden_for_non_admin" time="0.435" /><testcase classname="tests.test_iteration9" name="test_cruscotto_no_auth" time="0.211" /><testcase classname="tests.test_iteration9" name="test_pending_payout_present" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration9.py:29: in admin_headers
+    return _login(ADMIN_EMAIL, ADMIN_PASS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iteration9.py:23: in _login
+    assert r.status_code == 200, f"login failed {r.status_code} {r.text}"
+E   AssertionError: login failed 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_iban_missing_contains_giulia" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration9.py:29: in admin_headers
+    return _login(ADMIN_EMAIL, ADMIN_PASS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iteration9.py:23: in _login
+    assert r.status_code == 200, f"login failed {r.status_code} {r.text}"
+E   AssertionError: login failed 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_seed_idempotent" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration9.py:29: in admin_headers
+    return _login(ADMIN_EMAIL, ADMIN_PASS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iteration9.py:23: in _login
+    assert r.status_code == 200, f"login failed {r.status_code} {r.text}"
+E   AssertionError: login failed 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_iban_invalid_rejected" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration9.py:29: in admin_headers
+    return _login(ADMIN_EMAIL, ADMIN_PASS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iteration9.py:23: in _login
+    assert r.status_code == 200, f"login failed {r.status_code} {r.text}"
+E   AssertionError: login failed 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_iban_valid_normalized" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration9.py:29: in admin_headers
+    return _login(ADMIN_EMAIL, ADMIN_PASS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iteration9.py:23: in _login
+    assert r.status_code == 200, f"login failed {r.status_code} {r.text}"
+E   AssertionError: login failed 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_pdf_export_admin" time="0.000"><error message="failed on setup with &quot;AssertionError: login failed 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code&quot;">tests/test_iteration9.py:29: in admin_headers
+    return _login(ADMIN_EMAIL, ADMIN_PASS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iteration9.py:23: in _login
+    assert r.status_code == 200, f"login failed {r.status_code} {r.text}"
+E   AssertionError: login failed 401 {"detail":"Credenziali non valide"}
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</error></testcase><testcase classname="tests.test_iteration9" name="test_pdf_forbidden_non_admin" time="0.088" /><testcase classname="tests.test_no_show_and_video_gating.TestVideoToken" name="test_425_too_early_when_more_than_20min_before" time="0.971" /><testcase classname="tests.test_no_show_and_video_gating.TestVideoToken" name="test_410_session_closed_when_past_close" time="0.124" /><testcase classname="tests.test_no_show_and_video_gating.TestVideoToken" name="test_200_in_window" time="0.354" /><testcase classname="tests.test_no_show_and_video_gating.TestVideocallMagic" name="test_403_invalid_token" time="0.148" /><testcase classname="tests.test_no_show_and_video_gating.TestVideocallMagic" name="test_425_too_early" time="0.124" /><testcase classname="tests.test_no_show_and_video_gating.TestVideocallMagic" name="test_410_with_role_hint_paziente" time="0.159" /><testcase classname="tests.test_no_show_and_video_gating.TestDailyNbfOffset" name="test_create_room_uses_nbf_start_minus_20" time="0.000" /><testcase classname="tests.test_no_show_and_video_gating.TestDailyNbfOffset" name="test_create_meeting_token_uses_nbf_start_minus_20" time="0.000" /><testcase classname="tests.test_no_show_and_video_gating.TestNoShowService" name="test_run_no_show_check_no_show_entrambi_and_idempotent" time="0.003"><failure message="RuntimeError: Event loop is closed">tests/test_no_show_and_video_gating.py:332: in test_run_no_show_check_no_show_entrambi_and_idempotent
+    snap1 = event_loop.run_until_complete(no_show_service.run_no_show_check(app_id, is_final=True))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+no_show_service.py:183: in run_no_show_check
+    appt = await db.appuntamenti.find_one({"_id": ObjectId(app_id)})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_no_show_and_video_gating.TestNoShowService" name="test_run_no_show_paziente_only" time="0.003"><failure message="RuntimeError: Event loop is closed">tests/test_no_show_and_video_gating.py:365: in test_run_no_show_paziente_only
+    snap = event_loop.run_until_complete(
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+no_show_service.py:183: in run_no_show_check
+    appt = await db.appuntamenti.find_one({"_id": ObjectId(app_id)})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_no_show_and_video_gating.TestScheduleReminders" name="test_schedule_reminders_registers_noshow_jobs" time="0.002"><failure message="ValueError: This Job cannot be serialized since the reference to its callable (&lt;function test_finalize_confirmed_booking_end_to_end.&lt;locals&gt;._fake_reminder at 0xf84237c965c0&gt;) could not be determined. Consider giving a textual reference (module:function name) instead.">tests/test_no_show_and_video_gating.py:381: in test_schedule_reminders_registers_noshow_jobs
+    event_loop.run_until_complete(_start_if_needed())
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_no_show_and_video_gating.py:380: in _start_if_needed
+    booking_service.scheduler.start()
+/root/.venv/lib/python3.11/site-packages/apscheduler/schedulers/asyncio.py:38: in start
+    super().start(paused)
+/root/.venv/lib/python3.11/site-packages/apscheduler/schedulers/base.py:210: in start
+    self._real_add_job(job, jobstore_alias, replace_existing)
+/root/.venv/lib/python3.11/site-packages/apscheduler/schedulers/base.py:1076: in _real_add_job
+    store.add_job(job)
+/root/.venv/lib/python3.11/site-packages/apscheduler/jobstores/mongodb.py:102: in add_job
+    pickle.dumps(job.__getstate__(), self.pickle_protocol)
+                 ^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/apscheduler/job.py:263: in __getstate__
+    raise ValueError(
+E   ValueError: This Job cannot be serialized since the reference to its callable (&lt;function test_finalize_confirmed_booking_end_to_end.&lt;locals&gt;._fake_reminder at 0xf84237c965c0&gt;) could not be determined. Consider giving a textual reference (module:function name) instead.</failure></testcase><testcase classname="tests.test_no_show_and_video_gating.TestMagicTokenExpiry" name="test_magic_expires_is_start_plus_15min" time="0.003"><failure message="RuntimeError: Event loop is closed">tests/test_no_show_and_video_gating.py:422: in test_magic_expires_is_start_plus_15min
+    raw = event_loop.run_until_complete(
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+booking_service.py:214: in _ensure_videocall_magic_token
+    await db.appuntamenti.update_one(
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_no_show_and_video_gating.TestSedutaLogs" name="test_admin_seduta_logs_403_for_paziente" time="0.079" /><testcase classname="tests.test_no_show_and_video_gating.TestSedutaLogs" name="test_admin_seduta_logs_403_for_terapeuta" time="0.479" /><testcase classname="tests.test_no_show_and_video_gating.TestSedutaLogs" name="test_admin_seduta_logs_lists_and_filters" time="0.752" /><testcase classname="tests.test_no_show_and_video_gating.TestPresenzeEndpoint" name="test_snapshot_source_preferred" time="0.086" /><testcase classname="tests.test_no_show_and_video_gating.TestPresenzeEndpoint" name="test_presenze_403_for_paziente" time="0.091" /><testcase classname="tests.test_no_show_and_video_gating.TestEmailTemplatesFallback" name="test_all_five_no_show_templates_return_false_when_disabled" time="0.006" /><testcase classname="tests.test_public_routes.TestPublicTerapisti" name="test_public_terapisti_list" time="0.143"><failure message="AssertionError: Therapist 6a883255ad52b95ec7a048b1 should have autocertificazione_firmata=True&#10;assert False == True&#10; +  where False = &lt;built-in method get of dict object at 0xf84234119fc0&gt;('autocertificazione_firmata')&#10; +    where &lt;built-in method get of dict object at 0xf84234119fc0&gt; = {'_id': '6a883255ad52b95ec7a048b1', 'approval_status': 'approvato', 'autocertificazione_firmata': False, 'calendario_bozza': False, ...}.get">tests/test_public_routes.py:28: in test_public_terapisti_list
+    assert t.get("autocertificazione_firmata") == True, f"Therapist {t.get('_id')} should have autocertificazione_firmata=True"
+E   AssertionError: Therapist 6a883255ad52b95ec7a048b1 should have autocertificazione_firmata=True
+E   assert False == True
+E    +  where False = &lt;built-in method get of dict object at 0xf84234119fc0&gt;('autocertificazione_firmata')
+E    +    where &lt;built-in method get of dict object at 0xf84234119fc0&gt; = {'_id': '6a883255ad52b95ec7a048b1', 'approval_status': 'approvato', 'autocertificazione_firmata': False, 'calendario_bozza': False, ...}.get</failure></testcase><testcase classname="tests.test_public_routes.TestPublicTerapisti" name="test_public_terapista_profile" time="0.352" /><testcase classname="tests.test_public_routes.TestPublicTerapisti" name="test_public_terapista_not_found" time="0.136" /><testcase classname="tests.test_public_routes.TestPublicMatching" name="test_matching_basic" time="0.140" /><testcase classname="tests.test_public_routes.TestPublicMatching" name="test_matching_female_preference_scores_higher" time="0.169" /><testcase classname="tests.test_public_routes.TestPublicMatching" name="test_matching_empty_payload" time="0.149" /><testcase classname="tests.test_public_routes.TestPublicBlog" name="test_public_blog_list" time="0.170" /><testcase classname="tests.test_public_routes.TestPublicFAQ" name="test_public_faq_list" time="0.125" /><testcase classname="tests.test_public_routes.TestSlots" name="test_slots_endpoint" time="0.314" /><testcase classname="tests.test_public_routes.TestBookingFlow" name="test_full_booking_flow" time="1.293"><failure message="AssertionError: Register failed: {&quot;detail&quot;:&quot;I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione&quot;}&#10;assert 400 == 200&#10; +  where 400 = &lt;Response [400]&gt;.status_code">tests/test_public_routes.py:257: in test_full_booking_flow
+    assert reg_response.status_code == 200, f"Register failed: {reg_response.text}"
+E   AssertionError: Register failed: {"detail":"I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione"}
+E   assert 400 == 200
+E    +  where 400 = &lt;Response [400]&gt;.status_code</failure></testcase><testcase classname="tests.test_public_routes.TestBookingFlow" name="test_prenota_requires_auth" time="0.147" /><testcase classname="tests.test_public_routes.TestBookingFlow" name="test_prenota_requires_paziente_role" time="0.346"><skipped type="pytest.skip" message="Could not login as terapeuta">/app/backend/tests/test_public_routes.py:350: Could not login as terapeuta</skipped></testcase><testcase classname="tests.test_public_routes.TestAuthEndpoints" name="test_register_returns_otp_dev" time="0.176"><failure message="AssertionError: Register failed: {&quot;detail&quot;:&quot;I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione&quot;}&#10;assert 400 == 200&#10; +  where 400 = &lt;Response [400]&gt;.status_code">tests/test_public_routes.py:385: in test_register_returns_otp_dev
+    assert response.status_code == 200, f"Register failed: {response.text}"
+E   AssertionError: Register failed: {"detail":"I consensi obbligatori (privacy e termini) sono richiesti per completare la registrazione"}
+E   assert 400 == 200
+E    +  where 400 = &lt;Response [400]&gt;.status_code</failure></testcase><testcase classname="tests.test_public_routes.TestAuthEndpoints" name="test_resend_otp_returns_otp_dev" time="0.296"><failure message="AssertionError: Resend OTP failed: {&quot;detail&quot;:&quot;Utente non trovato&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">tests/test_public_routes.py:412: in test_resend_otp_returns_otp_dev
+    assert response.status_code == 200, f"Resend OTP failed: {response.text}"
+E   AssertionError: Resend OTP failed: {"detail":"Utente non trovato"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_public_routes.TestAuthEndpoints" name="test_verify_otp_sets_cookies" time="0.309"><failure message="AssertionError: OTP verify failed: {&quot;detail&quot;:[{&quot;type&quot;:&quot;string_type&quot;,&quot;loc&quot;:[&quot;body&quot;,&quot;otp_code&quot;],&quot;msg&quot;:&quot;Input should be a valid string&quot;,&quot;input&quot;:null,&quot;url&quot;:&quot;https://errors.pydantic.dev/2.12/v/string_type&quot;}]}&#10;assert 422 == 200&#10; +  where 422 = &lt;Response [422]&gt;.status_code">tests/test_public_routes.py:443: in test_verify_otp_sets_cookies
+    assert otp_response.status_code == 200, f"OTP verify failed: {otp_response.text}"
+E   AssertionError: OTP verify failed: {"detail":[{"type":"string_type","loc":["body","otp_code"],"msg":"Input should be a valid string","input":null,"url":"https://errors.pydantic.dev/2.12/v/string_type"}]}
+E   assert 422 == 200
+E    +  where 422 = &lt;Response [422]&gt;.status_code</failure></testcase><testcase classname="tests.test_slots_rome_tz_fix.TestSlotsRomeTzFix" name="test_slot_cest_16_rome_is_14_utc" time="0.150" /><testcase classname="tests.test_slots_rome_tz_fix.TestSlotsRomeTzFix" name="test_slot_cet_16_rome_is_15_utc" time="0.158" /><testcase classname="tests.test_slots_rome_tz_fix.TestSlotsRomeTzFix" name="test_weekly_fallback_converts_rome_to_utc" time="0.136" /><testcase classname="tests.test_slots_rome_tz_fix.TestPublicMonthlyCalendar" name="test_public_monthly_returns_rome_to_utc" time="0.148" /><testcase classname="tests.test_slots_rome_tz_fix.TestEmailFormatters" name="test_format_data_ora_it_cest" time="0.000" /><testcase classname="tests.test_slots_rome_tz_fix.TestEmailFormatters" name="test_format_data_ora_it_cet" time="0.000" /><testcase classname="tests.test_slots_rome_tz_fix.TestEmailFormatters" name="test_fmt_it_short_format" time="0.000" /><testcase classname="tests.test_slots_rome_tz_fix.TestDailyTokenArithmetic" name="test_utc_iso_produces_expected_epoch" time="0.000" /><testcase classname="tests.test_slots_rome_tz_fix.TestDailyTokenArithmetic" name="test_z_suffix_iso_produces_same_epoch" time="0.000" /><testcase classname="tests.test_slots_rome_tz_fix.TestRomeHelper" name="test_helper_cest" time="0.011" /><testcase classname="tests.test_slots_rome_tz_fix.TestRomeHelper" name="test_helper_cet" time="0.001" /><testcase classname="tests.test_sms_docs_iter5.TestSMSOTP" name="test_send_otp_requires_auth" time="0.144" /><testcase classname="tests.test_sms_docs_iter5.TestSMSOTP" name="test_send_otp_missing_phone" time="0.387"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:71: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestSMSOTP" name="test_send_otp_success_returns_otp_dev" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:77: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestSMSOTP" name="test_verify_otp_invalid_code" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:88: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestSMSOTP" name="test_verify_otp_success" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:93: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_upload_doc_requires_auth" time="0.157" /><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_upload_doc_requires_terapeuta_role" time="0.148"><skipped type="pytest.skip" message="Paziente login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:118: Paziente login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_upload_doc_invalid_tipo" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:124: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_upload_doc_invalid_extension" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:131: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_upload_cv_success" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:138: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_upload_assicurazione_success" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:149: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_upload_laurea_success" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:159: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestTherapistDocuments" name="test_list_my_docs" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:169: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestAutocertificazioneDPR445" name="test_autocert_requires_auth" time="0.172" /><testcase classname="tests.test_sms_docs_iter5.TestAutocertificazioneDPR445" name="test_autocert_requires_terapeuta_role" time="0.000"><skipped type="pytest.skip" message="Paziente login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:193: Paziente login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestAutocertificazioneDPR445" name="test_autocert_success" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:198: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestAdminDocumentReview" name="test_admin_list_docs_requires_admin" time="0.000"><skipped type="pytest.skip" message="Terapeuta login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:221: Terapeuta login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestAdminDocumentReview" name="test_admin_list_docs_success" time="0.133"><skipped type="pytest.skip" message="Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:229: Admin login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestAdminDocumentReview" name="test_admin_download_doc" time="0.000"><skipped type="pytest.skip" message="Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:248: Admin login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestAdminDocumentReview" name="test_admin_toggle_verifica" time="0.000"><skipped type="pytest.skip" message="Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:276: Admin login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestPublicTerapistiFilter" name="test_public_terapisti_only_verified" time="0.000"><skipped type="pytest.skip" message="Admin login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:311: Admin login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestPrenotaPhoneVerification" name="test_prenota_requires_phone_verification" time="0.000"><skipped type="pytest.skip" message="Paziente login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:340: Paziente login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase><testcase classname="tests.test_sms_docs_iter5.TestPrenotaPhoneVerification" name="test_prenota_after_sms_verification" time="0.000"><skipped type="pytest.skip" message="Paziente login failed: 401 {&quot;detail&quot;:&quot;Credenziali non valide&quot;}">/app/backend/tests/test_sms_docs_iter5.py:388: Paziente login failed: 401 {"detail":"Credenziali non valide"}</skipped></testcase></testsuite></testsuites>
