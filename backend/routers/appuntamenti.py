@@ -1,7 +1,7 @@
 """Appuntamenti (appointments) router: CRUD + Daily.co video token + attendance."""
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,8 +13,23 @@ from daily_service import create_room_for_appointment, create_meeting_token, get
 router = APIRouter()
 
 
+# Access window for joining a video session
+JOIN_OPEN_BEFORE_MIN = 20   # room + magic link become usable 20 min before start
+JOIN_CLOSE_AFTER_MIN = 15   # magic link closes 15 min after start (no-show cutoff)
+
+
 def _digest(raw: str) -> str:
     return hashlib.sha256(raw.encode("ascii")).hexdigest()
+
+
+def _parse_appt_start(appt: dict) -> datetime | None:
+    try:
+        s = datetime.fromisoformat(appt["data_ora"].replace("Z", "+00:00"))
+        if s.tzinfo is None:
+            s = s.replace(tzinfo=timezone.utc)
+        return s
+    except Exception:
+        return None
 
 
 @router.get("/appuntamenti")
@@ -165,6 +180,27 @@ async def get_video_token(app_id: str, user: dict = Depends(require_auth)):
             {"$set": {"daily_room_url": room_url, "daily_room_name": room_name}},
         )
 
+    # Gate access: allow logged-in users to join from 20 min before to 15 min
+    # after the session's END (so they can rejoin if disconnected mid-session).
+    start = _parse_appt_start(app)
+    if start:
+        durata = int(app.get("durata_minuti", 50))
+        open_at = start - timedelta(minutes=JOIN_OPEN_BEFORE_MIN)
+        close_at = start + timedelta(minutes=durata + JOIN_CLOSE_AFTER_MIN)
+        now = datetime.now(timezone.utc)
+        if now < open_at:
+            # 425 Too Early — client should show countdown and retry at open_at
+            raise HTTPException(
+                status_code=425,
+                detail={"code": "too_early", "available_at": open_at.isoformat(), "start_at": start.isoformat()},
+            )
+        if now > close_at:
+            raise HTTPException(
+                status_code=410,
+                detail={"code": "session_closed", "start_at": start.isoformat(),
+                        "message": "La finestra di accesso alla seduta è chiusa."},
+            )
+
     user_name = f"{user.get('nome','')} {user.get('cognome','')}".strip() or user.get("email", "Utente")
     token = await create_meeting_token(room_name, user_name, is_owner, app["data_ora"], app.get("durata_minuti", 50))
 
@@ -195,11 +231,31 @@ async def videocall_magic(app_id: str, token: str):
     stored_hash = app.get("videocall_magic_hash")
     if not stored_hash or _digest(token) != stored_hash:
         raise HTTPException(403, "Link non valido")
-    expires = app.get("videocall_magic_expires")
-    if expires:
-        exp = expires if expires.tzinfo else expires.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) > exp:
-            raise HTTPException(410, "Link scaduto")
+
+    # Time-based gate: 20 min before → 15 min after start.
+    start = _parse_appt_start(app)
+    if start:
+        open_at = start - timedelta(minutes=JOIN_OPEN_BEFORE_MIN)
+        close_at = start + timedelta(minutes=JOIN_CLOSE_AFTER_MIN)
+        now = datetime.now(timezone.utc)
+        if now < open_at:
+            raise HTTPException(
+                status_code=425,
+                detail={"code": "too_early", "available_at": open_at.isoformat(), "start_at": start.isoformat()},
+            )
+        if now > close_at:
+            # Also honour the stored expires timestamp (in case duration was patched)
+            expires = app.get("videocall_magic_expires")
+            if expires:
+                exp = expires if expires.tzinfo else expires.replace(tzinfo=timezone.utc)
+                close_at = max(close_at, exp)
+            if now > close_at:
+                raise HTTPException(
+                    status_code=410,
+                    detail={"code": "session_closed", "start_at": start.isoformat(),
+                            "role_hint": "paziente",  # magic links are patient-facing
+                            "message": "La finestra di accesso alla seduta è chiusa."},
+                )
 
     room_name = app.get("daily_room_name")
     room_url = app.get("daily_room_url")
@@ -233,7 +289,9 @@ async def videocall_magic(app_id: str, token: str):
 
 @router.get("/appuntamenti/{app_id}/presenze")
 async def get_presenze(app_id: str, user: dict = Depends(require_auth)):
-    """Get attendance logs for a completed appointment (admin + terapista only)."""
+    """Get attendance logs for a completed appointment (admin + terapista only).
+    Prefers the persisted snapshot in `seduta_logs`; falls back to a live Daily.co
+    query if the snapshot doesn't exist yet."""
     if user["role"] not in ("admin", "terapeuta"):
         raise HTTPException(403, "Accesso negato")
     app = await db.appuntamenti.find_one({"_id": ObjectId(app_id)})
@@ -243,8 +301,81 @@ async def get_presenze(app_id: str, user: dict = Depends(require_auth)):
         terapista = await db.terapisti.find_one({"user_id": user["_id"]})
         if not terapista or str(terapista["_id"]) != app.get("terapeuta_id"):
             raise HTTPException(403, "Non autorizzato")
+
+    # 1. Prefer the durable snapshot
+    log = await db.seduta_logs.find_one({"appuntamento_id": app_id}, sort=[("snapshot_at", -1)])
+    if log:
+        return {
+            "source": "snapshot",
+            "presenze": log.get("presenze", []),
+            "outcome": log.get("outcome"),
+            "paziente_joined": log.get("paziente_joined", False),
+            "terapeuta_joined": log.get("terapeuta_joined", False),
+            "snapshot_at": log.get("snapshot_at").isoformat() if log.get("snapshot_at") else None,
+            "room_name": app.get("daily_room_name"),
+        }
+
+    # 2. Fallback: live query to Daily
     room_name = app.get("daily_room_name")
     if not room_name:
-        return {"presenze": [], "message": "Nessuna stanza video creata"}
+        return {"source": "none", "presenze": [], "message": "Nessuna stanza video creata"}
     presenze = await get_room_presenza(room_name)
-    return {"presenze": presenze, "room_name": room_name}
+    return {"source": "live", "presenze": presenze, "room_name": room_name}
+
+
+@router.get("/admin/seduta-logs")
+async def admin_seduta_logs(
+    from_date: str = None, to_date: str = None,
+    terapeuta_id: str = None, outcome: str = None,
+    limit: int = 100,
+    admin: dict = Depends(require_admin),
+):
+    """List persisted seduta_logs with optional filters.
+    - from_date / to_date: ISO date strings, filter on snapshot_at.
+    - outcome: entrambi_presenti | no_show_paziente | no_show_terapeuta | no_show_entrambi
+    - terapeuta_id: filter by terapista._id string.
+    """
+    q: dict = {}
+    if outcome:
+        q["outcome"] = outcome
+    if terapeuta_id:
+        q["terapeuta_id"] = terapeuta_id
+    date_q: dict = {}
+    for k, v in [("$gte", from_date), ("$lte", to_date)]:
+        if not v:
+            continue
+        try:
+            dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            date_q[k] = dt
+        except Exception:
+            pass
+    if date_q:
+        q["snapshot_at"] = date_q
+
+    items = []
+    async for log in db.seduta_logs.find(q).sort("snapshot_at", -1).limit(min(int(limit or 100), 500)):
+        appt = await db.appuntamenti.find_one({"_id": ObjectId(log["appuntamento_id"])}) if log.get("appuntamento_id") else None
+        t = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])}) if appt and appt.get("terapeuta_id") else None
+        p = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])}) if appt and appt.get("paziente_id") else None
+        items.append({
+            "id": str(log["_id"]),
+            "appuntamento_id": log.get("appuntamento_id"),
+            "data_ora": appt.get("data_ora") if appt else None,
+            "outcome": log.get("outcome"),
+            "paziente_joined": log.get("paziente_joined", False),
+            "terapeuta_joined": log.get("terapeuta_joined", False),
+            "presenze": log.get("presenze", []),
+            "snapshot_at": log.get("snapshot_at").isoformat() if log.get("snapshot_at") else None,
+            "room_name": log.get("room_name"),
+            "terapeuta": {
+                "id": appt.get("terapeuta_id") if appt else None,
+                "nome": f"{t.get('nome','')} {t.get('cognome','')}".strip() if t else "—",
+            },
+            "paziente": {
+                "id": appt.get("paziente_id") if appt else None,
+                "iniziali": f"{p.get('nome','?')[0]}.{p.get('cognome','?')[0]}." if p else "—",
+            },
+        })
+    return {"items": items, "count": len(items)}

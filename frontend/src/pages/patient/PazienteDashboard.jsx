@@ -8,13 +8,20 @@ import Mascotte from "@/components/shared/Mascotte";
 import { formatApiError } from "@/lib/apiError";
 import { formatItalianDateTime } from "@/lib/dateFormat";
 
-function canJoin(dataOra, durata = 50) {
+function canJoin(dataOra, _durata = 50) {
   const now = new Date();
   const start = new Date(dataOra);
-  const end = new Date(start.getTime() + durata * 60000);
   const openAt = new Date(start.getTime() - 15 * 60000);
-  const closeAt = new Date(end.getTime() + 15 * 60000);
+  const closeAt = new Date(start.getTime() + 15 * 60000);
   return now >= openAt && now <= closeAt;
+}
+
+function isStillActive(dataOra, _durata = 50) {
+  // Keep the appointment in the "prossime" list until the join window closes
+  // (start + 15 min). After that it becomes a passata / no-show.
+  const start = new Date(dataOra);
+  const closeAt = new Date(start.getTime() + 15 * 60000);
+  return closeAt > new Date();
 }
 
 export default function PazienteDashboard() {
@@ -76,8 +83,8 @@ export default function PazienteDashboard() {
     } finally { setSaving(false); }
   };
 
-  const prossime = appuntamenti.filter(a => new Date(a.data_ora) > new Date());
-  const passate = appuntamenti.filter(a => new Date(a.data_ora) <= new Date());
+  const prossime = appuntamenti.filter(a => isStillActive(a.data_ora, a.durata_minuti));
+  const passate = appuntamenti.filter(a => !isStillActive(a.data_ora, a.durata_minuti));
   // Identify the therapist from the most-recent session (if any) so the patient
   // can always book another session with them without going through the
   // matching questionnaire again.

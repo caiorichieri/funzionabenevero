@@ -8,13 +8,18 @@ import ChatPanel from "@/components/shared/ChatPanel";
 import DiarioLinkForTherapist from "@/components/therapist/DiarioLinkForTherapist";
 import { formatItalianDateTime } from "@/lib/dateFormat";
 
-function canJoin(dataOra, durata = 50) {
+function canJoin(dataOra, _durata = 50) {
   const now = new Date();
   const start = new Date(dataOra);
-  const end = new Date(start.getTime() + durata * 60000);
   const openAt = new Date(start.getTime() - 15 * 60000);
-  const closeAt = new Date(end.getTime() + 15 * 60000);
+  const closeAt = new Date(start.getTime() + 15 * 60000);
   return now >= openAt && now <= closeAt;
+}
+
+function isStillActive(dataOra, _durata = 50) {
+  const start = new Date(dataOra);
+  const closeAt = new Date(start.getTime() + 15 * 60000);
+  return closeAt > new Date();
 }
 
 export default function TerapistaDashboard() {
@@ -41,7 +46,12 @@ export default function TerapistaDashboard() {
     const now = new Date();
     return d.toDateString() === now.toDateString();
   });
-  const prossime = appuntamenti.filter(a => new Date(a.data_ora) > new Date()).slice(0, 5);
+  // "Prossime": either upcoming OR currently joinable (start .. start+15).
+  // This is what fixes the bug where the button vanished exactly at start.
+  const prossime = appuntamenti
+    .filter(a => isStillActive(a.data_ora, a.durata_minuti))
+    .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora))
+    .slice(0, 5);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">

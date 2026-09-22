@@ -116,6 +116,7 @@ def schedule_reminders(app_id: str, ctx: dict) -> None:
     - 1h before: email (announces link arrival)
     - 30min before: SMS (paziente)
     - 15min before: email with magic-link direct-join button
+    - +15min after start: no-show check (persist attendance log + follow-up emails)
     """
     try:
         start = datetime.fromisoformat(ctx["data_ora"].replace("Z", "+00:00"))
@@ -133,6 +134,13 @@ def schedule_reminders(app_id: str, ctx: dict) -> None:
         for run_at, fn, args, job_id in jobs:
             if run_at > now:
                 scheduler.add_job(fn, "date", run_date=run_at, args=args, id=job_id, replace_existing=True)
+
+        # Register the no-show detection jobs (final @ start+15min + follow-ups)
+        try:
+            from no_show_service import schedule_no_show_check
+            schedule_no_show_check(scheduler, app_id, ctx["data_ora"], int(ctx.get("durata_minuti", 50)))
+        except Exception as e:
+            logging.error(f"[SCHEDULER] failed to schedule no-show check: {e}")
     except Exception as e:
         logging.error(f"[SCHEDULER] failed to schedule reminders: {e}")
 
@@ -196,11 +204,13 @@ async def _ensure_reschedule_token(appointment_id: str, appt: dict) -> str | Non
 
 
 async def _ensure_videocall_magic_token(appointment_id: str, appt: dict) -> str | None:
-    """Generate a magic token for direct-join videocall link. Returns raw or None."""
+    """Generate a magic token for direct-join videocall link. Returns raw or None.
+    Expiry is set to start + 15 min: after that window it's a no-show and the
+    magic link stops opening the room (patient must contact admin / rebook)."""
     if appt.get("videocall_magic_hash"):
         return None
     raw = _secrets.token_urlsafe(32)
-    magic_expires = _parse_start(appt) + timedelta(minutes=int(appt.get("durata_minuti", 50)) + 15)
+    magic_expires = _parse_start(appt) + timedelta(minutes=15)
     await db.appuntamenti.update_one(
         {"_id": ObjectId(appointment_id)},
         {"$set": {

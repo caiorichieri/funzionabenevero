@@ -1,94 +1,91 @@
-# Revisão geral do fluxo Pagamento → Fattura
+# Piano: Sessione video — accesso, no-show, log
 
-## Contexto do problema
+## Cosa non funziona oggi (root cause)
 
-Um pagamento real foi feito (Silvia Drigo, 21/09/2026, Dr. Laura De Clara). Sintomas observados:
+1. **Il pulsante "Entra" del paziente scompare esattamente all'orario di inizio.**
+   La dashboard/home del paziente filtra gli appuntamenti mostrando solo quelli con `data_ora > adesso`. Alle 16:00 in punto la seduta delle 16:00 esce dalla lista, il pulsante svanisce e la seduta migra nella sezione "passate", dove non c'è alcun link di ingresso.
 
-- O pagamento aparece corretamente em **Admin → Pagamenti** com status "In attesa" e o botão "Rimborsa" ativo.
-- Em **Admin → Fatture** aparece o banner vermelho "1 pagamento senza fattura" com o nome do paciente e a data.
-- A lista de fatture mostra "Nessuna fattura da mostrare" e "Totale Sanitarie € 0,00".
-- O paciente recebeu o e-mail de confirmação do agendamento, mas **não recebeu a fattura**.
-- O paciente logado **não vê a fattura** no próprio dashboard.
+2. **Il terapeuta non vede mai il pulsante "Entra".**
+   La dashboard del terapeuta usa lo stesso filtro `> adesso` per la lista "Prossime sessioni" — dove vive il pulsante. Nella lista "Sessioni oggi" non c'è nessun pulsante di ingresso. Quindi nel momento utile (15 min prima → 15 min dopo) il terapeuta non ha alcun accesso visibile.
 
-Conclusão: o pipeline fiscal pós-pagamento **falhou silenciosamente** entre o webhook de pagamento confirmado e a criação/entrega da fattura sanitaria.
+3. **Il link ricevuto via email 15 min prima non apre.**
+   L'email arriva puntuale ma il token di ingresso alla stanza Daily.co ha una finestra di validità che parte esattamente all'orario `inizio − 15 min`. Piccoli scarti di orologio, tempi di consegna dell'email e apertura del client tolgono di mezzo i primi secondi utili: risultato "sembra aprirsi ma non apre". Non c'è nessun messaggio chiaro all'utente né un pulsante di ripetizione: si vede una pagina di errore generica.
 
-## Papel do Stripe neste sistema (para alinhar entendimento)
+4. **Nessun rilevamento no-show, nessun follow-up automatico.**
+   Al momento non esiste alcun processo che verifica, dopo la seduta, chi si è presentato e chi no. Nessuna email di recupero al paziente. Nessuna segnalazione al terapeuta assente. Nessun alert all'amministrazione.
 
-Stripe é **apenas o processador de pagamento**. Ele não gera nem emite nenhuma fattura. O papel dele termina quando o cartão é cobrado com sucesso e ele envia um webhook `checkout.session.completed` ao nosso backend.
+5. **I log di presenza in seduta non sono consultabili in modo affidabile.**
+   Oggi le presenze si leggono a richiesta interrogando Daily.co in tempo reale. Se un domani un utente contesta una seduta, o Daily ripulisce lo storico, non abbiamo una fonte propria di verità. Non c'è una pagina admin per consultarli.
 
-A partir desse ponto, **tudo é responsabilidade do nosso sistema**:
+---
 
-1. Registrar a transação como paga.
-2. Criar o registro da Fattura Sanitaria (numeração FZ-AAAA-N sequencial).
-3. Gerar o XML FatturaPA TD01 conforme normativa italiana.
-4. Gerar o PDF humano-legível da fattura.
-5. Fazer upload de XML e PDF ao Object Storage.
-6. Enviar e-mail ao paciente com o PDF anexado.
-7. Tornar a fattura visível no dashboard do paciente e no admin.
+## Cosa verrà cambiato
 
-Se qualquer um destes passos falhar, o pagamento fica "órfão" — foi cobrado, mas sem fattura entregue. Foi exatamente o que aconteceu.
+### A. Il pulsante "Entra" resta visibile nella finestra giusta
+Regola unica per paziente + terapeuta + admin:
+> il pulsante appare **15 min prima** dell'orario di inizio e scompare **15 min dopo l'orario di inizio**.
 
-## Objetivo desta revisão
+Questo vale come richiesto: chi non è entrato entro `inizio + 15 min` è considerato no-show e il pulsante sparisce (la stanza Daily viene comunque chiusa).
 
-Deixar o fluxo Pagamento → Fattura **robusto, auto-recuperável e observável**, de forma que:
+Effetti collaterali:
+- Sulla dashboard del paziente la seduta della giornata resta visibile finché la finestra è aperta, poi si sposta nella sezione "passate".
+- Sulla dashboard del terapeuta la seduta compare in evidenza in cima alla lista "Oggi" con il pulsante grande in vista appena scatta la finestra.
+- La versione mobile/PWA del paziente ha lo stesso comportamento e la stessa scritta di attesa quando manca meno di un'ora.
 
-- Um erro num passo intermediário **não descarte** o trabalho: o pagamento continua marcado como pago e a fattura pode ser retomada.
-- Falhas parciais fiquem **visíveis ao admin** com o erro exato, sem depender de ler logs.
-- O admin possa **forçar a reemissão** de qualquer fattura pendente com um clique.
-- O caso concreto da Silvia Drigo seja resolvido e a fattura chegue ao paciente.
+### B. Il link dell'email 15 min prima funziona senza errori a raffica
+Interventi combinati:
+- Rilassamento della finestra di validità del token della stanza: il token diventa valido **20 min prima** dell'inizio (invece che esattamente 15), così l'email ricevuta con qualche secondo di anticipo non trova il "muro" chiuso. La finestra alla coda resta a 15 min dopo l'inizio, come richiesto.
+- Quando il paziente/terapeuta apre il link nei primi secondi utili e il token non è ancora valido, la pagina video mostra un **countdown** e ritenta da sola all'orario giusto, invece di lasciare un errore generico.
+- Se il link è scaduto (usato dopo `inizio + 15 min`), la pagina lo dice in modo esplicito e propone al paziente di prenotare un'altra seduta con lo stesso terapeuta; al terapeuta di scrivere a `hr@funzionabene.it`.
 
-## Escopo do trabalho (o que vai ser feito)
+### C. Processo automatico di no-show a `inizio + 15 min`
+15 min dopo l'orario di inizio viene lanciato un controllo automatico che interroga Daily.co per sapere chi è entrato in stanza. Quattro esiti possibili:
 
-### 1. Recuperar o pagamento da Silvia Drigo (ação imediata)
-Gerar manualmente a fattura em falta para o pagamento já cobrado, com XML + PDF, e enviar o e-mail ao paciente. Isso desbloqueia o caso real antes mesmo da correção estrutural.
+1. **Entrambi presenti** → nessuna email, seduta marcata come `in_corso` (fino a fine) poi `completato`.
+2. **Solo paziente entrato / terapeuta assente** →
+   - email al terapeuta che lo informa dell'assenza e gli chiede di scrivere a `hr@funzionabene.it` per giustificare / rischedulare;
+   - email al paziente che si scusa a nome della piattaforma, gli comunica che il team lo ricontatterà, e nel frattempo gli offre il link per riprenotare con lo stesso terapeuta (o cambiare terapeuta se preferisce);
+   - alert email a `hr@funzionabene.it` con contesto completo.
+2b. **Solo terapeuta entrato / paziente assente** →
+   - email al paziente con un tono comprensivo ("ci sei mancato oggi") + link diretto per prenotare un'altra seduta con lo stesso terapeuta;
+   - il terapeuta viene notificato che il paziente non si è presentato;
+   - la seduta viene marcata "no-show paziente" (la fattura resta valida — non è un rimborso automatico).
+3. **Entrambi assenti** →
+   - email al paziente con link di riprenotazione;
+   - alert a `hr@funzionabene.it` per rivedere il caso.
 
-### 2. Tornar o pipeline pós-pagamento resiliente
-Reorganizar o handler do webhook de pagamento confirmado para:
+**Nota sull'addebito**: la responsabilità dell'assenza definisce se la seduta viene rimborsata o no. Su questo il piano **non** decide automaticamente: la seduta viene solo etichettata (`no_show_paziente`, `no_show_terapeuta`, `no_show_entrambi`) e l'admin, dal pannello, decide se rimborsare tramite Stripe. Motivazione: un rimborso automatico può essere ingiusto in tanti scenari (paziente entra dal telefono ma la stanza segna errore, terapeuta entrato con un altro account, connessione debole non registrata come "join", ecc.). Nessuna azione di rimborso automatico verrà mai eseguita da questo processo.
 
-- **Sempre** marcar a transação como paga primeiro (nunca perder essa informação).
-- Executar geração de fattura, XML, PDF, upload e envio de e-mail em **passos independentes**, cada um com seu try/except.
-- Ao falhar num passo, gravar no registro do pagamento (ou da fattura) o **erro exato** e o passo que falhou, para o admin ver.
-- **Nunca** retornar erro ao Stripe (o Stripe fez a parte dele; retornar erro faz Stripe reentregar o webhook e duplicar tudo).
-- Ser **idempotente**: se o mesmo webhook chegar duas vezes, não duplica fattura.
+### D. Log di presenza consultabili nel tempo
+Per ogni seduta viene salvato nel database, alla chiusura della finestra utile e poi periodicamente per 24 ore, uno snapshot con:
+- chi è entrato,
+- a che ora è entrato e uscito (in fuso Europe/Rome),
+- quanto è rimasto,
+- l'esito no-show calcolato,
+- riferimento tecnico alla stanza Daily.
 
-### 3. Auto-tentativa em segundo plano
-Criar uma rotina que, periodicamente (ex.: a cada poucos minutos) e no boot do servidor, procura pagamentos pagos sem fattura completa e tenta terminar o processo automaticamente. Assim, uma falha transitória (Object Storage lento, Resend fora do ar) se auto-cura sem intervenção do admin.
+Questo storico è visibile:
+- al terapeuta sulla scheda della seduta (dopo la fine),
+- all'admin in una nuova sezione **"Log sedute"** all'interno della pagina Appuntamenti dell'admin, con filtro per periodo/terapeuta/no-show.
 
-### 4. Melhorar a diagnóstica no admin
-No painel **Fatture**, o banner "pagamenti senza fattura" passa a mostrar, para cada caso:
+Non è visibile al paziente per non generare fraintendimenti su piccoli scarti di secondi.
 
-- Em que passo travou (criação / XML / PDF / upload / e-mail).
-- A mensagem de erro exata da última tentativa.
-- Botão "Riprova" por linha (além do botão global "Genera N fatture mancanti").
-- Botão "Reinvia e-mail" para casos em que a fattura existe mas o e-mail nunca saiu.
+---
 
-### 5. Garantir visibilidade da fattura ao paciente
-Confirmar que assim que a fattura entra no estado "emessa", ela aparece imediatamente no dashboard do paciente, sem depender do e-mail ter sido enviado. O e-mail é entrega; o dashboard é fonte de verdade.
+## Chiarimenti già decisi (per default) — dire se cambiare
 
-### 6. Validação
-Testar o fluxo completo ponta-a-ponta (pagamento simulado → fattura → PDF → e-mail → dashboard) e simular falhas em cada passo para confirmar que o sistema se recupera.
+1. **Finestra di apertura del link**: 20 min prima → 15 min dopo l'inizio. La richiesta era "15 prima / 15 dopo"; ho spostato l'apertura a 20 min prima solo per risolvere l'errore "sembra aprire ma non apre" nei primissimi secondi. Se preferite tenere esattamente 15/15, va bene ma la pagina di ingresso dovrà comunque mostrare countdown+retry per non far più errore.
+2. **Chiusura del pulsante**: il pulsante "Entra" **scompare a `inizio + 15 min`** (come richiesto), non a `fine + 15 min`. Chi non è entrato in tempo perde l'accesso e riceve il flusso no-show. Se una seduta dovesse durare più del previsto e uno dei due esce e vuole rientrare a metà, deve comunque essere entrato almeno una volta prima di `inizio + 15 min`.
+3. **Chi rimborsa in caso di no-show**: nessuno in automatico. Etichetta + notifica admin, decisione umana. Se preferite regola "no-show paziente = no rimborso, no-show terapeuta = rimborso totale automatico", va detto esplicitamente qui e verrà applicata.
+4. **Link "prenota un'altra seduta"** che viene inviato al paziente no-show: punta al **profilo pubblico dello stesso terapeuta** con la modalità di prenotazione veloce già aperta. Se preferite che porti a "cerca un altro terapeuta", va detto qui.
+5. **Chi riceve gli alert email di no-show lato admin**: solo `hr@funzionabene.it`. Aggiungerne altri va detto qui.
+6. **Ritenzione dei log seduta nel database**: senza scadenza (rimangono per sempre insieme all'appuntamento). Se preferite una purga automatica (es. dopo 5 anni per GDPR), va detto qui.
+7. **Registrazione audio/video della seduta**: **non attivata**. Nessun contenuto della seduta è salvato — solo metadati di presenza (chi è entrato, quando, per quanto). Se in futuro si vorrà registrare, richiederà un progetto a parte con consenso esplicito paziente + adeguamento GDPR.
 
-## Fora de escopo (não será feito agora)
-
-- Envio automático ao **SDI (Sistema di Interscambio)** da Fatture in Cloud / Aruba — continua manual, como já estava planejado no backlog.
-- Coach Sessuale AI (Fase 19).
-- Storico Sessioni no dashboard.
-- E-mail 24h pós-sessão.
-- Web Push (VAPID).
-- Refatoração de `subprocess.run` no backup_service.
-- Limpeza de dependências de hooks React.
-
-Todos permanecem no backlog e voltam depois da estabilização do fluxo fiscal.
-
-## Decisões que carregam risco fiscal / de UX
-
-Assumindo os defaults abaixo salvo objeção:
-
-1. **Numeração da fattura**: se a criação da fattura foi iniciada mas falhou depois (ex.: PDF), o número **é preservado** e a fattura fica em estado "em recuperação", nunca "descartada". Isso evita buracos na sequência fiscal.
-2. **Retentativas**: até 5 tentativas automáticas em segundo plano com backoff. Depois disso, fica só à espera de retry manual do admin.
-3. **E-mail ao paciente**: se falhar, a fattura permanece "emessa" (é o que importa para o fisco). O envio de e-mail é retentado separadamente e o admin pode reenviar manualmente. O paciente sempre consegue baixar do próprio dashboard.
-4. **Idempotência**: usaremos o `payment_intent` do Stripe como chave única para nunca gerar duas fatture para o mesmo pagamento, mesmo com webhooks duplicados.
-
-## Perguntas em aberto
-
-Nenhuma que bloqueie o início. Se preferir mudar algum dos 4 defaults acima, é só sinalizar.
+## Cosa resta fuori scope da questo piano
+- Fase 19 (Coach Sessuale AI).
+- Storico sessioni con note del diario nella dashboard paziente.
+- Email 24h post-sessione ("com'è andata?") — già esistente, non toccata.
+- Web push VAPID.
+- Invio SDI automatico delle fatture.
+- Il fix "fattura mancante dopo pagamento" è già consegnato e non è in questo piano.

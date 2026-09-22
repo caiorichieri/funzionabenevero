@@ -27,7 +27,13 @@ export default function PazienteHome() {
         ]);
         const now = new Date();
         const upcoming = (appts.data || [])
-          .filter((a) => a.stato !== "annullato" && a.stato !== "cancellato" && new Date(a.data_ora) >= now)
+          // Keep the "next session" card visible until 15 min after start
+          // (matches the join window; a session at 16:00 stays on screen until 16:15).
+          .filter((a) => {
+            if (a.stato === "annullato" || a.stato === "cancellato") return false;
+            const closeAt = new Date(new Date(a.data_ora).getTime() + 15 * 60000);
+            return closeAt >= now;
+          })
           .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora));
         if (!cancelled) {
           setNext(upcoming[0] || null);
@@ -112,7 +118,7 @@ function NextSessionCard({ app }) {
   const time = new Intl.DateTimeFormat("it-IT", {
     timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit",
   }).format(when);
-  const canJoin = (when.getTime() - now.getTime()) <= 15 * 60 * 1000 && (now.getTime() - when.getTime()) <= 60 * 60 * 1000;
+  const canJoin = (when.getTime() - now.getTime()) <= 15 * 60 * 1000 && (now.getTime() - when.getTime()) <= 15 * 60 * 1000;
 
   return (
     <div className="rounded-3xl p-5 text-white shadow-xl" style={{ background: "#0A0A0A" }} data-testid="home-next-session">

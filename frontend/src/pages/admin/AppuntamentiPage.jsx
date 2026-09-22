@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { Plus, Calendar, Clock, Video, CheckCircle, XCircle, X } from "lucide-react";
+import SedutaLogsSection from "./SedutaLogsSection";
 
 const STATI_COLORS = {
   prenotato: "bg-blue-100 text-blue-700",
@@ -121,6 +122,8 @@ export default function AppuntamentiPage() {
           ))}
         </div>
       )}
+
+      <SedutaLogsSection />
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

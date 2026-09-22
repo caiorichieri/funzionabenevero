@@ -768,3 +768,151 @@ Verifica di aver completato: biografia, disponibilità settimanale, prezzo sessi
         "subject": "Il tuo profilo è stato approvato — Benvenuto/a in FunzionaBene",
         "html": html,
     })
+
+
+
+# ─── No-show follow-up emails ────────────────────────────────────────────────
+
+def _frontend_base() -> str:
+    return (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+
+
+def _fmt_it(iso: str) -> str:
+    from datetime import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo
+        d = _dt.fromisoformat((iso or "").replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Rome"))
+        return d.strftime("%d/%m/%Y alle %H:%M")
+    except Exception:
+        return iso or ""
+
+
+def _noshow_wrapper(headline: str, subtitle: str, body_html: str, cta: str = "") -> str:
+    return f"""<!DOCTYPE html><html lang="it"><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#6B8FA3;margin-top:6px;">{subtitle}</div>
+</td></tr>
+<tr><td style="padding:32px 40px;">
+<h1 style="font-family:Georgia,serif;font-size:26px;color:#D4A017;margin:0 0 14px;font-weight:500;line-height:1.3;">{headline}</h1>
+<div style="color:rgba(230,226,216,0.8);font-size:15px;line-height:1.6;">{body_html}</div>
+{cta}
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene · Trattamento dati GDPR (Reg. UE 2016/679)</p>
+</td></tr></table></body></html>"""
+
+
+async def send_no_show_paziente_email(ctx: dict) -> bool:
+    """Sent to a paziente who did not join their session. Empathic + rebook CTA."""
+    if not ctx.get("paziente_email"):
+        return False
+    frontend = _frontend_base()
+    rebook_url = f"{frontend}/terapeuti/{ctx.get('terapista_id')}?prenota=1"
+    when = _fmt_it(ctx.get("data_ora", ""))
+    body = f"""
+<p>Ciao {ctx.get('paziente_nome','')},</p>
+<p>Ci sei mancato oggi. La tua seduta con <strong>Dr. {ctx.get('terapista_cognome','')}</strong> del <strong>{when}</strong> non è iniziata perché non risulti entrato/a in stanza.</p>
+<p>Capita a tutti — la vita si mette in mezzo. Se vuoi, puoi <strong>prenotare subito un&apos;altra seduta</strong> con lo stesso terapeuta, oppure cambiare specialista.</p>
+<p style="color:rgba(230,226,216,0.55);font-size:13px;margin-top:20px;">Nota: la seduta viene registrata come non svolta. Il rimborso, quando previsto, viene valutato dall&apos;amministrazione — se pensi ci sia stato un problema tecnico, scrivi a hr@funzionabene.it e ti risponderemo entro 24 ore.</p>
+"""
+    cta = f"""<div style="margin-top:24px;text-align:center;">
+<a href="{rebook_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;">Prenota un&apos;altra seduta →</a>
+</div>"""
+    html = _noshow_wrapper(f"Ci sei mancato/a, {ctx.get('paziente_nome','')}", "SEDUTA NON SVOLTA", body, cta)
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [ctx["paziente_email"]],
+        "subject": f"Ci sei mancato/a alla seduta con Dr. {ctx.get('terapista_cognome','')}",
+        "html": html,
+    })
+
+
+async def send_no_show_terapeuta_email(ctx: dict) -> bool:
+    """Informs the therapist that the patient did not show up."""
+    if not ctx.get("terapista_email"):
+        return False
+    when = _fmt_it(ctx.get("data_ora", ""))
+    body = f"""
+<p>Ciao Dr. {ctx.get('terapista_cognome','')},</p>
+<p>Ti informiamo che <strong>{ctx.get('paziente_nome','')} {ctx.get('paziente_cognome','')}</strong> non si è presentato/a alla seduta del <strong>{when}</strong>.</p>
+<p>Abbiamo contattato il paziente per proporgli di riprogrammare. La seduta è etichettata "no-show paziente" nel tuo pannello.</p>
+"""
+    html = _noshow_wrapper("Paziente assente alla seduta", "SEGNALAZIONE PIATTAFORMA", body)
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [ctx["terapista_email"]],
+        "subject": f"Paziente non presente: {ctx.get('paziente_nome','')} {ctx.get('paziente_cognome','')}",
+        "html": html,
+    })
+
+
+async def send_terapeuta_absent_paziente_email(ctx: dict) -> bool:
+    """Sent to the patient when the therapist did not join. Apology + rebook offer."""
+    if not ctx.get("paziente_email"):
+        return False
+    frontend = _frontend_base()
+    rebook_url = f"{frontend}/terapeuti/{ctx.get('terapista_id')}?prenota=1"
+    when = _fmt_it(ctx.get("data_ora", ""))
+    body = f"""
+<p>Ciao {ctx.get('paziente_nome','')},</p>
+<p>Ci dispiace: <strong>Dr. {ctx.get('terapista_cognome','')}</strong> non è riuscito/a a essere presente alla seduta del <strong>{when}</strong>.</p>
+<p>Ti chiediamo scusa a nome della piattaforma. Il team di FunzionaBene ricontatterà te e il professionista per risolvere. Nel frattempo puoi prenotare una nuova data qui sotto — o cambiare terapeuta se preferisci.</p>
+<p style="color:rgba(230,226,216,0.55);font-size:13px;margin-top:20px;">Se la seduta era stata pagata, la richiesta di rimborso viene valutata dall&apos;amministrazione entro 48 ore. Per anticipare, scrivi a hr@funzionabene.it.</p>
+"""
+    cta = f"""<div style="margin-top:24px;text-align:center;">
+<a href="{rebook_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;">Prenota una nuova seduta →</a>
+</div>"""
+    html = _noshow_wrapper("Il tuo terapeuta non è entrato", "CI SCUSIAMO", body, cta)
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [ctx["paziente_email"]],
+        "subject": "Ci scusiamo — Dr. non presente alla tua seduta",
+        "html": html,
+    })
+
+
+async def send_terapeuta_absent_terapeuta_email(ctx: dict) -> bool:
+    """Sent to the therapist when they did not join. Asks them to contact hr@."""
+    if not ctx.get("terapista_email"):
+        return False
+    when = _fmt_it(ctx.get("data_ora", ""))
+    body = f"""
+<p>Ciao Dr. {ctx.get('terapista_cognome','')},</p>
+<p>Risulti assente alla seduta del <strong>{when}</strong> con <strong>{ctx.get('paziente_nome','')} {ctx.get('paziente_cognome','')}</strong>.</p>
+<p>Ti chiediamo di scrivere a <strong>hr@funzionabene.it</strong> per giustificare l&apos;assenza e concordare la riprogrammazione. Il paziente è stato avvisato per suo conto.</p>
+<p style="color:rgba(230,226,216,0.55);font-size:13px;margin-top:20px;">Le assenze non giustificate ripetute possono comportare la sospensione temporanea del profilo — la piattaforma valuta caso per caso.</p>
+"""
+    cta = f"""<div style="margin-top:24px;text-align:center;">
+<a href="mailto:hr@funzionabene.it?subject=Assenza%20seduta%20{_fmt_it(ctx.get('data_ora','')).replace(' ','%20')}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;">Scrivi a hr@funzionabene.it →</a>
+</div>"""
+    html = _noshow_wrapper("Segnalazione assenza alla seduta", "AZIONE RICHIESTA", body, cta)
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [ctx["terapista_email"]],
+        "subject": "Assenza alla seduta — contattare hr@funzionabene.it",
+        "html": html,
+    })
+
+
+async def send_no_show_admin_alert(admin_email: str, outcome: str, ctx: dict) -> bool:
+    """Internal alert to hr@funzionabene.it for every no-show variant."""
+    when = _fmt_it(ctx.get("data_ora", ""))
+    body = f"""
+<p>Rilevato un caso <strong>{outcome}</strong>.</p>
+<ul style="color:rgba(230,226,216,0.8);font-size:14px;line-height:1.7;padding-left:20px;">
+<li><strong>Data:</strong> {when}</li>
+<li><strong>Paziente:</strong> {ctx.get('paziente_nome','')} {ctx.get('paziente_cognome','')} ({ctx.get('paziente_email','—')})</li>
+<li><strong>Terapeuta:</strong> Dr. {ctx.get('terapista_cognome','')} ({ctx.get('terapista_email','—')})</li>
+<li><strong>Appuntamento ID:</strong> {ctx.get('app_id','')}</li>
+</ul>
+<p>Il log di presenza è disponibile in <em>Admin → Appuntamenti → Log Sedute</em>.</p>
+"""
+    html = _noshow_wrapper("No-show rilevato", "AVVISO AMMINISTRAZIONE", body)
+    return await _send_raw({
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [admin_email],
+        "subject": f"[FB] No-show {outcome} — {ctx.get('paziente_cognome','')} / Dr. {ctx.get('terapista_cognome','')}",
+        "html": html,
+    })

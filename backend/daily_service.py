@@ -46,7 +46,7 @@ async def create_room_for_appointment(appuntamento_id: str, data_ora_iso: str, d
         logger.error(f"[DAILY] invalid data_ora: {data_ora_iso} ({e})")
         return None
 
-    nbf = int((start - timedelta(minutes=15)).timestamp())
+    nbf = int((start - timedelta(minutes=20)).timestamp())
     exp = int((start + timedelta(minutes=durata_min + 15)).timestamp())
 
     payload = {
@@ -97,7 +97,7 @@ async def create_meeting_token(room_name: str, user_name: str, is_owner: bool, d
     except Exception:
         return None
 
-    nbf = int((start - timedelta(minutes=15)).timestamp())
+    nbf = int((start - timedelta(minutes=20)).timestamp())
     exp = int((start + timedelta(minutes=durata_min + 15)).timestamp())
 
     payload = {
