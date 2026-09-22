@@ -1,0 +1,23 @@
+{
+  "summary": "Iter 29: verified the Rome-TZ bug fix in /api/terapisti/{id}/slots. All 11 pytest cases pass — the endpoint now correctly interprets HH:MM strings from disponibilita_calendario (and the legacy weekly fallback) as Europe/Rome local, converting to UTC before serialization. DST is handled correctly (CEST=UTC+2, CET=UTC+1). Regression checks on email_service formatters and daily_service token arithmetic also pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_slots_rome_tz_fix.py",
+    "/app/test_reports/pytest/iter29_rome_tz.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routers/terapisti.py get_slots: `data_inizio` is parsed with `datetime.fromisoformat(...).replace(tzinfo=timezone.utc)` — this silently overrides any tz info in the string; acceptable given the query param format used by the frontend but worth documenting.",
+    "routers/terapisti.py is 963 lines — over the 700-line guideline. Consider splitting into modules (crud / slots / docs / admin approval).",
+    "The frontend email changes (ContattiPage.jsx, LavoraConNoiPage.jsx) were not tested per request (backend-only). Suggest a quick visual smoke check by main agent."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A"},
+  "test_credentials": "hr@funzionabene.it / @Bidoc2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "One throwaway therapist doc created in `terapisti` (email test_tz_rossi@example.com, documenti_verificati=True) and deleted at module teardown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Test file /app/backend/tests/test_slots_rome_tz_fix.py verifies: (a) date-specific calendar 16:00 Rome → 14:00 UTC (CEST) and 15:00 UTC (CET); (b) weekly recurring disponibilita fallback also converted; (c) public monthly /api/public/terapisti/{id}/calendario endpoint (was already correct); (d) email_service _format_data_ora_it and _fmt_it Rome display; (e) daily_service nbf/exp epoch arithmetic. Uses direct Mongo access (motor pymongo) to seed disponibilita_calendario since admin PUT terapisti doesn't accept arbitrary calendar shapes.",
+  "rca of the issue": "In routers/terapisti.py get_slots, HH:MM strings in disponibilita_calendario were being combined with a UTC-naive day like `datetime(y,m,d,H,M, tzinfo=timezone.utc)`, i.e. the therapist's Rome-local time was written as UTC. Result: '16:00' from the therapist UI became 16:00 UTC = 18:00 Rome. The fix introduces `_rome_hhmm_to_utc(day_utc, hh, mm)` which builds the datetime in ROME_TZ (Europe/Rome) and calls .astimezone(UTC). Applied to both the primary `disponibilita_calendario` branch and the legacy `disponibilita` weekly branch. Confirmed DST-correct via CEST (July) and CET (January) test cases."
+}

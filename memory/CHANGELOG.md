@@ -1,5 +1,29 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-22 · P0 · Bug orario email + email pubbliche consolidate
+
+### Bug — orario nell'email di conferma sbagliato di 2h
+**Root cause**: `GET /api/terapisti/{id}/slots` (usato da `TerapistaPublicPage` e `PrenotaSubitoModal`) interpretava le stringhe `HH:MM` salvate in `terapisti.disponibilita_calendario` come UTC anziché Rome-local. Il terapista digita "16:00" pensando 16:00 italiane, l'endpoint restituiva `2026-09-22T16:00:00+00:00` = 16:00 UTC = 18:00 Roma (CEST). Il paziente sceglieva credendolo alle 16:00 (frontend converte), pagava, e l'email arrivava con l'orario di 18:00.
+
+**Fix**: nuovo helper `_rome_hhmm_to_utc(day_utc, hh, mm)` in `routers/terapisti.py` che costruisce il datetime in `ZoneInfo("Europe/Rome")` e chiama `.astimezone(UTC)`. DST gestito nativamente (CEST=UTC+2 in estate, CET=UTC+1 in inverno).
+
+**Applicato a**: ramo `disponibilita_calendario` (date-specific) e fallback `disponibilita` (weekly recurring).
+
+**Test regression (11/11 PASS)** in `/app/backend/tests/test_slots_rome_tz_fix.py`:
+- 16:00 Rome CEST → 14:00 UTC ✓
+- 16:00 Rome CET → 15:00 UTC ✓
+- Weekly fallback conversion ✓
+- Email formatters (`_format_data_ora_it`, `_fmt_it`) invariati ✓
+- Daily.co token nbf/exp arithmetic ✓
+
+### Email pubbliche consolidate
+Ridotto 3 caselle → 1 (`info@funzionabene.it`). File toccati:
+- `ContattiPage.jsx`: supporto@ / professionisti@ / stampa@ → info@funzionabene.it (3 sezioni).
+- `LavoraConNoiPage.jsx`: 4 occorrenze di professionisti@ → info@funzionabene.it.
+
+Mantenuti (come richiesto): `info@bidoc.it`, `privacy@bidoc.it`. Non toccato `assistenza@funzionabene.it` (già usato solo in template email interni).
+
+
 ## 2026-09-22 — Feature P0: Sessione video — accesso, no-show, log presenze
 Bug reportato: (1) email "15 min prima" arriva puntuale ma il link "sembra aprire ma non apre" all'orario esatto di inizio; (2) pulsante "Entra" del paziente sparisce esattamente allo scoccare dell'ora; (3) dashboard terapeuta non mostra mai il pulsante "Entra"; (4) nessun rilevamento automatico di no-show; (5) log presenze consultabili solo via query live a Daily.co.
 
