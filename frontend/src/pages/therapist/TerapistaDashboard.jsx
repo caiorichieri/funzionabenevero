@@ -37,7 +37,7 @@ export default function TerapistaDashboard() {
       if (p) setProfilo(p.data);
       setAppuntamenti(a.data);
     }).finally(() => setLoading(false));
-  }, []);
+  }, [API]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

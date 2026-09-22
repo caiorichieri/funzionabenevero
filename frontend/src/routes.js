@@ -154,7 +154,9 @@ export function StandaloneRedirector() {
     } else if (p === "/") {
       navigate(home, { replace: true });
     }
-  }, [standalone, location.pathname, navigate, user]);
+    // `allowed`, `home`, `p` are all locals derived from the deps below;
+    // re-running only when one of the deps changes is correct.
+  }, [standalone, location.pathname, navigate, user?.role]);
 
   return null;
 }

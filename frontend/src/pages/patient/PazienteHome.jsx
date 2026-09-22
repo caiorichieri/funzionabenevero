@@ -46,7 +46,7 @@ export default function PazienteHome() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [API]);
 
   const firstName = user?.nome || "";
 

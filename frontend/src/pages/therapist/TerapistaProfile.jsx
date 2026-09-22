@@ -69,7 +69,7 @@ export default function TerapistaProfile() {
           pec: p.pec||"",
         });
       }).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  }, [API]);
 
   useEffect(() => { fetchProfilo(); }, [fetchProfilo]);
 

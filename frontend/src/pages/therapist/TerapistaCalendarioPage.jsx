@@ -45,7 +45,7 @@ export default function TerapistaCalendarioPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [API]);
 
   useEffect(() => { fetchCal(); }, [fetchCal]);
 

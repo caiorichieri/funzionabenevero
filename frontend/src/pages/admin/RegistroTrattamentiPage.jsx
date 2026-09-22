@@ -50,7 +50,7 @@ export default function RegistroTrattamentiPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [API]);
 
   useEffect(() => { load(); }, [load]);
 
