@@ -1,5 +1,36 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-22 · Code review d367edc9 · Batch 1 hook-deps (6/61 file)
+
+Applicato fix mirati a **6 file di priorità 1** dal report — user-facing critici. I 55 hook-deps rimanenti + refactor componenti giganti (900+ righe) restano in backlog per iterazioni dedicate.
+
+**Fatto**:
+- `TerapistaProfile.jsx:72` — `useCallback fetchProfilo` deps `[]` → `[API]`.
+- `TerapistaDashboard.jsx:40` — `useCallback fetchData` deps `[]` → `[API]`.
+- `TerapistaCalendarioPage.jsx:48` — `useCallback fetchCal` deps `[]` → `[API]`.
+- `PazienteHome.jsx:49` — `useEffect` deps `[]` → `[API]`.
+- `RegistroTrattamentiPage.jsx:53` — `useCallback load` deps `[]` → `[API]`.
+- `routes.js:159` — `StandaloneRedirector useEffect` deps `[..., user]` → `[..., user?.role]` (più stabile — user object può cambiare a ogni re-fetch, role no).
+
+**Perché sicuri**: `API` viene da `AuthContext` ed è una stringa costante durante il lifetime dell'app (deriva da `REACT_APP_BACKEND_URL`). Aggiungerlo alle deps NON causa re-run indesiderati.
+
+**Verificato (iter31)**:
+- Backend regression 38/38 PASS (fattura, no-show, timezone).
+- Ogni pagina flaggata monta e spara la chiamata API esattamente 2 volte (React StrictMode dev, atteso).
+- Zero React warnings su console (nessun exhaustive-deps, nessun duplicate-key).
+- Nessun redirect loop su StandaloneRedirector.
+
+**Test-env side effect**: `backend/.env` ha ora `SEED_DEMO_DATA="true"` per abilitare demo.terapeuta/paziente in preview (utile per prossimi testing agent). NON influisce sulla produzione.
+
+**Backlog code review (aperto)**:
+- 55 hook-deps rimanenti — a batch di 5-10 per volta con smoke test per modulo.
+- Refactor `TerapistiPage.jsx` 899 righe, `TerapistaProfile.jsx` 553, `BlogPage.jsx` 458, `FatturePage.jsx` 411.
+- `BlogSeoAnalyzer.analyze()` complessità 63 — da splittare per metrica SEO.
+- `OnboardingSection.jsx` complessità 28 — da splittare per wizard step.
+- Backend: `cruscotto_pdf.build_cruscotto_pdf()` 151 righe, `_build_common_header()` ciclomatica 14, `_emit_snapshot()` ciclomatica 15.
+- 28 possibili variabili Python non definite — richiede lista puntuale.
+
+
 ## 2026-09-22 · Code review triage — fix mirati alto-valore/basso-rischio
 
 Applicato solo i fix reali dalla code review, evitando refactor massivi che avrebbero introdotto rischio di regressione sui flussi appena stabilizzati (fattura, no-show, timezone).
