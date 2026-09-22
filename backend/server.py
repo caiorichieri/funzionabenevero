@@ -47,6 +47,16 @@ from models import (
 app = FastAPI(title="FunzionaBene API")
 api_router = APIRouter(prefix="/api")
 
+
+# Kubernetes liveness/readiness probe. Deployment platform hits `/health` (no
+# /api prefix) every few seconds — must return 200 quickly without touching DB
+# so a slow Mongo query never fails the probe.
+@app.get("/health")
+@app.head("/health")
+async def health_check():
+    return {"status": "ok"}
+
+
 UPLOADS_DIR = Path(__file__).parent / "uploads"
 
 @api_router.get("/media/therapists/{filename}")
