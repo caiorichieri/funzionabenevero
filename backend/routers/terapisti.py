@@ -7,6 +7,7 @@ import secrets as _secrets
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
@@ -135,6 +136,18 @@ MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5MB
 GIORNI_IT = {"Lunedì": 0, "Martedì": 1, "Mercoledì": 2, "Giovedì": 3,
              "Venerdì": 4, "Sabato": 5, "Domenica": 6}
 GIORNI_IT_INV = {v: k for k, v in GIORNI_IT.items()}
+
+# All "HH:MM" strings entered by therapists in their availability grid are
+# Rome-local times ("16:00" on the UI = 16:00 in Italy). Convert to aware
+# UTC before serialisation so downstream (calendars, emails) stay consistent.
+ROME_TZ = ZoneInfo("Europe/Rome")
+
+
+def _rome_hhmm_to_utc(day_utc: datetime, hh: int, mm: int) -> datetime:
+    """Given a day in UTC and an HH:MM understood as Rome-local, return the
+    corresponding aware UTC datetime. Correctly handles DST transitions."""
+    rome_local = datetime(day_utc.year, day_utc.month, day_utc.day, hh, mm, tzinfo=ROME_TZ)
+    return rome_local.astimezone(timezone.utc)
 
 
 def fmt_slot_it(dt: datetime) -> str:
@@ -466,13 +479,14 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                     h, m = int(hhmm[:2]), int(hhmm[3:5])
                 except (ValueError, IndexError):
                     continue
-                slot_t = current_day.replace(hour=h, minute=m, second=0, microsecond=0)
+                # Interpret "HH:MM" as Rome-local time (author intent), not UTC.
+                slot_t = _rome_hhmm_to_utc(current_day, h, m)
                 if slot_t < min_slot_time:
                     continue
                 key = slot_t.isoformat()[:16]
                 slots.append({
                     "data_ora": slot_t.isoformat(),
-                    "data_ora_fmt": fmt_slot_it(slot_t),
+                    "data_ora_fmt": fmt_slot_it(slot_t.astimezone(ROME_TZ)),
                     "disponibile": key not in booked,
                 })
             current_day += timedelta(days=1)
@@ -490,14 +504,15 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                     h1, m1 = map(int, disp["ora_fine"].split(":"))
                 except Exception:
                     continue
-                slot_t = current_day.replace(hour=h0, minute=m0, second=0, microsecond=0)
-                end_t = current_day.replace(hour=h1, minute=m1, second=0, microsecond=0)
+                # Same fix: weekly grid "HH:MM" is Rome-local time.
+                slot_t = _rome_hhmm_to_utc(current_day, h0, m0)
+                end_t = _rome_hhmm_to_utc(current_day, h1, m1)
                 while slot_t + timedelta(minutes=durata) <= end_t:
                     if slot_t >= min_slot_time:
                         key = slot_t.isoformat()[:16]
                         slots.append({
                             "data_ora": slot_t.isoformat(),
-                            "data_ora_fmt": fmt_slot_it(slot_t),
+                            "data_ora_fmt": fmt_slot_it(slot_t.astimezone(ROME_TZ)),
                             "disponibile": key not in booked,
                         })
                     slot_t += timedelta(minutes=durata)

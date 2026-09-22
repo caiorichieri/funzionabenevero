@@ -21,7 +21,7 @@ const ROLES = [
       "Piattaforma video, calendario, fatturazione integrati",
       "Tariffe trasparenti — nessuna trattenuta opaca",
     ],
-    mailto: "mailto:professionisti@funzionabene.it?subject=Candidatura%20terapeuta%20sessuologo",
+    mailto: "mailto:info@funzionabene.it?subject=Candidatura%20terapeuta%20sessuologo",
     mascotName: "abbraccio",
   },
   {
@@ -41,7 +41,7 @@ const ROLES = [
       "Formazione interna su immersive therapy e sessuologia integrata",
       "Pazienti più semplici nelle prime fasi, complessità progressiva",
     ],
-    mailto: "mailto:professionisti@funzionabene.it?subject=Candidatura%20psicologo%20junior",
+    mailto: "mailto:info@funzionabene.it?subject=Candidatura%20psicologo%20junior",
     mascotName: "curioso",
   },
   {
@@ -59,7 +59,7 @@ const ROLES = [
       "Dati anonimi per ricerca empirica (con approvazione etica)",
       "Lettera di referenze e possibile percorso post-stage",
     ],
-    mailto: "mailto:professionisti@funzionabene.it?subject=Candidatura%20stage",
+    mailto: "mailto:info@funzionabene.it?subject=Candidatura%20stage",
     mascotName: "saltitante",
   },
 ];
@@ -163,8 +163,8 @@ export default function LavoraConNoiPage() {
         <p className="text-[#0A0A0A]/70 leading-relaxed">
           Non vedi il tuo ruolo nella lista, ma vuoi contribuire?
           Scrivici comunque a{" "}
-          <a href="mailto:professionisti@funzionabene.it" className="text-[#F58A1F] hover:text-[#0A0A0A] underline underline-offset-4">
-            professionisti@funzionabene.it
+          <a href="mailto:info@funzionabene.it" className="text-[#F58A1F] hover:text-[#0A0A0A] underline underline-offset-4">
+            info@funzionabene.it
           </a>. Le persone curiose, in fondo, ci hanno sempre interessato di più.
         </p>
       </section>
