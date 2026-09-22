@@ -1,5 +1,28 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-22 · Code review triage — fix mirati alto-valore/basso-rischio
+
+Applicato solo i fix reali dalla code review, evitando refactor massivi che avrebbero introdotto rischio di regressione sui flussi appena stabilizzati (fattura, no-show, timezone).
+
+**Fatto**:
+- `SedutaLogsSection.jsx:141` — chiave lista partecipanti da `key={i}` → `${user_name}-${join_time || i}`.
+- `PrivacyUtentePage.jsx:184` — chiave storico consensi da `key={idx}` → `${timestamp}-${consent_type}-${action}`.
+- `FirmaDocumentiPage.jsx`, `ContrattiPage.jsx` (×2), `MandatoAcceptanceGate.jsx`, `utils/safeHtml.js` — aggiunto commento `// eslint-disable-next-line react/no-danger` documentando che `dangerouslySetInnerHTML` passa **sempre** attraverso `sanitizeHtml()` (DOMPurify). Questi 5 falsi positivi del linter erano già sicuri.
+
+**In backlog, NON toccato in questo iter** (rischio regressione alto/rendimento incerto):
+- 61 hook-deps warnings — da fare a lotti di 5-10 per modulo.
+- 28 possible undefined vars in Python — richiede lista puntuale.
+- Refactor componenti giganti: `TerapistiPage.jsx` 899 righe, `TerapistaProfile.jsx` 553, `BlogSeoAnalyzer.jsx` complessità 63.
+- Refactor `cruscotto_pdf.build_cruscotto_pdf()` 151 righe, `email_service.send_weekly_fatture_email()` 83 righe.
+- Split di `routers/terapisti.py` (963 righe) in moduli distinti.
+
+**Test regression (38/38 backend PASS, 3/5 frontend smoke)**: fattura auto-emit, fattura retry, no-show + video gating, Rome-TZ slots.
+
+**Falsi positivi documentati** dal code review:
+- Test-only "hardcoded secrets" (`"TESTTOKEN12345"`, `"TestPass123!"`) — placeholder pytest, non secret veri.
+- `dangerouslySetInnerHTML` (×5) — tutti già sanitizzati con DOMPurify.
+
+
 ## 2026-09-22 · P0 · Bug orario email + email pubbliche consolidate
 
 ### Bug — orario nell'email di conferma sbagliato di 2h
