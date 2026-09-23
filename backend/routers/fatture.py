@@ -26,6 +26,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+# Appointment states that indicate a paid session (money collected → fattura
+# sanitaria owed at payment + commission owed at month-end). Refunded sessions
+# transition to 'cancellato' via /admin/refunds side-effects and are excluded.
+PAID_APPT_STATES = [
+    "completato",
+    "confermato",
+    "in_corso",
+    "no_show_paziente",
+    "no_show_terapeuta",
+    "no_show_entrambi",
+    "cancellato_con_addebito",
+]
+
+
 async def _get_terapeuta_full(user_id: str) -> dict | None:
     u = await find_user_by_id(user_id)
     if not u:
@@ -371,8 +385,10 @@ async def _generate_fatture_commissione_mensile(year: int, month: int) -> list[d
         pipeline_end = f"{year:04d}-{month+1:02d}-01"
 
     generated = []
+    # See PAID_APPT_STATES at module-level: aligns commission billing with the
+    # actual fiscal reality — every paid session counts unless refunded.
     tera_ids = await db.appuntamenti.distinct("terapeuta_user_id", {
-        "stato": {"$in": ["completato", "confermato"]},
+        "stato": {"$in": PAID_APPT_STATES},
         "data_ora": {"$gte": pipeline_start, "$lt": pipeline_end},
     })
     for tera_id in tera_ids:
@@ -387,7 +403,7 @@ async def _generate_fatture_commissione_mensile(year: int, month: int) -> list[d
         # Sum
         cursor = db.appuntamenti.find({
             "terapeuta_user_id": tera_id,
-            "stato": {"$in": ["completato", "confermato"]},
+            "stato": {"$in": PAID_APPT_STATES},
             "data_ora": {"$gte": pipeline_start, "$lt": pipeline_end},
         })
         total_lordo = Decimal("0")
@@ -537,7 +553,7 @@ async def admin_fatture_diagnostics(admin: dict = Depends(require_admin)):
     sanitaria yet AND refunded transactions that DON'T have a nota di credito yet.
     Helps the admin see if the auto-emit at payment/refund failed silently."""
     paid_appts = await db.appuntamenti.find({
-        "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
+        "stato": {"$in": PAID_APPT_STATES},
         "paid_at": {"$exists": True},
     }).sort("data_ora", -1).limit(200).to_list(200)
 
@@ -670,7 +686,7 @@ async def admin_generate_missing_fatture(admin: dict = Depends(require_admin)):
     Also emails each PDF to the corresponding patient (best-effort).
     Returns per-appointment success/error so the admin can see what still fails."""
     paid_appts = await db.appuntamenti.find({
-        "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
+        "stato": {"$in": PAID_APPT_STATES},
         "paid_at": {"$exists": True},
     }).sort("data_ora", -1).limit(500).to_list(500)
 

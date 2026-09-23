@@ -1804,7 +1804,11 @@ async def seed_data():
     # requiring an admin click.
     try:
         paid_appts = await db.appuntamenti.find({
-            "stato": {"$in": ["confermato", "completato", "cancellato_con_addebito"]},
+            "stato": {"$in": [
+                "completato", "confermato", "in_corso",
+                "no_show_paziente", "no_show_terapeuta", "no_show_entrambi",
+                "cancellato_con_addebito",
+            ]},
             "paid_at": {"$exists": True},
         }, {"_id": 1, "paziente_user_id": 1}).to_list(500)
         emitted = 0

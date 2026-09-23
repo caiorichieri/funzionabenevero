@@ -366,10 +366,26 @@ async def stripe_webhook(request: Request):
         elif t == "charge.refunded":
             pi = obj.get("payment_intent")
             if pi:
-                await db.payment_transactions.update_one(
-                    {"stripe_payment_intent_id": pi},
-                    {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": datetime.now(timezone.utc)}},
+                # Idempotent: only apply side-effects the FIRST time we see the
+                # refund (guard on stripe_refund_id/payment_status transition).
+                result = await db.payment_transactions.update_one(
+                    {"stripe_payment_intent_id": pi, "payment_status": {"$ne": "refunded"}},
+                    {"$set": {
+                        "status": "refunded",
+                        "payment_status": "refunded",
+                        "refunded_at": datetime.now(timezone.utc),
+                        "refund_source": "stripe_webhook",
+                        "updated_at": datetime.now(timezone.utc),
+                    }},
                 )
+                if result.modified_count:
+                    tx = await db.payment_transactions.find_one({"stripe_payment_intent_id": pi})
+                    if tx:
+                        await _apply_refund_side_effects(
+                            tx=tx,
+                            admin_note="Rimborso emesso dal dashboard Stripe",
+                            motivo_nc="Rimborso Stripe (dashboard)",
+                        )
     except Exception as e:
         # Never 500 to Stripe — log and ack so it won't retry aggressively
         import logging as _lg
@@ -501,6 +517,87 @@ async def mark_payouts_paid(body: MarkPayoutPaidRequest, user: dict = Depends(re
     return {"marked": result.modified_count}
 
 
+async def _apply_refund_side_effects(
+    tx: dict,
+    admin_note: Optional[str] = None,
+    motivo_nc: str = "Rimborso Stripe",
+) -> Optional[dict]:
+    """Idempotent side-effects after a refund is confirmed (via `/admin/refunds`
+    OR via `charge.refunded` webhook fired from a Stripe-dashboard refund):
+      1. Cancel the linked appointment (skip if already cancelled/annullato).
+      2. Emit Nota di Credito TD04 for the original fattura sanitaria.
+      3. Email the NC PDF to the patient (best-effort).
+
+    Safe to call multiple times: appt.stato transition is guarded with $nin,
+    NC generation uses a unique index on {appuntamento_id, kind:'nota_credito'}.
+    Returns the NC doc when created (or existing), None if there was no original
+    fattura to reference yet.
+    """
+    now = datetime.now(timezone.utc)
+    appt_id = tx.get("appointment_id")
+    if not appt_id:
+        return None
+
+    # 1. Cancel appointment (guarded — no-op if already cancelled)
+    try:
+        await db.appuntamenti.update_one(
+            {"_id": ObjectId(appt_id), "stato": {"$nin": ["cancellato", "annullato"]}},
+            {"$set": {
+                "stato": "cancellato",
+                "cancellato_at": now,
+                "cancellato_motivo": "rimborsato",
+            }},
+        )
+    except Exception as e:
+        logging.warning(f"[REFUND SIDE-EFFECTS] appointment cancel failed: {e}")
+
+    # 2. Emit Nota di Credito (references the original fattura sanitaria)
+    original = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
+    if not original:
+        logging.info(f"[REFUND SIDE-EFFECTS] no original fattura for appt={appt_id}; skipping NC")
+        return None
+
+    try:
+        from routers.fatture import _generate_nota_credito_paziente
+        from email_service import send_signature_receipt_email
+        from storage_service import get_object as _sto_get
+        import base64
+
+        nc = await _generate_nota_credito_paziente(
+            str(original["_id"]),
+            motivo=(admin_note or motivo_nc)[:200],
+        )
+        if not nc:
+            return None
+
+        # 3. Email best-effort
+        paziente_user = await find_user_by_id(tx.get("paziente_user_id"))
+        if paziente_user and paziente_user.get("email"):
+            pdf_bytes = base64.b64decode(nc["pdf_inline_b64"]) if nc.get("pdf_inline_b64") else b""
+            if not pdf_bytes and nc.get("pdf_storage_path"):
+                try:
+                    pdf_bytes, _ = _sto_get(nc["pdf_storage_path"])
+                except Exception as e:
+                    logging.warning(f"[REFUND SIDE-EFFECTS] storage fetch failed for NC {nc.get('numero')}: {e}")
+            try:
+                await send_signature_receipt_email(
+                    email=paziente_user["email"],
+                    nome=paziente_user.get("nome", ""),
+                    doc_titles=[
+                        f"Nota di Credito {nc['numero']} — storno fattura {original['numero']}",
+                        f"Importo stornato: € {abs(nc.get('importo_totale', 0)):.2f}",
+                        "Conservala insieme alla fattura originale.",
+                    ],
+                    pdf_bytes=pdf_bytes,
+                )
+            except Exception as e:
+                logging.warning(f"[REFUND SIDE-EFFECTS] NC email failed for {nc.get('numero')}: {e}")
+        return nc
+    except Exception as e:
+        logging.exception(f"[REFUND SIDE-EFFECTS] NC generation failed for appt={appt_id}: {e}")
+        return None
+
+
 @router.post("/admin/refunds")
 async def create_refund(body: RefundRequest, user: dict = Depends(require_admin)):
     """Refund a paid transaction via Stripe. Cancels associated appointment.
@@ -560,60 +657,22 @@ async def create_refund(body: RefundRequest, user: dict = Depends(require_admin)
         }},
     )
 
-    # Cancel appointment
-    appt_id = tx.get("appointment_id")
-    if appt_id:
-        try:
-            await db.appuntamenti.update_one(
-                {"_id": ObjectId(appt_id), "stato": {"$nin": ["cancellato", "annullato"]}},
-                {"$set": {
-                    "stato": "cancellato",
-                    "cancellato_at": now,
-                    "cancellato_motivo": "rimborsato",
-                }},
-            )
-        except Exception as e:
-            logging.warning(f"[REFUND] appointment cancel failed: {e}")
+    # Cancel appointment + emit NC — shared with charge.refunded webhook.
+    await _apply_refund_side_effects(
+        tx=tx, admin_note=body.admin_note, motivo_nc=body.admin_note or "Rimborso richiesto",
+    )
 
     logging.info(f"[REFUND] tx={body.transaction_id} refund_id={refund.id} amount={tx.get('amount')}")
 
-    # Fiscal: emit Nota di Credito (TD04) referencing the original fattura sanitaria.
-    # Idempotent: skipped if a NC already exists, no-op if there was no fattura yet.
+    # Read back the NC for the response
     nc_info = None
-    try:
-        if appt_id:
-            original = await db.fatture.find_one({"appuntamento_id": appt_id, "kind": "sanitaria"})
-            if original:
-                from routers.fatture import _generate_nota_credito_paziente
-                from email_service import send_signature_receipt_email
-                nc = await _generate_nota_credito_paziente(
-                    str(original["_id"]),
-                    motivo=(body.admin_note or "Rimborso richiesto")[:200],
-                )
-                nc_info = {"numero": nc["numero"], "id": str(nc["_id"])}
-                # Email patient with the NC PDF
-                paziente_user = await find_user_by_id(tx["paziente_user_id"])
-                if nc and paziente_user and paziente_user.get("email"):
-                    import base64
-                    from storage_service import get_object as _sto_get
-                    pdf_bytes = base64.b64decode(nc["pdf_inline_b64"]) if nc.get("pdf_inline_b64") else b""
-                    if not pdf_bytes and nc.get("pdf_storage_path"):
-                        try:
-                            pdf_bytes, _ = _sto_get(nc["pdf_storage_path"])
-                        except Exception:
-                            pdf_bytes = b""
-                    await send_signature_receipt_email(
-                        email=paziente_user["email"],
-                        nome=paziente_user.get("nome", ""),
-                        doc_titles=[
-                            f"Nota di Credito {nc['numero']} — storno fattura {original['numero']}",
-                            f"Importo stornato: € {abs(nc.get('importo_totale', 0)):.2f}",
-                            "Conservala insieme alla fattura originale.",
-                        ],
-                        pdf_bytes=pdf_bytes,
-                    )
-    except Exception as e:
-        logging.exception(f"[REFUND] Nota di credito generation failed for tx={body.transaction_id}: {e}")
+    if tx.get("appointment_id"):
+        nc_doc = await db.fatture.find_one(
+            {"appuntamento_id": tx["appointment_id"], "kind": "nota_credito"},
+            sort=[("created_at", -1)],
+        )
+        if nc_doc:
+            nc_info = {"numero": nc_doc.get("numero"), "id": str(nc_doc["_id"])}
 
     return {
         "message": "Rimborso eseguito",

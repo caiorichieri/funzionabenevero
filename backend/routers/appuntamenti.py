@@ -64,8 +64,46 @@ async def list_appuntamenti(user: dict = Depends(require_auth)):
     return docs
 
 
+async def _load_appt_or_404(app_id: str) -> dict:
+    try:
+        oid = ObjectId(app_id)
+    except Exception:
+        raise HTTPException(400, "ID appuntamento non valido")
+    appt = await db.appuntamenti.find_one({"_id": oid})
+    if not appt:
+        raise HTTPException(404, "Appuntamento non trovato")
+    return appt
+
+
+async def _assert_can_manage_appt(appt: dict, user: dict) -> None:
+    """Ownership gate: only the appointment's own patient, its therapist,
+    or an admin may create/mutate/read this appointment."""
+    if user.get("role") == "admin":
+        return
+    uid = str(user.get("_id") or "")
+    if user.get("role") == "paziente":
+        if appt.get("paziente_user_id") and str(appt["paziente_user_id"]) == uid:
+            return
+        raise HTTPException(403, "Non autorizzato")
+    if user.get("role") == "terapeuta":
+        if appt.get("terapeuta_user_id") and str(appt["terapeuta_user_id"]) == uid:
+            return
+        # Fallback: terapisti.user_id via terapeuta_id (older bookings)
+        if appt.get("terapeuta_id"):
+            try:
+                t = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
+                if t and str(t.get("user_id")) == uid:
+                    return
+            except Exception:
+                pass
+        raise HTTPException(403, "Non autorizzato")
+    raise HTTPException(403, "Non autorizzato")
+
+
 @router.post("/appuntamenti")
-async def create_appuntamento(data: AppuntamentoInput, user: dict = Depends(require_auth)):
+async def create_appuntamento(data: AppuntamentoInput, user: dict = Depends(require_admin)):
+    """Direct-insert endpoint (admin-only). Patient bookings go through
+    /api/payments/checkout/booking which stamps ownership fields correctly."""
     doc = data.model_dump()
     doc["stato"] = "prenotato"
     doc["created_at"] = datetime.now(timezone.utc)
@@ -77,6 +115,8 @@ async def create_appuntamento(data: AppuntamentoInput, user: dict = Depends(requ
 
 @router.put("/appuntamenti/{app_id}")
 async def update_appuntamento(app_id: str, data: AppuntamentoInput, user: dict = Depends(require_auth)):
+    appt = await _load_appt_or_404(app_id)
+    await _assert_can_manage_appt(appt, user)
     update = data.model_dump(exclude_none=True)
     update["updated_at"] = datetime.now(timezone.utc)
     await db.appuntamenti.update_one({"_id": ObjectId(app_id)}, {"$set": update})
@@ -90,6 +130,13 @@ async def update_stato_appuntamento(app_id: str, data: AppuntamentoStatoInput, u
     valid_stati = ["prenotato", "confermato", "completato", "cancellato", "cancellato_con_addebito"]
     if data.stato not in valid_stati:
         raise HTTPException(status_code=400, detail=f"Stato non valido. Usa: {valid_stati}")
+    appt = await _load_appt_or_404(app_id)
+    await _assert_can_manage_appt(appt, user)
+    # Only admin can force fiscally-charged states — patients/therapists cannot
+    # set 'cancellato_con_addebito' or 'completato' on themselves (would trigger
+    # invoice emission on someone else's session).
+    if data.stato in ("completato", "cancellato_con_addebito") and user.get("role") != "admin":
+        raise HTTPException(403, "Solo l'amministrazione può impostare questo stato")
     await db.appuntamenti.update_one(
         {"_id": ObjectId(app_id)},
         {"$set": {"stato": data.stato, "updated_at": datetime.now(timezone.utc)}},
