@@ -9,10 +9,21 @@ import SEO from "@/components/shared/SEO";
 
 const GIORNI_IT = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
 
+const ROME_TZ = "Europe/Rome";
+
+function romeDateKey(iso) {
+  // YYYY-MM-DD in Europe/Rome, regardless of the UTC offset in `iso`
+  return new Intl.DateTimeFormat("en-CA", { timeZone: ROME_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+}
+
+function romeTimeLabel(iso) {
+  return new Intl.DateTimeFormat("it-IT", { timeZone: ROME_TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+}
+
 function groupSlotsByDay(slots) {
   const map = {};
   slots.forEach((s) => {
-    const key = s.data_ora.slice(0, 10); // YYYY-MM-DD
+    const key = romeDateKey(s.data_ora);
     if (!map[key]) map[key] = { date: key, slots: [] };
     map[key].slots.push(s);
   });
@@ -233,7 +244,7 @@ export default function TerapistaPublicPage() {
                 </div>
                 <div className="space-y-2">
                   {d.slots.slice(0, 6).map((s, i) => {
-                    const time = s.data_ora.slice(11, 16);
+                    const time = romeTimeLabel(s.data_ora);
                     return (
                       <button
                         key={i}

@@ -8,6 +8,7 @@ import logging
 import os
 import secrets as _secrets
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.mongodb import MongoDBJobStore
@@ -110,26 +111,69 @@ Il tuo parere aiuta altri pazienti a trovare il/la professionista giusto/a. Lasc
         logging.error(f"[REVIEW-INVITE] failed: {e}")
 
 
+def _reminder_job_ids(app_id: str) -> list[str]:
+    """All APScheduler job ids owned by a single appointment. Kept in ONE place
+    so cancel + re-schedule stay in sync. Includes both reminder and no-show
+    jobs registered by schedule_reminders + schedule_no_show_check."""
+    return [
+        f"rem1d-{app_id}", f"rem1h-{app_id}", f"sms30m-{app_id}",
+        f"rem15m-{app_id}", f"review-{app_id}",
+        f"noshow-final-{app_id}", f"noshow-post-{app_id}", f"noshow-24h-{app_id}",
+    ]
+
+
+def cancel_scheduled_jobs(app_id: str) -> None:
+    """Cancel all reminder + no-show jobs for an appointment. Called when the
+    appt is rescheduled (creates a new id) or cancelled outright. Never raises."""
+    for jid in _reminder_job_ids(app_id):
+        try:
+            scheduler.remove_job(jid)
+        except Exception:
+            # JobLookupError when the job doesn't exist — ignore.
+            pass
+
+
 def schedule_reminders(app_id: str, ctx: dict) -> None:
-    """Schedule multi-step reminders for an appointment:
+    """Schedule multi-step reminders for an appointment. All run-times derive
+    from the appointment's `data_ora` interpreted in **Europe/Rome** (the fiscal
+    timezone of record). Naive stored strings are treated as Rome-local; ISO
+    strings with explicit offset are honoured as given. Idempotent via
+    `replace_existing=True` — safe to call again after a reschedule.
+
+    Scheduled jobs (all id-namespaced by app_id — see `_reminder_job_ids`):
     - 24h before: email (no link)
     - 1h before: email (announces link arrival)
     - 30min before: SMS (paziente)
     - 15min before: email with magic-link direct-join button
-    - +15min after start: no-show check (persist attendance log + follow-up emails)
+    - +durata+30min after start: review invite
+    - Also registers the 3 no-show jobs via schedule_no_show_check.
     """
     try:
-        start = datetime.fromisoformat(ctx["data_ora"].replace("Z", "+00:00"))
-        if start.tzinfo is None:
-            start = start.replace(tzinfo=timezone.utc)
+        rome_tz = ZoneInfo("Europe/Rome")
+        raw = ctx.get("data_ora") or ""
+        # Prefer explicit tz-aware parse. If the ISO has no offset (legacy naive
+        # values), interpret as Rome-local — the source of truth for scheduling.
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except Exception:
+            logging.error(f"[SCHEDULER] unparseable data_ora for appt={app_id}: {raw!r}")
+            return
+        if parsed.tzinfo is None:
+            start = parsed.replace(tzinfo=rome_tz)
+        else:
+            start = parsed
+        # Always normalise to UTC for APScheduler (its default job store also
+        # uses UTC) — this stays timezone-correct across DST transitions.
+        start = start.astimezone(timezone.utc)
         now = datetime.now(timezone.utc)
 
+        durata = int(ctx.get("durata_minuti", 50))
         jobs = [
-            (start - timedelta(days=1),      send_reminder_email,   [ctx, "1-giorno"], f"rem1d-{app_id}"),
-            (start - timedelta(hours=1),     send_reminder_email,   [ctx, "1-ora"],    f"rem1h-{app_id}"),
-            (start - timedelta(minutes=30),  _send_sms_30min_reminder, [app_id, ctx],  f"sms30m-{app_id}"),
-            (start - timedelta(minutes=15),  send_reminder_email,   [ctx, "15-min"],   f"rem15m-{app_id}"),
-            (start + timedelta(minutes=int(ctx.get("durata_minuti", 50)) + 30), _send_review_invite_email, [app_id, ctx], f"review-{app_id}"),
+            (start - timedelta(days=1),      send_reminder_email,      [ctx, "1-giorno"], f"rem1d-{app_id}"),
+            (start - timedelta(hours=1),     send_reminder_email,      [ctx, "1-ora"],    f"rem1h-{app_id}"),
+            (start - timedelta(minutes=30),  _send_sms_30min_reminder, [app_id, ctx],     f"sms30m-{app_id}"),
+            (start - timedelta(minutes=15),  send_reminder_email,      [ctx, "15-min"],   f"rem15m-{app_id}"),
+            (start + timedelta(minutes=durata + 30), _send_review_invite_email, [app_id, ctx], f"review-{app_id}"),
         ]
         for run_at, fn, args, job_id in jobs:
             if run_at > now:
@@ -138,11 +182,22 @@ def schedule_reminders(app_id: str, ctx: dict) -> None:
         # Register the no-show detection jobs (final @ start+15min + follow-ups)
         try:
             from no_show_service import schedule_no_show_check
-            schedule_no_show_check(scheduler, app_id, ctx["data_ora"], int(ctx.get("durata_minuti", 50)))
+            # Pass the corrected (aware UTC) ISO so no-show service uses the
+            # same interpretation of Rome-local naive strings.
+            schedule_no_show_check(scheduler, app_id, start.isoformat(), durata)
         except Exception as e:
             logging.error(f"[SCHEDULER] failed to schedule no-show check: {e}")
     except Exception as e:
         logging.error(f"[SCHEDULER] failed to schedule reminders: {e}")
+
+
+def reschedule_reminders(old_app_id: str, new_app_id: str, ctx: dict) -> None:
+    """When an appointment is rescheduled (new time OR new id), drop the old
+    jobs and register fresh ones bound to the new id + new time.
+    Both no-op safely if the old jobs don't exist."""
+    cancel_scheduled_jobs(old_app_id)
+    if new_app_id and ctx:
+        schedule_reminders(new_app_id, ctx)
 
 
 async def _ensure_informed_consent(appointment_id: str, appt: dict, paziente_user: dict) -> None:
@@ -205,12 +260,15 @@ async def _ensure_reschedule_token(appointment_id: str, appt: dict) -> str | Non
 
 async def _ensure_videocall_magic_token(appointment_id: str, appt: dict) -> str | None:
     """Generate a magic token for direct-join videocall link. Returns raw or None.
-    Expiry is set to start + 15 min: after that window it's a no-show and the
-    magic link stops opening the room (patient must contact admin / rebook)."""
+    Expiry mirrors the logged-in join window: `start + durata + 15 min` — this
+    lets a patient re-enter via the email link if they get disconnected mid-
+    session. The no-show detection cutoff (at start+15 min) is handled by the
+    scheduled job in no_show_service and does NOT block entry."""
     if appt.get("videocall_magic_hash"):
         return None
     raw = _secrets.token_urlsafe(32)
-    magic_expires = _parse_start(appt) + timedelta(minutes=15)
+    durata = int(appt.get("durata_minuti", 50))
+    magic_expires = _parse_start(appt) + timedelta(minutes=durata + 15)
     await db.appuntamenti.update_one(
         {"_id": ObjectId(appointment_id)},
         {"$set": {

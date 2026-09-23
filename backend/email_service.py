@@ -243,8 +243,8 @@ async def send_booking_confirmation_email(ctx: dict) -> bool:
 
 
 async def send_reminder_email(ctx: dict, when: str) -> bool:
-    """Send reminder email to paziente. when = '1-giorno' | '1-ora' | '15-min'."""
-    if not ctx.get("paziente_email"):
+    """Send reminder email to paziente and terapista (if known). when = '1-giorno' | '1-ora' | '15-min'."""
+    if not ctx.get("paziente_email") and not ctx.get("terapista_email"):
         return False
     subjects = {
         "1-giorno": "Promemoria: la tua seduta è domani",
@@ -252,12 +252,23 @@ async def send_reminder_email(ctx: dict, when: str) -> bool:
         "15-min": "🎥 La tua seduta inizia tra 15 minuti — entra qui",
     }
     subject = subjects.get(when, "Promemoria seduta")
-    return await _send_raw({
-        "from": f"FunzionaBene <{SENDER_EMAIL}>",
-        "to": [ctx["paziente_email"]],
-        "subject": subject,
-        "html": _reminder_template(ctx, when),
-    })
+    html = _reminder_template(ctx, when)
+    results = []
+    if ctx.get("paziente_email"):
+        results.append(await _send_raw({
+            "from": f"FunzionaBene <{SENDER_EMAIL}>",
+            "to": [ctx["paziente_email"]],
+            "subject": subject,
+            "html": html,
+        }))
+    if ctx.get("terapista_email"):
+        results.append(await _send_raw({
+            "from": f"FunzionaBene <{SENDER_EMAIL}>",
+            "to": [ctx["terapista_email"]],
+            "subject": subject,
+            "html": html,
+        }))
+    return any(results)
 
 
 

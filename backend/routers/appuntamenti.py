@@ -32,6 +32,23 @@ def _parse_appt_start(appt: dict) -> datetime | None:
         return None
 
 
+def _parse_stored_datetime(val) -> datetime | None:
+    """Robust parser: accepts either a datetime or an ISO string. Older records
+    stored `videocall_magic_expires` as a string (from `.isoformat()`), newer
+    ones as a native BSON datetime. Handles both to avoid 500s in the gate."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+    if isinstance(val, str):
+        try:
+            d = datetime.fromisoformat(val.replace("Z", "+00:00"))
+            return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
+    return None
+
+
 @router.get("/appuntamenti")
 async def list_appuntamenti(user: dict = Depends(require_auth)):
     docs: list = []
@@ -279,11 +296,20 @@ async def videocall_magic(app_id: str, token: str):
     if not stored_hash or _digest(token) != stored_hash:
         raise HTTPException(403, "Link non valido")
 
-    # Time-based gate: 20 min before → 15 min after start.
+    # Time-based gate: 20 min before → 15 min after session END (start + durata
+    # + 15 min) so late-joiners and re-joins after disconnect still work. This
+    # matches the logged-in window; the no-show cutoff at start+15 is handled
+    # separately by the scheduled job (which marks stato but doesn't block entry).
     start = _parse_appt_start(app)
     if start:
+        durata = int(app.get("durata_minuti", 50))
         open_at = start - timedelta(minutes=JOIN_OPEN_BEFORE_MIN)
-        close_at = start + timedelta(minutes=JOIN_CLOSE_AFTER_MIN)
+        close_at = start + timedelta(minutes=durata + JOIN_CLOSE_AFTER_MIN)
+        # Honour the stored expires timestamp — takes precedence if present
+        # (may be a string or datetime depending on when the row was written).
+        stored_exp = _parse_stored_datetime(app.get("videocall_magic_expires"))
+        if stored_exp is not None:
+            close_at = stored_exp
         now = datetime.now(timezone.utc)
         if now < open_at:
             raise HTTPException(
@@ -291,18 +317,12 @@ async def videocall_magic(app_id: str, token: str):
                 detail={"code": "too_early", "available_at": open_at.isoformat(), "start_at": start.isoformat()},
             )
         if now > close_at:
-            # Also honour the stored expires timestamp (in case duration was patched)
-            expires = app.get("videocall_magic_expires")
-            if expires:
-                exp = expires if expires.tzinfo else expires.replace(tzinfo=timezone.utc)
-                close_at = max(close_at, exp)
-            if now > close_at:
-                raise HTTPException(
-                    status_code=410,
-                    detail={"code": "session_closed", "start_at": start.isoformat(),
-                            "role_hint": "paziente",  # magic links are patient-facing
-                            "message": "La finestra di accesso alla seduta è chiusa."},
-                )
+            raise HTTPException(
+                status_code=410,
+                detail={"code": "session_closed", "start_at": start.isoformat(),
+                        "role_hint": "paziente",  # magic links are patient-facing
+                        "message": "La finestra di accesso alla seduta è chiusa."},
+            )
 
     room_name = app.get("daily_room_name")
     room_url = app.get("daily_room_url")

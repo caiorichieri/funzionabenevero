@@ -508,6 +508,30 @@ async def confirm_reschedule(appuntamento_id: str, body: RiprogrammaConfirm):
 
     logging.info(f"[RESCHEDULE] {appt['_id']} → {new_id} for terapista {appt['terapeuta_id']}")
 
+    # Cancel jobs bound to the OLD appointment id and register a fresh set for
+    # the NEW id + new time. This fixes reminders firing at the original slot
+    # after a reschedule (they used to leak with the old app_id namespace).
+    try:
+        from booking_service import reschedule_reminders
+        # Build ctx from the fresh appointment doc + linked terapista/paziente
+        terapista_user = await find_user_by_id(terapista.get("user_id")) if terapista else None
+        paziente_full = await db.pazienti.find_one({"_id": ObjectId(appt["paziente_id"])}) if appt.get("paziente_id") else None
+        paziente_user = await find_user_by_id(appt.get("paziente_user_id"))
+        ctx = {
+            "data_ora": nuova_dt.isoformat(),
+            "durata_minuti": new_doc.get("durata_minuti", 50),
+            "paziente_nome": (paziente_full or {}).get("nome", ""),
+            "paziente_cognome": (paziente_full or {}).get("cognome", ""),
+            "paziente_email": (paziente_user or {}).get("email"),
+            "paziente_telefono": (paziente_full or {}).get("telefono"),
+            "terapista_nome": (terapista or {}).get("nome", ""),
+            "terapista_cognome": (terapista or {}).get("cognome", ""),
+            "terapista_email": (terapista_user or {}).get("email"),
+        }
+        reschedule_reminders(str(appt["_id"]), new_id, ctx)
+    except Exception as e:
+        logging.warning(f"[RESCHEDULE] failed to move scheduled jobs: {e}")
+
     # Notify therapist by email (best-effort)
     try:
         terapista_user = await find_user_by_id(terapista.get("user_id"))
