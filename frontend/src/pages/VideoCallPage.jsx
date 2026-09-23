@@ -59,6 +59,9 @@ export default function VideoCallPage() {
       },
     });
     callFrameRef.current = frame;
+    frame.on("joined-meeting", () => setLoading(false));
+    frame.on("loading", () => setLoading(false));
+    frame.on("loaded", () => setLoading(false));
     frame.on("left-meeting", () => {
       try { frame.destroy(); } catch (e) { console.warn("daily destroy failed:", e); }
       navigate(-1);
@@ -66,10 +69,15 @@ export default function VideoCallPage() {
     frame.on("error", (e) => {
       console.error("Daily error:", e);
       setError(e?.errorMsg || "Errore nella stanza video");
+      setLoading(false);
     });
     const joinOptions = { url: room_url, userName: user_name };
     if (token) joinOptions.token = token;
-    frame.join(joinOptions).then(() => setLoading(false));
+    frame.join(joinOptions).catch((e) => {
+      console.error("Daily join failed:", e);
+      setError(e?.errorMsg || e?.message || "Errore nella stanza video");
+      setLoading(false);
+    });
   }, [navigate]);
 
   const fetchToken = useCallback(async () => {
