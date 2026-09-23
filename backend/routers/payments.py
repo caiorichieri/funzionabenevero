@@ -107,36 +107,64 @@ async def _emit_fattura_for_paid_tx(tx_id: str, appt_id: str, paziente_user: Opt
         # Email is a best-effort delivery. If it fails, fattura stays emessa
         # and admin can reinvia from the UI (patient can always download from dashboard).
         if paziente_user and paziente_user.get("email"):
-            step = "send_email"
+            step = "fetch_pdf"
             import base64
             pdf_bytes = base64.b64decode(fattura["pdf_inline_b64"]) if fattura.get("pdf_inline_b64") else b""
+            fetch_err = None
             if not pdf_bytes and fattura.get("pdf_storage_path"):
                 try:
                     from storage_service import get_object as _sto_get
                     pdf_bytes, _ = _sto_get(fattura["pdf_storage_path"])
+                    _lg.info(f"[PAYMENT PAID] fetched PDF from storage for fattura={fattura.get('numero')} bytes={len(pdf_bytes)}")
                 except Exception as e:
+                    fetch_err = str(e)[:300]
                     _lg.warning(f"[PAYMENT PAID] storage fetch failed for fattura={fattura.get('numero')}: {e}")
-            from email_service import send_signature_receipt_email
-            ok = await send_signature_receipt_email(
-                email=paziente_user["email"],
-                nome=paziente_user.get("nome", ""),
-                doc_titles=[
-                    f"Fattura {fattura['numero']} — € {fattura.get('importo_totale', 0):.2f}",
-                    "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
-                    "Conservala per almeno 5 anni",
-                ],
+
+            # Resolve therapist cognome + session date for the branded template
+            step = "send_email"
+            terapeuta_cognome = ""
+            data_seduta_iso = ""
+            try:
+                appt = await db.appuntamenti.find_one({"_id": _Oid(appt_id)})
+                if appt:
+                    data_seduta_iso = appt.get("data_ora") or ""
+                    if appt.get("terapeuta_id"):
+                        t = await db.terapisti.find_one({"_id": _Oid(appt["terapeuta_id"])})
+                        if t:
+                            terapeuta_cognome = t.get("cognome", "")
+            except Exception as e:
+                _lg.warning(f"[PAYMENT PAID] enrich terapeuta failed: {e}")
+
+            from email_service import send_fattura_paziente_email
+            ok, err_msg = await send_fattura_paziente_email(
+                paziente_email=paziente_user["email"],
+                paziente_nome=paziente_user.get("nome", ""),
+                terapeuta_cognome=terapeuta_cognome,
+                data_seduta_iso=data_seduta_iso,
+                fattura=fattura,
                 pdf_bytes=pdf_bytes,
             )
             if ok:
                 await db.fatture.update_one(
                     {"_id": fattura["_id"]},
-                    {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                    {"$set": {"email_sent_at": datetime.now(timezone.utc)},
+                     "$unset": {"email_error": ""}},
                 )
             else:
                 await db.fatture.update_one(
                     {"_id": fattura["_id"]},
-                    {"$set": {"email_error": "send returned False",
+                    {"$set": {"email_error": err_msg or "send returned False",
                               "email_last_attempt_at": datetime.now(timezone.utc)}},
+                )
+                # Surface the failure on the payment_transaction so admin
+                # diagnostics show WHICH step failed (fetch_pdf vs send_email).
+                await db.payment_transactions.update_one(
+                    {"_id": _Oid(tx_id)},
+                    {"$set": {
+                        "fattura_error": (fetch_err or err_msg or "email send failed")[:500],
+                        "fattura_error_step": "fetch_pdf" if fetch_err else "send_email",
+                        "fattura_error_at": datetime.now(timezone.utc),
+                    }},
                 )
         return fattura
     except Exception as e:

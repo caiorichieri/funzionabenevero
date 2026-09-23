@@ -2,6 +2,7 @@
 import os
 import asyncio
 import logging
+from datetime import datetime
 
 import resend
 
@@ -927,3 +928,123 @@ async def send_no_show_admin_alert(admin_email: str, outcome: str, ctx: dict) ->
         "subject": f"[FB] No-show {outcome} — {ctx.get('paziente_cognome','')} / Dr. {ctx.get('terapista_cognome','')}",
         "html": html,
     })
+
+
+# ─── Fattura sanitaria — dedicated email (branded, ≠ signature receipt) ──────
+
+def _fmt_data_seduta_short(iso: str) -> str:
+    """Format the session datetime in Rome tz as '15 ottobre 2026 alle 16:00'."""
+    try:
+        from zoneinfo import ZoneInfo
+        d = datetime.fromisoformat((iso or "").replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=ZoneInfo("Europe/Rome"))
+        d = d.astimezone(ZoneInfo("Europe/Rome"))
+        MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno",
+                "luglio","agosto","settembre","ottobre","novembre","dicembre"]
+        return f"{d.day} {MESI[d.month-1]} {d.year} alle {d.strftime('%H:%M')}"
+    except Exception:
+        return iso or ""
+
+
+async def send_fattura_paziente_email(
+    paziente_email: str,
+    paziente_nome: str,
+    terapeuta_cognome: str,
+    data_seduta_iso: str,
+    fattura: dict,
+    pdf_bytes: bytes = b"",
+) -> tuple[bool, str]:
+    """Send the fattura sanitaria PDF to the patient. Dedicated template
+    (NOT the signature-receipt one) so subject, filename and body clearly say
+    "Fattura". Reply-To is `info@funzionabene.it` so patients can hit reply.
+
+    Returns (ok, error_msg). `ok=True` if Resend accepted the message.
+    Falls back to sending WITHOUT the attachment if `pdf_bytes` is empty — the
+    body always shows a "Scarica dalla tua area" button linking to the patient
+    dashboard, so the patient can retrieve the PDF even if the attachment was
+    stripped or never fetched from Object Storage.
+    """
+    if not paziente_email:
+        return False, "paziente_email missing"
+
+    numero = fattura.get("numero", "?")
+    importo = float(fattura.get("importo_totale", 0) or 0)
+    causale = (fattura.get("causale") or "Prestazione sanitaria — psicoterapia").strip()
+    data_emissione = str(fattura.get("data", ""))[:10]
+    frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+    dashboard_url = f"{frontend}/paziente/fatture"
+    when_pretty = _fmt_data_seduta_short(data_seduta_iso)
+    subject = f"Fattura {numero} per la tua seduta con Dr. {terapeuta_cognome}"
+
+    html = f"""<!DOCTYPE html><html lang="it"><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#6B8FA3;margin-top:6px;">FATTURA SANITARIA</div>
+</td></tr>
+<tr><td style="padding:32px 40px;">
+<h1 style="font-family:Georgia,serif;font-size:26px;color:#D4A017;margin:0 0 14px;font-weight:500;line-height:1.3;">Ciao {paziente_nome or ""}, ecco la tua fattura</h1>
+<p style="color:rgba(230,226,216,0.8);font-size:15px;line-height:1.6;margin:0 0 20px;">
+Fattura per la seduta con <strong>Dr. {terapeuta_cognome}</strong> del <strong>{when_pretty}</strong>.
+</p>
+
+<div style="background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.25);border-radius:14px;padding:18px 22px;margin:16px 0;">
+  <div style="display:flex;justify-content:space-between;font-size:13px;color:rgba(230,226,216,0.55);margin-bottom:6px;">Numero fattura</div>
+  <div style="font-family:'Courier New',monospace;font-size:20px;color:#F4F1ED;letter-spacing:1px;">{numero}</div>
+  <div style="margin-top:14px;font-size:13px;color:rgba(230,226,216,0.55);">Importo totale</div>
+  <div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">€ {importo:.2f}</div>
+  <div style="margin-top:14px;font-size:13px;color:rgba(230,226,216,0.55);">Data emissione</div>
+  <div style="font-size:14px;color:#F4F1ED;">{data_emissione}</div>
+  <div style="margin-top:14px;font-size:13px;color:rgba(230,226,216,0.55);">Causale</div>
+  <div style="font-size:13px;color:rgba(244,241,237,0.9);line-height:1.5;">{causale}</div>
+</div>
+
+<div style="background:rgba(107,143,163,0.08);border-left:3px solid #6B8FA3;padding:12px 16px;margin:18px 0;font-size:13px;color:rgba(230,226,216,0.75);line-height:1.6;">
+💡 <strong>Detraibile al 19%</strong> in dichiarazione dei redditi (730/Redditi PF) come spesa sanitaria — art. 15 TUIR.<br>
+Conserva la fattura per almeno 5 anni.
+</div>
+
+<div style="text-align:center;margin-top:26px;">
+<a href="{dashboard_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;">Scarica dalla tua area →</a>
+</div>
+<p style="color:rgba(230,226,216,0.5);font-size:12px;line-height:1.6;margin:22px 0 0;text-align:center;">
+Se non vedi il PDF allegato, puoi sempre scaricarlo dalla tua area riservata cliccando il pulsante sopra.
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.5);font-size:11px;margin:0 0 4px;">BIDOC SRL · P.IVA 01985930930</p>
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">
+Domande? Rispondi a questa email — arriverà a <a href="mailto:info@funzionabene.it" style="color:#6B8FA3;text-decoration:none;">info@funzionabene.it</a>
+</p>
+</td></tr></table></body></html>"""
+
+    params: dict = {
+        "from": f"FunzionaBene <{SENDER_EMAIL}>",
+        "to": [paziente_email],
+        "reply_to": ["info@funzionabene.it"],
+        "subject": subject,
+        "html": html,
+    }
+    if pdf_bytes:
+        import base64 as _b64
+        params["attachments"] = [{
+            "filename": f"Fattura_{numero}.pdf",
+            "content": _b64.b64encode(pdf_bytes).decode("ascii"),
+        }]
+        logger.info(f"[FATTURA EMAIL] to={paziente_email} numero={numero} pdf_bytes={len(pdf_bytes)} — sending WITH attachment")
+    else:
+        logger.warning(f"[FATTURA EMAIL] to={paziente_email} numero={numero} pdf_bytes=0 — sending WITHOUT attachment (patient will download from dashboard)")
+
+    if not SEND_EMAILS or not RESEND_API_KEY or RESEND_API_KEY == "placeholder_resend_key":
+        logger.info(f"[FATTURA EMAIL DISABLED] would send {subject} to {paziente_email}")
+        return False, "email_send_disabled"
+    try:
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        eid = result.get("id") if isinstance(result, dict) else result
+        logger.info(f"[FATTURA EMAIL SENT] numero={numero} to={paziente_email} resend_id={eid}")
+        return True, ""
+    except Exception as e:
+        logger.exception(f"[FATTURA EMAIL FAILED] numero={numero} to={paziente_email}: {e}")
+        return False, f"resend_error: {e!r}"[:400]
+

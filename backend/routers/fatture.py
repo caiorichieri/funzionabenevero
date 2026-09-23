@@ -690,9 +690,22 @@ async def admin_generate_missing_fatture(admin: dict = Depends(require_admin)):
         "paid_at": {"$exists": True},
     }).sort("data_ora", -1).limit(500).to_list(500)
 
-    from email_service import send_signature_receipt_email
+    from email_service import send_fattura_paziente_email
     from storage_service import get_object as _sto_get
     import base64
+
+    async def _terapeuta_ctx(appt_doc: dict) -> tuple[str, str]:
+        """(terapeuta_cognome, data_seduta_iso) enrichment for the branded email."""
+        cognome = ""
+        data_iso = (appt_doc or {}).get("data_ora") or ""
+        try:
+            if appt_doc and appt_doc.get("terapeuta_id"):
+                t = await db.terapisti.find_one({"_id": ObjectId(appt_doc["terapeuta_id"])})
+                if t:
+                    cognome = t.get("cognome", "")
+        except Exception as e:
+            logger.warning(f"[GEN MISSING] enrich terapeuta failed: {e}")
+        return cognome, data_iso
 
     generated = []
     errors = []
@@ -723,21 +736,27 @@ async def admin_generate_missing_fatture(admin: dict = Depends(require_admin)):
                         pdf_bytes, _ = _sto_get(f["pdf_storage_path"])
                     except Exception as e:
                         logger.warning(f"[GEN MISSING] storage fetch failed for {f.get('numero')}: {e}")
+                terapeuta_cognome, data_seduta_iso = await _terapeuta_ctx(a)
                 try:
-                    ok = await send_signature_receipt_email(
-                        email=pu["email"],
-                        nome=pu.get("nome", ""),
-                        doc_titles=[
-                            f"Fattura {f['numero']} — € {f.get('importo_totale', 0):.2f}",
-                            "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
-                            "Conservala per almeno 5 anni",
-                        ],
+                    ok, err_msg = await send_fattura_paziente_email(
+                        paziente_email=pu["email"],
+                        paziente_nome=pu.get("nome", ""),
+                        terapeuta_cognome=terapeuta_cognome,
+                        data_seduta_iso=data_seduta_iso,
+                        fattura=f,
                         pdf_bytes=pdf_bytes,
                     )
                     if ok:
                         await db.fatture.update_one(
                             {"_id": f["_id"]},
-                            {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                            {"$set": {"email_sent_at": datetime.now(timezone.utc)},
+                             "$unset": {"email_error": ""}},
+                        )
+                    else:
+                        await db.fatture.update_one(
+                            {"_id": f["_id"]},
+                            {"$set": {"email_error": err_msg or "send failed",
+                                      "email_last_attempt_at": datetime.now(timezone.utc)}},
                         )
                 except Exception as e:
                     logger.warning(f"[GEN MISSING] email send failed for {f.get('numero')}: {e}")
@@ -765,7 +784,7 @@ async def admin_retry_fattura(appuntamento_id: str, admin: dict = Depends(requir
     Generates fattura + emails PDF to patient. Idempotent — if a fattura already
     exists it's returned as-is and the email is retried best-effort.
     """
-    from email_service import send_signature_receipt_email
+    from email_service import send_fattura_paziente_email
     from storage_service import get_object as _sto_get
     import base64
     try:
@@ -800,21 +819,36 @@ async def admin_retry_fattura(appuntamento_id: str, admin: dict = Depends(requir
                 pdf_bytes, _ = _sto_get(f["pdf_storage_path"])
             except Exception as e:
                 logger.warning(f"[RETRY FATTURA] storage fetch failed: {e}")
+        # Enrich terapeuta cognome + data seduta for the branded template
+        terapeuta_cognome = ""
+        data_seduta_iso = appt.get("data_ora") or ""
+        if appt.get("terapeuta_id"):
+            try:
+                t = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
+                if t:
+                    terapeuta_cognome = t.get("cognome", "")
+            except Exception:
+                pass
         try:
-            email_sent = await send_signature_receipt_email(
-                email=pu["email"],
-                nome=pu.get("nome", ""),
-                doc_titles=[
-                    f"Fattura {f['numero']} — € {f.get('importo_totale', 0):.2f}",
-                    "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
-                    "Conservala per almeno 5 anni",
-                ],
+            email_sent, err_msg = await send_fattura_paziente_email(
+                paziente_email=pu["email"],
+                paziente_nome=pu.get("nome", ""),
+                terapeuta_cognome=terapeuta_cognome,
+                data_seduta_iso=data_seduta_iso,
+                fattura=f,
                 pdf_bytes=pdf_bytes,
             )
             if email_sent:
                 await db.fatture.update_one(
                     {"_id": f["_id"]},
-                    {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                    {"$set": {"email_sent_at": datetime.now(timezone.utc)},
+                     "$unset": {"email_error": ""}},
+                )
+            else:
+                await db.fatture.update_one(
+                    {"_id": f["_id"]},
+                    {"$set": {"email_error": err_msg or "send failed",
+                              "email_last_attempt_at": datetime.now(timezone.utc)}},
                 )
         except Exception as e:
             logger.warning(f"[RETRY FATTURA] email send failed: {e}")
@@ -899,8 +933,12 @@ async def admin_gen_nota_credito(fattura_id: str, admin: dict = Depends(require_
 
 @router.post("/admin/fatture/{fattura_id}/reinvia")
 async def admin_reinvia_fattura(fattura_id: str, admin: dict = Depends(require_admin)):
-    """Resend the fattura PDF via email to the patient. Works for both
-    fatture sanitarie and note di credito."""
+    """Resend the fattura (sanitaria or NC) PDF via email to the patient.
+
+    Explicit admin action → bypasses any prior `email_sent_at` flag: the admin
+    is telling us "the patient says they didn't get it — send again", so we
+    always retry even if a previous attempt succeeded.
+    """
     try:
         oid = ObjectId(fattura_id)
     except Exception:
@@ -915,41 +953,89 @@ async def admin_reinvia_fattura(fattura_id: str, admin: dict = Depends(require_a
     # Load PDF: preferably from Object Storage, fallback to inline base64.
     import base64
     pdf_bytes = base64.b64decode(f["pdf_inline_b64"]) if f.get("pdf_inline_b64") else b""
+    fetch_err = None
     if not pdf_bytes and f.get("pdf_storage_path"):
         from storage_service import get_object
         try:
             pdf_bytes, _ = get_object(f["pdf_storage_path"])
+            logger.info(f"[REINVIA] numero={f['numero']} fetched PDF from storage bytes={len(pdf_bytes)}")
         except Exception as e:
-            logger.error(f"[REINVIA] failed to fetch PDF from storage: {e}")
+            fetch_err = str(e)[:300]
+            logger.error(f"[REINVIA] numero={f['numero']} failed to fetch PDF from storage: {e}")
 
     is_nc = f.get("kind") == "nota_credito_sanitaria"
-    imp = abs(float(f.get("importo_totale", 0)))
     if is_nc:
+        # Notes of credit still use the signature-receipt template for now —
+        # they are rarer and the wording ("storno") is different enough.
+        imp = abs(float(f.get("importo_totale", 0)))
         titles = [
             f"Nota di Credito {f['numero']} — storno fattura {f.get('fattura_originale_numero','')}",
             f"Importo stornato: € {imp:.2f}",
             "Conservala insieme alla fattura originale.",
         ]
+        from email_service import send_signature_receipt_email
+        ok = await send_signature_receipt_email(
+            email=paziente["email"], nome=paziente.get("nome", ""),
+            doc_titles=titles, pdf_bytes=pdf_bytes,
+        )
+        err_msg = "" if ok else "resend returned False"
     else:
-        titles = [
-            f"Fattura {f['numero']} — € {imp:.2f}",
-            "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
-            "Conservala per almeno 5 anni",
-        ]
-    from email_service import send_signature_receipt_email
-    ok = await send_signature_receipt_email(
-        email=paziente["email"],
-        nome=paziente.get("nome", ""),
-        doc_titles=titles,
-        pdf_bytes=pdf_bytes,
-    )
+        # Fattura sanitaria → dedicated branded template. Enrich with therapist
+        # cognome + session date so subject and body are meaningful.
+        terapeuta_cognome = ""
+        data_seduta_iso = ""
+        appt_id = f.get("appuntamento_id")
+        if appt_id:
+            try:
+                appt = await db.appuntamenti.find_one({"_id": ObjectId(appt_id)})
+                if appt:
+                    data_seduta_iso = appt.get("data_ora") or ""
+                    if appt.get("terapeuta_id"):
+                        t = await db.terapisti.find_one({"_id": ObjectId(appt["terapeuta_id"])})
+                        if t:
+                            terapeuta_cognome = t.get("cognome", "")
+            except Exception as e:
+                logger.warning(f"[REINVIA] enrich terapeuta failed: {e}")
+        from email_service import send_fattura_paziente_email
+        ok, err_msg = await send_fattura_paziente_email(
+            paziente_email=paziente["email"],
+            paziente_nome=paziente.get("nome", ""),
+            terapeuta_cognome=terapeuta_cognome,
+            data_seduta_iso=data_seduta_iso,
+            fattura=f,
+            pdf_bytes=pdf_bytes,
+        )
+
+    now = datetime.now(timezone.utc)
     if not ok:
-        raise HTTPException(503, "Invio email fallito")
+        await db.fatture.update_one(
+            {"_id": oid},
+            {"$set": {
+                "email_error": (fetch_err or err_msg or "send failed")[:400],
+                "email_last_attempt_at": now,
+                "resent_by_admin": admin["_id"],
+            }},
+        )
+        raise HTTPException(503, f"Invio email fallito: {err_msg or fetch_err or 'unknown'}")
+
+    # Success — record the resend AND clear stale email_error / lift any
+    # transaction-level fattura_error tied to this appt.
     await db.fatture.update_one(
         {"_id": oid},
-        {"$set": {"resent_at": datetime.now(timezone.utc), "resent_by_admin": admin["_id"]}},
+        {"$set": {"resent_at": now, "email_sent_at": now, "resent_by_admin": admin["_id"]},
+         "$unset": {"email_error": ""}},
     )
-    return {"message": "Fattura reinviata", "email": paziente["email"], "numero": f["numero"]}
+    if f.get("appuntamento_id"):
+        await db.payment_transactions.update_one(
+            {"appointment_id": f["appuntamento_id"]},
+            {"$unset": {"fattura_error": "", "fattura_error_step": ""}},
+        )
+    return {
+        "message": "Fattura reinviata",
+        "email": paziente["email"],
+        "numero": f["numero"],
+        "attachment": bool(pdf_bytes),
+    }
 
 
 

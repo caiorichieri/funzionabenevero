@@ -1820,12 +1820,12 @@ async def seed_data():
                 continue
             try:
                 from routers.fatture import _generate_fattura_paziente
-                from email_service import send_signature_receipt_email
+                from email_service import send_fattura_paziente_email
                 from storage_service import get_object as _sto_get
                 import base64
                 f = await _generate_fattura_paziente(appt_id)
                 emitted += 1
-                # Best-effort: email PDF to patient
+                # Best-effort: email PDF to patient with the dedicated fattura template
                 pu_id = a.get("paziente_user_id")
                 if pu_id:
                     try:
@@ -1839,21 +1839,39 @@ async def seed_data():
                                 pdf_bytes, _ = _sto_get(f["pdf_storage_path"])
                             except Exception:
                                 pdf_bytes = b""
+                        # Enrich terapeuta cognome + data seduta for subject/body
+                        terapeuta_cognome = ""
+                        data_seduta_iso = a.get("data_ora") or ""
                         try:
-                            ok = await send_signature_receipt_email(
-                                email=pu["email"],
-                                nome=pu.get("nome", ""),
-                                doc_titles=[
-                                    f"Fattura {f['numero']} — € {f.get('importo_totale', 0):.2f}",
-                                    "💡 Detraibile 19% al 730 come spesa sanitaria (art. 15 TUIR)",
-                                    "Conservala per almeno 5 anni",
-                                ],
+                            full_appt = await db.appuntamenti.find_one({"_id": ObjectId(appt_id)})
+                            if full_appt and full_appt.get("terapeuta_id"):
+                                t = await db.terapisti.find_one({"_id": ObjectId(full_appt["terapeuta_id"])})
+                                if t:
+                                    terapeuta_cognome = t.get("cognome", "")
+                                if not data_seduta_iso:
+                                    data_seduta_iso = full_appt.get("data_ora") or ""
+                        except Exception:
+                            pass
+                        try:
+                            ok, err_msg = await send_fattura_paziente_email(
+                                paziente_email=pu["email"],
+                                paziente_nome=pu.get("nome", ""),
+                                terapeuta_cognome=terapeuta_cognome,
+                                data_seduta_iso=data_seduta_iso,
+                                fattura=f,
                                 pdf_bytes=pdf_bytes,
                             )
                             if ok:
                                 await db.fatture.update_one(
                                     {"_id": f["_id"]},
-                                    {"$set": {"email_sent_at": datetime.now(timezone.utc)}},
+                                    {"$set": {"email_sent_at": datetime.now(timezone.utc)},
+                                     "$unset": {"email_error": ""}},
+                                )
+                            else:
+                                await db.fatture.update_one(
+                                    {"_id": f["_id"]},
+                                    {"$set": {"email_error": err_msg or "send failed",
+                                              "email_last_attempt_at": datetime.now(timezone.utc)}},
                                 )
                         except Exception as e:
                             logging.warning(f"[MIGRATION][FATTURE] email send failed for {f.get('numero')}: {e}")
