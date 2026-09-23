@@ -1,5 +1,35 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-22 · Fix fattura FZ-2026-0004 non recapitata + email brandizzata
+
+**Segnalazione**: fattura FZ-2026-0004 emessa e visibile in "Le mie fatture" del paziente, ma **non arrivata via email**.
+
+**Root cause**: tutti i callsite di invio riusavano `send_signature_receipt_email` (template per ricevute firma documenti legali). Anche se l'email arrivava:
+- Soggetto: "Ricevuta di sottoscrizione — Funzionabene" (zero parole "fattura").
+- Allegato: `ricevuta_sottoscrizione.pdf` (non riconoscibile).
+- Corpo: parla di hash SHA-256, firma digitale, timestamp UTC.
+
+Il paziente l'ha ignorata pensando fosse un documento legale già gestito. Inoltre, in caso di storage-fetch fail, l'email partiva senza allegato e senza CTA per scaricare dalla dashboard.
+
+**Fix**:
+- **Nuova funzione `send_fattura_paziente_email`** in `email_service.py`:
+  - Soggetto: `Fattura {NUMERO} per la tua seduta con Dr. {COGNOME}`.
+  - Reply-To: `info@funzionabene.it`. From: `noreply@funzionabene.it` (invariato — dominio Resend verificato).
+  - Allegato: `Fattura_{NUMERO}.pdf`.
+  - Corpo brandizzato: blocco riepilogo (numero, importo, data emissione, causale) + nota fiscale detraibilità 19% + pulsante "Scarica dalla tua area" → `/paziente/fatture`.
+  - Fallback: se `pdf_bytes` vuoto, email parte comunque SENZA allegato ma con dashboard CTA visibile.
+  - Ritorna tuple `(ok, error_msg)` per surfacing errori in diagnostica admin.
+- **Callsite aggiornati** (5): `_emit_fattura_for_paid_tx` (webhook Stripe), `admin_generate_missing_fatture`, `admin_retry_fattura`, `admin_reinvia_fattura`, boot migration in `server.py`. Ciascuno enriquisce ora `terapeuta_cognome` e `data_seduta_iso` per il template.
+- **`admin_reinvia_fattura` bypassa il flag `email_sent_at`**: click esplicito admin → sempre eseguito. Su success pulisce `email_error` e `payment_transactions.fattura_error/step`. Nota di credito continua a usare `send_signature_receipt_email` (template diverso corretto).
+- **Error tracking granulare**: `payment_transactions.fattura_error_step` scritto come `fetch_pdf` (storage fail) o `send_email` (Resend fail) → banner diagnostica admin distingue le due cause. Se storage fallisce ma email va comunque (senza allegato), `fetch_pdf` viene ancora persistito così l'admin può fare Reinvia con un fresh storage fetch.
+
+**Test regression (8/8 nuovi + 71/74 regression)**:
+- `tests/test_iter35_fattura_email.py`: subject/reply_to/filename shape, fallback pdf vuoto, guard "NON usa signature_receipt", fetch_pdf persistence in due scenari (email OK vs email fail), reinvia bypass, NC preserva template signature-receipt.
+- 3 test flake pre-existing (motor+asyncio.run cross-module) non correlati.
+
+**Piano operativo post-deploy**: dal pannello admin Fatture → riga FZ-2026-0004 → "Reinvia". Con nuovo template + logging verbose il paziente riceverà (a) l'email con soggetto "Fattura FZ-2026-0004 per la tua seduta con Dr. De Clara", (b) allegato `Fattura_FZ-2026-0004.pdf`, (c) fallback dashboard CTA se lo storage rifiuta. Se qualcosa ancora fallisce, `fattura_error_step` diagnostica dice esattamente dove.
+
+
 ## 2026-09-22 · Bug fix duplo · videocall magic link + reminder scheduling
 
 ### 🔴 Bug A · `/api/videocall-magic/{id}` 500 quando `videocall_magic_expires` era string

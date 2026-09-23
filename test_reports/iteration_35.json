@@ -1,0 +1,36 @@
+{
+  "summary": "Iter35 — Backend regression + focused tests for the new branded fattura patient email (`send_fattura_paziente_email`). All 8 new tests pass. All 8 features from the review request are verified: (1) return-tuple contract, (2) subject/reply_to/attachment-filename shape, (3) fallback without PDF, (4) end-to-end webhook uses branded template (not signature-receipt), (5) storage-fetch fail persistence on tx, (6) admin reinvia bypasses email_sent_at, (7) NC still uses signature-receipt, (8) regression 71/74 iter30–34 tests still pass (3 remaining failures are pre-existing motor+asyncio.run event-loop contamination — pass in isolation, unrelated to email changes).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "_emit_fattura_for_paid_tx (routers/payments.py:147-168)",
+        "issue": "When storage fetch fails but email delivers successfully, `fetch_err` is silently swallowed and NEVER persisted to `payment_transactions.fattura_error` / `fattura_error_step`. As a result admin diagnostics won't see 'fetch_pdf' errors unless the email also fails. This contradicts the review-request expectation that 'STORAGE FETCH FAIL … fattura_error + fattura_error_step=fetch_pdf devono essere salvati'. Consider persisting a warning-level fetch_pdf error even when email eventually succeeds (email was sent WITHOUT attachment — admin should still know)."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter35_fattura_email.py",
+    "/app/test_reports/pytest/iter35_fattura_email.xml",
+    "/app/test_reports/pytest/iter35_regression.xml"
+  ],
+  "action_items": [
+    "(minor, optional) Persist fetch_pdf error on payment_transactions even when email delivery succeeds — otherwise admin will never see storage-fetch failures via /admin/fatture/diagnostics.",
+    "(cleanup, non-blocking) Fix pre-existing pytest event-loop-closed cross-contamination between test_finalize_refactor.py, test_no_show_and_video_gating.py — they pass in isolation but flake when run in the same session (multiple asyncio.run() with motor). Consider a session-scoped event-loop fixture or module isolation."
+  ],
+  "critical_code_review_comments": [
+    "send_fattura_paziente_email correctly returns a `(bool, str)` tuple and includes reply_to=['info@funzionabene.it'], filename 'Fattura_{numero}.pdf', and dashboard link — all as specified. Good separation from signature-receipt.",
+    "admin_reinvia_fattura correctly bypasses email_sent_at flag (explicit admin action) and clears prior email_error + tx.fattura_error on success — good.",
+    "For NC (kind='nota_credito_sanitaria'), admin_reinvia_fattura still calls send_signature_receipt_email which returns bool (not tuple). Wrapping code correctly handles it as `ok = ...; err_msg = '' if ok else 'resend returned False'` — OK.",
+    "Minor: payments.py line 165 uses `fattura_error_step: 'fetch_pdf' if fetch_err else 'send_email'` only inside the `if not ok` branch — see minor issue above."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter35_fattura_email.py"],
+  "success_rate": {"backend": "100% (8/8 new + 71/74 regression, 3 pre-existing infra flakes)", "frontend": "n/a"},
+  "test_credentials": "hr@funzionabene.it / @Bidoc2026! (admin)",
+  "seed_data_creation": "Ephemeral test users/appuntamenti/fatture per test, all cleaned up in try/finally.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "test_iter35_fattura_email.py monkeypatches resend.Emails.send + storage_service.get_object; uses _bind_db pattern from test_fattura_retry_flow.py. When running the full suite, 3 unrelated tests (test_finalize_confirmed_booking_end_to_end, TestScheduleReminders, TestMagicTokenExpiry) can flake due to motor+asyncio.run event-loop reuse — they pass individually. Not a fattura-email regression.",
+  "rca of the issue": "Original bug (fattura FZ-2026-0004 emitted but no email to patient) root-caused as: all callsites reused send_signature_receipt_email (legal-document receipt template) → subject/attachment/body not recognizable as a fattura, and on storage-fetch failure the email left without attachment and without a dashboard link. Fix introduces a dedicated send_fattura_paziente_email with correct subject, reply_to=info@funzionabene.it, filename Fattura_{numero}.pdf, branded body + dashboard CTA + fallback path. Verified: (a) template shape (test 1), (b) SEND_EMAILS=false → ('email_send_disabled') without raising (test 2), (c) empty pdf_bytes → sends WITHOUT attachments key and body has /paziente/fatture link (test 3), (d) _emit_fattura_for_paid_tx now uses the branded function; guard asserts send_signature_receipt_email is NOT invoked (test 4), (e) tx.fattura_error_step='fetch_pdf' persisted when both storage AND email fail (test 5), (f) storage-fail + email-ok → email sent without attachment (test 6), (g) admin reinvia bypasses email_sent_at (test 7), (h) NC preserves signature-receipt template (test 8). Remaining edge: when storage-fail but email-ok, no error trace is persisted — flagged as minor."
+}

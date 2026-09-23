@@ -150,6 +150,18 @@ async def _emit_fattura_for_paid_tx(tx_id: str, appt_id: str, paziente_user: Opt
                     {"$set": {"email_sent_at": datetime.now(timezone.utc)},
                      "$unset": {"email_error": ""}},
                 )
+                # If we sent the email but the attachment was missing due to
+                # storage failure, surface it on the tx so admin diagnostics
+                # can prompt a "Reinvia" with a fresh storage fetch.
+                if fetch_err:
+                    await db.payment_transactions.update_one(
+                        {"_id": _Oid(tx_id)},
+                        {"$set": {
+                            "fattura_error": fetch_err[:500],
+                            "fattura_error_step": "fetch_pdf",
+                            "fattura_error_at": datetime.now(timezone.utc),
+                        }},
+                    )
             else:
                 await db.fatture.update_one(
                     {"_id": fattura["_id"]},
