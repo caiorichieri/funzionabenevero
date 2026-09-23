@@ -43,6 +43,7 @@ export default function VideoCallPage() {
     }
     const frame = DailyIframe.createFrame(containerRef.current, {
       showLeaveButton: true,
+      allowMultipleCallInstances: true,
       iframeStyle: {
         position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
         border: "0", background: "#0A0A0A",
@@ -51,9 +52,9 @@ export default function VideoCallPage() {
         colors: {
           accent: "#F58A1F", accentText: "#0A0A0A", background: "#0A0A0A",
           backgroundAccent: "#1C2A33", baseText: "#F4F1ED",
-          border: "rgba(255,255,255,0.08)", mainAreaBg: "#111111",
+          border: "#1F2937", mainAreaBg: "#111111",
           mainAreaBgAccent: "#1C2A33", mainAreaText: "#F4F1ED",
-          supportiveText: "rgba(230,226,216,0.7)",
+          supportiveText: "#B8B4A8",
         },
       },
     });
