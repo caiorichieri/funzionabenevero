@@ -7,5 +7,9 @@ try:
     _env = Path(__file__).resolve().parent.parent / ".env"
     if _env.exists():
         load_dotenv(_env, override=False)
+    # Also load frontend/.env for REACT_APP_BACKEND_URL
+    _fe = Path(__file__).resolve().parent.parent.parent / "frontend" / ".env"
+    if _fe.exists():
+        load_dotenv(_fe, override=False)
 except ImportError:
     pass

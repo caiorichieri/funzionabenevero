@@ -668,7 +668,7 @@ async def create_refund(body: RefundRequest, user: dict = Depends(require_admin)
     nc_info = None
     if tx.get("appointment_id"):
         nc_doc = await db.fatture.find_one(
-            {"appuntamento_id": tx["appointment_id"], "kind": "nota_credito"},
+            {"appuntamento_id": tx["appointment_id"], "kind": {"$in": ["nota_credito", "nota_credito_sanitaria"]}},
             sort=[("created_at", -1)],
         )
         if nc_doc:

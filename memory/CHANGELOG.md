@@ -1,5 +1,44 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-22 · Code review d367edc9 · 3 defetti HIGH/MEDIUM fixed (56/56 PASS)
+
+### 🔴 H1 · IDOR nella modifica stato appuntamento
+**Prima**: `PATCH /api/appuntamenti/{id}/stato`, `PUT` e `POST` accettavano qualsiasi utente autenticato → un paziente A poteva cancellare/completare l'appuntamento del paziente B, disparando fattura sanitaria automatica per la vittima.
+
+**Fix** in `routers/appuntamenti.py`:
+- Nuovo helper `_load_appt_or_404` + `_assert_can_manage_appt` con ownership check per role:
+  - admin: bypass.
+  - paziente: `appt.paziente_user_id == user._id`.
+  - terapeuta: `appt.terapeuta_user_id == user._id` + fallback su `terapisti.user_id` via `terapeuta_id` (per appt legacy).
+- `PATCH` blocca anche pazienti/terapeuti dal forzare `completato`/`cancellato_con_addebito` (solo admin, per evitare fattura emission fuori controllo).
+- `POST /appuntamenti` ora richiede `require_admin` (i booking dei pazienti passano da `/payments/checkout/booking` che stamppa correttamente i field di ownership).
+
+### 🔴 H2 · Fatture di commissione mensile omettevano sessioni attese
+**Prima**: aggregazione mensile contava solo `stato in ['completato','confermato']`. Il job no-show marca `in_corso` quando entrambi entrano → **queste sessioni non erano fatturate come commissione BIDOC 30%**.
+
+**Fix** in `routers/fatture.py`:
+- Nuovo constant module-level `PAID_APPT_STATES` = `['completato','confermato','in_corso','no_show_paziente','no_show_terapeuta','no_show_entrambi','cancellato_con_addebito']`.
+- Riusato in: `_generate_fatture_commissione_mensile`, `/admin/fatture/diagnostics`, `/admin/fatture/generate-missing`, boot backfill in `server.py`.
+- Rimborsi transitano `cancellato` via refund side-effects → automaticamente esclusi.
+
+### 🟡 M1 · Refund direto no Stripe dashboard lasciava appuntamento orfano + no NC
+**Prima**: webhook `charge.refunded` flipava solo `payment_status`. Se admin rimborsava dal dashboard Stripe (non via `/admin/refunds`), l'appuntamento restava `confermato` (room + reminders attivi) e la Nota di Credito TD04 non veniva emessa.
+
+**Fix** in `routers/payments.py`:
+- Extract di `_apply_refund_side_effects(tx, admin_note, motivo_nc)` che: (1) cancella appt (guarded con `$nin`), (2) emette NC TD04 (idempotente via unique guard su `fattura_originale_id + kind`), (3) email NC PDF al paziente (best-effort).
+- Webhook `charge.refunded` ora è idempotente (guard `payment_status: {$ne: 'refunded'}`) e chiama lo stesso helper.
+- Endpoint `/admin/refunds` refattorizzato per usare lo stesso helper (DRY).
+- Fixed drift: `nc_info` nel response ora legge kind con `$in: ['nota_credito','nota_credito_sanitaria']` (era null in precedenza).
+
+### Test regression (56/56 PASS)
+- `tests/test_iter33_authz_commission_refund.py` (nuovo): 18 test coprono H1 (11), H2 (4), M1 (2), constant shape.
+- Precedenti: 38/38 (fattura auto-emit + retry, no-show + video gating, Rome-TZ slots).
+
+### Backlog code review (aperto)
+- 4 LOW dal code review: N+1 in `/admin/seduta-logs` (limit 500), docstring magic-link, dead code `admin_gen_nota_credito`, weak participant name matching in no_show_service.
+- 55 hook-deps residui + refactor componenti giganti + complessità cyclomatiche.
+
+
 ## 2026-09-22 · Code review d367edc9 · Batch 1 hook-deps (6/61 file)
 
 Applicato fix mirati a **6 file di priorità 1** dal report — user-facing critici. I 55 hook-deps rimanenti + refactor componenti giganti (900+ righe) restano in backlog per iterazioni dedicate.

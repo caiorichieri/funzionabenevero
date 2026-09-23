@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration 33: verified H1 IDOR fix, H2 commission PAID_APPT_STATES expansion, M1 refund side-effects idempotency. Created new test file with 18 targeted tests covering all 13 items in the review request. All 18 pass. All 38 prior regression tests (fattura_auto_emit, fattura_retry, no_show + video gating, Rome-TZ slots) continue to pass → total 56/56 green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "N/A (docs vs code drift)", "issue": "Review request states NC is written with kind='nota_credito' and linked via original_fattura_id. Actual code (routers/fatture.py) uses kind='nota_credito_sanitaria' and field fattura_originale_id. Also payments.py:670 reads back the NC using kind='nota_credito' (won't match) — nc_info in the /admin/refunds response will always be None as a result. Non-blocking (NC IS created correctly and side-effects run) but the admin response is missing NC data."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter33_authz_commission_refund.py",
+    "/app/test_reports/pytest/pytest_iter33.xml",
+    "/app/test_reports/pytest/pytest_iter33_full.xml"
+  ],
+  "verification_details": {
+    "H1_paz_A_patch_paz_B_stato": "403 as expected (IDOR blocked)",
+    "H1_paz_A_put_paz_B": "403 (PUT also gated by _assert_can_manage_appt)",
+    "H1_owner_paz_force_completato": "403 (only admin can set fiscal states)",
+    "H1_owner_paz_force_cancellato_con_addebito": "403 (only admin)",
+    "H1_owner_paz_can_cancel_own": "200 (patient can still cancel own session)",
+    "H1_admin_force_completato": "200 + idempotent 2nd call → auto-fattura fallback runs without duplicating",
+    "H1_terapeuta_owner_confirm": "200 (via terapeuta_user_id path)",
+    "H1_terapeuta_cross_therapist": "403 (ownership enforced)",
+    "H1_terapeuta_legacy_fallback": "200 (appt without terapeuta_user_id — falls back to db.terapisti.user_id lookup via terapeuta_id)",
+    "H1_POST_appuntamenti_paziente": "403 (require_admin on POST)",
+    "H1_POST_appuntamenti_terapeuta": "403",
+    "H1_POST_appuntamenti_admin": "200 (creates appt)",
+    "H2_in_corso_included": "count=1 (paid state)",
+    "H2_no_show_paziente_included": "count=1",
+    "H2_cancellato_excluded": "count=0",
+    "H2_PAID_APPT_STATES_shape": "Contains all 7 required states; cancellato/annullato correctly absent",
+    "M1_refund_side_effects": "First call: appt.stato→cancellato, NC generated with fattura_originale_id link. 2nd call: appt not re-touched (guard $nin), NC not duplicated (unique guard). PASS.",
+    "M1_refund_webhook_guard": "Update guard {payment_status:{$ne:refunded}} correctly no-ops on already-refunded tx (modified_count=0)."
+  },
+  "regression_tests": {
+    "iter33_new": "18/18 PASSED",
+    "prev_38_regression": "38/38 PASSED (fattura_auto_emit, fattura_retry_flow, no_show_and_video_gating, slots_rome_tz_fix)",
+    "combined": "56/56 PASSED"
+  },
+  "action_items": [
+    "Optional cleanup: align payments.py:670 read-back to use kind='nota_credito_sanitaria' (or {$in:['nota_credito','nota_credito_sanitaria']}) so /admin/refunds returns nc_info populated. Currently it always returns null even when the NC was correctly generated.",
+    "Consider adding a unique index on (appuntamento_id, kind) to fatture collection to make idempotency of NC generation enforced at DB level (currently only checked in code via find_one before insert)."
+  ],
+  "critical_code_review_comments": [
+    "_assert_can_manage_appt is well-scoped: admin bypass first, then role-specific checks with a fallback lookup for legacy appts lacking terapeuta_user_id — good defensive design.",
+    "PATCH /appuntamenti/{id}/stato now correctly rejects paziente/terapeuta attempts to set completato / cancellato_con_addebito. Admin still triggers auto-fattura fallback which is idempotent (already_exists check + unique guard). Good.",
+    "PAID_APPT_STATES is centralised in routers/fatture.py:32-40 and reused in commission + diagnostics + backfill. Clean.",
+    "_apply_refund_side_effects is truly idempotent: (a) appt update uses $nin guard, (b) NC generation uses find_one on fattura_originale_id + kind before insert. Good.",
+    "MINOR DRIFT: payments.py:671 queries {kind: 'nota_credito'} to build nc_info but the NC is stored with kind='nota_credito_sanitaria' — the response's nc_info will always be null. Non-blocking (side-effects work) but user-visible API contract regression."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter33_authz_commission_refund.py (new)",
+    "/app/backend/tests/conftest.py (also load frontend/.env for REACT_APP_BACKEND_URL)"
+  ],
+  "success_rate": {"backend": "100% (56/56)", "frontend": "skipped per request"},
+  "test_credentials": "Admin/therapist/patient from /app/memory/test_credentials.md. Test also creates a temp 2nd patient (email TEST_PazB TEST_iter33_paz_b_<random>@example.com) in Mongo directly and cleans up after.",
+  "seed_data_creation": "Per-test temporary appointments (marked note_test_marker='iter33_commission' / 'iter33_refund'), a temp patient B user + patient profile, temp payment_transactions + fatture. All rolled back in fixture teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iter33_authz_commission_refund.py uses function-scoped event_loop + Motor client, and monkeypatches deps.db / routers.payments.db / routers.fatture.db before invoking _apply_refund_side_effects — this is required because prior test files (pytest-asyncio) close the module's default loop, and the router's cached db client would otherwise raise 'Event loop is closed'. If future tests need to call the payments router directly, follow the same monkeypatch pattern."
+}
