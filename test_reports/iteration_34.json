@@ -1,0 +1,50 @@
+{
+  "summary": "Iter34 backend regression: verified BUG A (magic link gate accepts string+datetime videocall_magic_expires, extended window start+durata+15) and BUG B (booking_service.schedule_reminders naive→Rome-TZ parsing, idempotency via replace_existing, cancel_scheduled_jobs, reschedule_reminders) — all 13 new tests pass. Adjusted 1 stale assertion in test_no_show_and_video_gating.py::test_magic_expires_is_start_plus_15min to match the intentional new contract (start+durata+15 = 65 min instead of 15 min). 68/69 tests pass in aggregated run; the 1 failure is a pre-existing cross-file event-loop isolation flake (deps.db motor client bound to iter33's now-closed loop) unrelated to iter34 fixes — it passes in isolation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "test infra: tests/test_no_show_and_video_gating.py::TestMagicTokenExpiry",
+        "issue": "Flaky when run after tests/test_iter33_authz_commission_refund.py — booking_service._ensure_videocall_magic_token uses deps.db (module-global motor AsyncIOMotorClient) which was first bound to iter33's event_loop; when that loop closes, subsequent calls raise 'Event loop is closed'. Passes when file runs in isolation. Pre-existing (not caused by iter34). Fix would require deps.db to be a lazy per-loop client or the test to use its own booking_service instance."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter34_magic_link_and_reschedule.py",
+    "/app/test_reports/pytest/iter34_full.xml",
+    "/app/test_reports/pytest/iter34_results.xml"
+  ],
+  "test_coverage": {
+    "BUG_A_magic_expires_string": "PASS — 200 returned, no more 500 from .tzinfo on str",
+    "BUG_A_magic_expires_datetime": "PASS — 200 returned (no regression)",
+    "BUG_A_extended_window_start-30min": "PASS — 200 (close_at = start+65min)",
+    "BUG_A_beyond_window_start-90min": "PASS — 410 session_closed",
+    "BUG_A_before_window_start+30min": "PASS — 425 too_early",
+    "BUG_A_invalid_token": "PASS — 403",
+    "BUG_A_expires_None_fallback": "PASS — 200 (uses start+durata+15 fallback)",
+    "BUG_B_aware_iso_registers_5_reminder_jobs+3_noshow": "PASS — job.next_run_time matches offsets within 60s",
+    "BUG_B_naive_string_treated_as_Rome": "PASS — rem1h fires at Rome_start-1h in UTC (not UTC_naive-1h, which would be ~1h off in CET / 2h off in CEST)",
+    "BUG_B_idempotency_replace_existing": "PASS — two calls produce identical job-id set, no duplicates",
+    "BUG_B_cancel_scheduled_jobs": "PASS — all 8 jobs (5 reminder + 3 no-show) removed after cancel",
+    "BUG_B_cancel_when_missing_is_noop": "PASS — no exception",
+    "BUG_B_reschedule_reminders": "PASS — old_id jobs cancelled, new_id jobs registered at new time"
+  },
+  "critical_code_review_comments": [
+    "GOOD: _parse_stored_datetime is a clean, defensive helper — handles both legacy ISO string and native BSON datetime, returns None safely.",
+    "GOOD: _reminder_job_ids centralises job-id namespacing so cancel + schedule stay in sync — DRY.",
+    "GOOD: reschedule_reminders correctly delegates: cancel(old) + schedule(new). Integrated into routers/calendario.py confirm_reschedule after new insert.",
+    "MINOR: booking_service.schedule_reminders (module-level 'scheduler' singleton) inherits its event loop from first-caller. In tests this causes 'Event loop is closed' when different pytest modules use different loops. Consider a fresh AsyncIOScheduler per app startup + injection, or a lazy accessor pattern — improves testability.",
+    "MINOR: no_show_service.schedule_no_show_check does its own datetime.fromisoformat parse on start_iso. booking_service.schedule_reminders passes the already-UTC-normalised ISO — fine — but a naive/Rome-string leaking directly into schedule_no_show_check would still be misinterpreted as UTC. Since schedule_reminders is the only caller in-tree, this is only a latent risk if someone calls schedule_no_show_check directly with legacy data.",
+    "MINOR: routers/appuntamenti.py::videocall_magic and video_token both do _parse_appt_start on data_ora (still string in DB). If a future migration writes data_ora as a native datetime, the current .replace('Z','+00:00') pathway would raise. Consider using _parse_stored_datetime uniformly."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter34_magic_link_and_reschedule.py (new)",
+    "/app/backend/tests/test_no_show_and_video_gating.py (stale-contract assertion updated in TestMagicTokenExpiry)"
+  ],
+  "success_rate": {"backend": "98.5% (68/69 aggregated; 100% for iter34-specific + 100% in isolation)"},
+  "seed_data_creation": "test_iter34 seeds appuntamenti + pazienti with test_seed=True and cleans up on teardown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter34 fixes verified end-to-end. The only failing test in aggregated runs (test_magic_expires_is_start_plus_15min) is a pre-existing cross-module event-loop isolation issue caused by deps.db motor client binding to the first pytest module's loop; passes standalone. Consider addressing by making deps.db a lazy accessor. All BUG A and BUG B assertions from the review request are covered."
+}

@@ -1,5 +1,32 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-22 · Bug fix duplo · videocall magic link + reminder scheduling
+
+### 🔴 Bug A · `/api/videocall-magic/{id}` 500 quando `videocall_magic_expires` era string
+**Root cause**: alcuni record avevano `videocall_magic_expires` scritto come stringa (via `.isoformat()`) invece che BSON datetime. Il gate faceva `.tzinfo` diretto sulla stringa → `AttributeError` → 500.
+
+**Fix** in `routers/appuntamenti.py`:
+- Nuovo helper `_parse_stored_datetime(val)` che accetta sia `datetime` che stringa ISO, ritorna aware-UTC o None.
+- La finestra del magic link è stata **estesa** da `start+15min` a `start+durata+15min` — coincide col logged-in join window, permette re-join dopo disconnessione via email link. Il no-show cutoff a `start+15min` rimane responsabilità del scheduled job (marca stato + email) e NON blocca più l'ingresso.
+- `booking_service::_ensure_videocall_magic_token` ora scrive `magic_expires = start + durata + 15 min`.
+
+### 🔴 Bug B · Reminder scattavano off-time (data_ora naive interpretata come UTC)
+**Root cause**: `schedule_reminders` faceva `datetime.fromisoformat(data_ora).replace(tzinfo=UTC)` sui valori naive. Vecchi record naive-Rome venivano interpretati come UTC → reminder scattavano 2h fuori durante CEST.
+
+**Fix** in `booking_service.py`:
+- Naive strings ora sono interpretate come `Europe/Rome` (fuso fiscale di record), normalizzate a UTC per APScheduler.
+- Nuovi helper: `_reminder_job_ids(app_id)` (centralizza il namespace), `cancel_scheduled_jobs(app_id)` (rimuove tutti i job di un appt), `reschedule_reminders(old_id, new_id, ctx)` (cancel + fresh schedule).
+- `routers/calendario.py::confirm_reschedule` ora chiama `reschedule_reminders` dopo l'insert del nuovo appt → reminder + no-show jobs migrano dal vecchio id namespace al nuovo, col nuovo orario. Prima, i job leakavano nel vecchio id e scattavano sullo slot originale.
+
+### Test regression (13/13 nuovi PASS + 55/56 precedenti)
+- `tests/test_iter34_magic_link_and_reschedule.py`: gate string/datetime, finestre 425/410, idempotency scheduler, cancel + reschedule flow.
+- 1 test flake pre-existing (event-loop cross-module isolation) — non causato da iter34, passa in isolamento.
+
+### Minor code review carry-over (backlog)
+- `deps.db` motor client bound al primo pytest loop → cross-module flake. Considerare lazy accessor.
+- `no_show_service.schedule_no_show_check` fa parsing indipendente — se chiamato con naive-Rome esternamente potrebbe misinterpretare. Solo caller in-tree è `schedule_reminders` (ora pre-normalizza), quindi latente.
+
+
 ## 2026-09-22 · Code review d367edc9 · 3 defetti HIGH/MEDIUM fixed (56/56 PASS)
 
 ### 🔴 H1 · IDOR nella modifica stato appuntamento

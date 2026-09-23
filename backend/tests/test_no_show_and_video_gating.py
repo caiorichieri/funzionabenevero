@@ -430,7 +430,9 @@ class TestMagicTokenExpiry:
         if exp.tzinfo is None:
             exp = exp.replace(tzinfo=timezone.utc)
         diff = (exp - start).total_seconds()
-        assert 14 * 60 <= diff <= 16 * 60, f"expected ~15 min offset, got {diff}s"
+        # iter34 fix: magic-link expiry now mirrors the logged-in join window
+        # (start + durata + 15 min = 65 min for a 50-min session), not start+15.
+        assert 64 * 60 <= diff <= 66 * 60, f"expected ~65 min offset (start+durata+15), got {diff}s"
 
 
 # ─── admin/seduta-logs listing + permissions ──────────────────────────────────
