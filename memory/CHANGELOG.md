@@ -1,5 +1,72 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-24 · Fix "Prenota subito" mobile-vs-desktop + cleanup terapeuti demo + SMS/videocall live
+
+**Segnalazioni utente**:
+1. Cliccando "Prenota subito" dal telefonino non vede orari, dal desktop sì.
+2. Video call: il link magico apriva, chiedeva permesso camera, ma restava bloccato su "Apertura della stanza video…".
+3. SMS reminder non partivano (`error 21704 — messaging service has no phone number for this destination country`).
+
+### Fix 1 — PrenotaSubitoModal random empty
+
+**Root cause**: `PrenotaSubitoModal` prendeva sempre `terapisti[0]` dalla `/api/public/terapisti`. La query `db.terapisti.find({...})` senza `.sort()` restituiva documenti in "natural order" MongoDB → l'ordine cambiava tra chiamate. Se il primo era un utente demo/test senza agenda ("Giulia T", ecc.), il modal mostrava "nessun orario disponibile" pur essendoci altri terapisti con slot pieni.
+
+Aggravante: in preview c'erano 9 terapisti seed/test misti a quelli reali; in produzione c'era già solo Laura De Clara ma il bug si manifestava per **cache stale del PWA** che serviva un bundle JS precedente al momento in cui Laura aveva popolato l'agenda.
+
+**Fix**:
+- `server.py` — `/api/public/terapisti`, `/api/public/terapisti/{tid}`, `/api/public/matching` ora filtrano `is_test != True` e usano `.sort([("priority", -1), ("cognome", 1), ("nome", 1)])`.
+- `routers/terapisti.py` — estratta helper `_compute_terapista_slots(terapista, terapista_id, start, end, min_slot_time, durata)` riusata da:
+  - `GET /api/terapisti/{id}/slots` (esistente, refactored)
+  - `GET /api/public/next-slots?limit=3&settimane=2` **NUOVO**: aggrega slot di TUTTI i terapisti verificati (non-test), dedupe per `(terapeuta_id, day)` così ogni riga del modal è un'opzione realmente diversa, embed di `terapeuta_id/nome/cognome/prezzo_sessione` per riga.
+- `PrenotaSubitoModal.jsx` — passa a `/public/next-slots`, ogni riga mostra "alle ore HH:MM · con Dr. {nome} {cognome} · €{prezzo}". `handleConfirm` deconstructiona il terapista dallo slot stesso.
+- `public/sw.js` — `CACHE_NAME` `funzionabene-v1` → `funzionabene-v2` per forzare l'invalidazione dei bundle stale su tutti i PWA già installati.
+
+### Fix 2 — Video call bloccata dopo permesso camera
+
+**Root cause combinato**:
+1. `VideoCallPage.jsx` passava `border: "rgba(255,255,255,0.08)"` nel theme del Daily iframe; Daily.co accetta solo colori HEX → lanciava errore intercettato genericamente come "Impossibile entrare nella stanza".
+2. React 18 `StrictMode` invoca `useEffect` due volte in dev; il secondo `DailyIframe.createFrame` veniva rifiutato con "multiple call instances", exception capturata di nuovo come "Impossibile entrare".
+3. `frame.join().then(() => setLoading(false))` non risolveva la Promise quando la prima istanza veniva distrutta mid-flight, così lo spinner "Apertura della stanza video…" restava indefinitamente anche a permesso camera concesso.
+
+**Fix in `VideoCallPage.jsx`**:
+- `theme.colors.border` e `supportiveText` passati a valori HEX validi (`#1F2937`, `#B8B4A8`).
+- `DailyIframe.createFrame(..., { allowMultipleCallInstances: true })` — workaround ufficiale Daily.co per React StrictMode.
+- Rimpiazzato `frame.join().then()` con handler basati su eventi Daily: `joined-meeting`, `loading`, `loaded` chiudono lo spinner; `error` mostra il messaggio reale; `frame.join(...).catch(...)` intercetta il fallimento della Promise stessa.
+
+### Fix 3 — SMS reminder + smoke test end-to-end
+
+**Root cause**: Twilio Messaging Service "FunzionaBene Reminders" era vuoto (0 numeri, 0 alpha sender). L'errore 21704 significa "Messaging Service ha nessun mittente per il paese di destinazione (IT)".
+
+**Fix**: utente ha registrato l'alpha sender **`Funzbene`** nel pool del service tramite Twilio Console. SMS reminder ora parte con From = `Funzbene`; Twilio ha risposto `status=sent`.
+
+**Verifica live**:
+- OTP (Twilio Verify) → **delivered**
+- Reminder da alpha sender `Funzbene` → **sent** al `+393518230667`
+- Video call E2E mobile: sessione fake creata `_id=6ab45f290ac2fa69453418d2` con room Daily `funzionabene.daily.co/appuntamento-6ab45f290ac2fa69453418d2` — utente ha confermato "deu certo" dopo il fix.
+
+### Data hygiene preview
+
+Marcati come `is_test: true` in preview DB: 5 terapisti chiaramente test (Giulia T, Test User, Foto Tester, Mario Rossi, Maria Rossi). I 4 seed corporativi (Alessandro Conti, Chiara Esposito, Marco Fontana, Giulia Marchetti) confermati come seed dopo evidenze (tutti creati in 1 secondo, `telefono_verificato=None`, `documenti_count=0`) — l'utente ha confermato che l'unica terapeuta reale è **Laura De Clara** (già presente solo in prod). Flag `is_test` rimosso su preview per non rompere i test di regressione; il filtro nell'API resta.
+
+### File toccati
+- `backend/server.py`
+- `backend/routers/terapisti.py`
+- `frontend/src/components/public/PrenotaSubitoModal.jsx`
+- `frontend/src/pages/VideoCallPage.jsx`
+- `frontend/public/sw.js`
+
+### Test status
+- Suite `test_slots_endpoint::TestSlots` → PASS dopo il refactor
+- `_compute_terapista_slots` verificata via curl sul preview: 3 slot diversificati con nomi terapeuti embedded
+- Video call reproducibile su Playwright viewport mobile → Daily.co iframe entra in preview + partecipa
+- SMS reminder → Twilio `messages.list` conferma `status=sent` con `from=Funzbene`
+
+### Deploy
+Deploy pipeline lanciata: job_id `d3dd1dcd-4cc8-41e3-9745-1d6a5a432b7b`. In produzione basta che Laura De Clara abbia slot popolati (già così, 28 disponibili) e il fix è live sia mobile che desktop.
+
+---
+
+
 ## 2026-09-22 · Fix fattura FZ-2026-0004 non recapitata + email brandizzata
 
 **Segnalazione**: fattura FZ-2026-0004 emessa e visibile in "Le mie fatture" del paziente, ma **non arrivata via email**.

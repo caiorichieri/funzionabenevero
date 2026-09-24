@@ -4,7 +4,7 @@
  *  - HTML navigation: network-first, offline fallback to cached shell
  *  - /api/*: NEVER cache — always network (dynamic user data)
  */
-const CACHE_NAME = "funzionabene-v1";
+const CACHE_NAME = "funzionabene-v2";
 const OFFLINE_URL = "/";
 const STATIC_ASSETS = [
   "/",

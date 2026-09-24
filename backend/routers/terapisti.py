@@ -456,7 +456,19 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     end = start + timedelta(weeks=max(1, min(settimane, 8)))
+    slots, source = await _compute_terapista_slots(terapista, terapista_id, start, end, min_slot_time, durata)
 
+    return {
+        "slots": slots,
+        "terapeuta_id": terapista_id,
+        "durata_minuti": durata,
+        "source": source,
+    }
+
+
+async def _compute_terapista_slots(terapista: dict, terapista_id: str, start: datetime,
+                                    end: datetime, min_slot_time: datetime, durata: int):
+    """Return (slots_list, source_label). Shared by /terapisti/{id}/slots and /public/next-slots."""
     existing = await db.appuntamenti.find({
         "terapeuta_id": terapista_id,
         "stato": {"$nin": ["cancellato", "annullato"]},
@@ -465,8 +477,6 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
     booked = {a["data_ora"][:16] for a in existing}
 
     slots = []
-
-    # PRIMARY: date-specific calendar (disponibilita_calendario)
     cal = terapista.get("disponibilita_calendario") or {}
     use_calendar = bool(cal) and not terapista.get("calendario_bozza")
 
@@ -479,7 +489,6 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                     h, m = int(hhmm[:2]), int(hhmm[3:5])
                 except (ValueError, IndexError):
                     continue
-                # Interpret "HH:MM" as Rome-local time (author intent), not UTC.
                 slot_t = _rome_hhmm_to_utc(current_day, h, m)
                 if slot_t < min_slot_time:
                     continue
@@ -491,7 +500,6 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                 })
             current_day += timedelta(days=1)
     else:
-        # FALLBACK: legacy weekly recurring availability
         disponibilita = terapista.get("disponibilita", [])
         current_day = start
         while current_day < end:
@@ -504,7 +512,6 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                     h1, m1 = map(int, disp["ora_fine"].split(":"))
                 except Exception:
                     continue
-                # Same fix: weekly grid "HH:MM" is Rome-local time.
                 slot_t = _rome_hhmm_to_utc(current_day, h0, m0)
                 end_t = _rome_hhmm_to_utc(current_day, h1, m1)
                 while slot_t + timedelta(minutes=durata) <= end_t:
@@ -518,12 +525,53 @@ async def get_slots(terapista_id: str, data_inizio: str = None, settimane: int =
                     slot_t += timedelta(minutes=durata)
             current_day += timedelta(days=1)
 
-    return {
-        "slots": slots,
-        "terapeuta_id": terapista_id,
-        "durata_minuti": durata,
-        "source": "calendar" if use_calendar else "legacy_weekly",
-    }
+    return slots, ("calendar" if use_calendar else "legacy_weekly")
+
+
+@router.get("/public/next-slots")
+async def public_next_slots(limit: int = 3, settimane: int = 2):
+    """Aggregate the next N available slots across ALL verified, non-test therapists.
+    Used by the 'Prenota subito' modal on the homepage so it never shows an empty list
+    when at least one therapist has availability."""
+    limit = max(1, min(limit, 20))
+    durata = 50
+    now = datetime.now(timezone.utc)
+    min_slot_time = now + timedelta(hours=2)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(weeks=max(1, min(settimane, 8)))
+
+    terapisti_cursor = db.terapisti.find(
+        {"documenti_verificati": True, "sospeso": {"$ne": True}, "is_test": {"$ne": True}}
+    )
+    aggregated = []
+    async for t in terapisti_cursor:
+        tid = str(t["_id"])
+        slots, _ = await _compute_terapista_slots(t, tid, start, end, min_slot_time, durata)
+        for s in slots:
+            if not s.get("disponibile"):
+                continue
+            aggregated.append({
+                **s,
+                "terapeuta_id": tid,
+                "terapeuta_nome": t.get("nome", ""),
+                "terapeuta_cognome": t.get("cognome", ""),
+                "prezzo_sessione": t.get("prezzo_sessione"),
+            })
+
+    aggregated.sort(key=lambda x: x["data_ora"])
+
+    # Dedupe: at most 1 slot per (day, therapist) so the 3 shown options are diverse
+    # (avoids showing 3 back-to-back slots of the same therapist on the same day).
+    seen = set()
+    diverse = []
+    for s in aggregated:
+        day_key = (s["terapeuta_id"], s["data_ora"][:10])
+        if day_key in seen:
+            continue
+        seen.add(day_key)
+        diverse.append(s)
+
+    return {"slots": diverse[:limit], "durata_minuti": durata}
 
 
 # ─── Admin: therapist approval + documents review & verification ─────────────

@@ -36,8 +36,7 @@ function formatSlot(iso) {
 export default function PrenotaSubitoModal({ open, onClose, onConfirm }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [terapista, setTerapista] = useState(null);
-  const [slots, setSlots] = useState([]);
+  const [slots, setSlots] = useState([]);           // aggregated slots (each has its own terapeuta_*)
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   useEffect(() => {
@@ -48,26 +47,14 @@ export default function PrenotaSubitoModal({ open, onClose, onConfirm }) {
       setError("");
       setSelectedIdx(0);
       try {
-        // 1) Pick first verified therapist (demo for now, all users when more therapists are onboarded)
-        const tList = await axios.get(`${API}/public/terapisti`).then(r => r.data || []);
-        if (!tList.length) {
-          if (!cancelled) setError("Al momento nessun terapeuta è disponibile online.");
-          return;
-        }
-        const t = tList[0];
-        // 2) Pull next 2 weeks of slots, take first 3 future ones
-        const res = await axios.get(`${API}/terapisti/${t._id}/slots`, {
-          params: { settimane: 2 },
+        // Aggregated across ALL verified therapists — never picks a random empty one.
+        const res = await axios.get(`${API}/public/next-slots`, {
+          params: { limit: 3, settimane: 2 },
         }).then(r => r.data || { slots: [] });
-        const now = new Date();
-        const future = (res.slots || [])
-          .filter(s => s.disponibile !== false && new Date(s.data_ora) > now)
-          .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora))
-          .slice(0, 3);
+        const items = res.slots || [];
         if (!cancelled) {
-          setTerapista(t);
-          setSlots(future);
-          if (future.length === 0) {
+          setSlots(items);
+          if (items.length === 0) {
             setError("Nessun orario disponibile nelle prossime 2 settimane. Scrivici su WhatsApp per più opzioni.");
           }
         }
@@ -82,8 +69,16 @@ export default function PrenotaSubitoModal({ open, onClose, onConfirm }) {
   }, [open]);
 
   const handlePrenota = () => {
-    if (!terapista || !slots[selectedIdx]) return;
-    onConfirm({ terapista, slot: slots[selectedIdx] });
+    const slot = slots[selectedIdx];
+    if (!slot) return;
+    // Backend embeds terapeuta_* inside each aggregated slot; unpack here for BookingSheet.
+    const terapista = {
+      _id: slot.terapeuta_id,
+      nome: slot.terapeuta_nome,
+      cognome: slot.terapeuta_cognome,
+      prezzo_sessione: slot.prezzo_sessione,
+    };
+    onConfirm({ terapista, slot });
   };
 
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MSG)}`;
@@ -151,9 +146,10 @@ export default function PrenotaSubitoModal({ open, onClose, onConfirm }) {
                   {slots.map((s, i) => {
                     const f = formatSlot(s.data_ora);
                     const selected = i === selectedIdx;
+                    const drName = `Dr. ${s.terapeuta_nome || ""} ${s.terapeuta_cognome || ""}`.trim();
                     return (
                       <button
-                        key={s.data_ora}
+                        key={s.data_ora + "_" + s.terapeuta_id}
                         type="button"
                         data-testid={`prenota-slot-${i}`}
                         onClick={() => setSelectedIdx(i)}
@@ -170,7 +166,8 @@ export default function PrenotaSubitoModal({ open, onClose, onConfirm }) {
                               {f.giorno} {f.dateStr}
                             </div>
                             <div className="text-xs text-[#0A0A0A]/60">
-                              alle ore {f.timeStr}
+                              alle ore {f.timeStr} · con {drName}
+                              {s.prezzo_sessione ? ` · €${s.prezzo_sessione}` : ""}
                             </div>
                           </div>
                         </div>
@@ -181,13 +178,6 @@ export default function PrenotaSubitoModal({ open, onClose, onConfirm }) {
                     );
                   })}
                 </div>
-
-                {terapista && (
-                  <p className="text-xs text-[#0A0A0A]/55 mb-5 text-center">
-                    Con il Dr. {terapista.nome} {terapista.cognome}
-                    {terapista.prezzo_sessione ? ` · €${terapista.prezzo_sessione}/sessione` : ""}
-                  </p>
-                )}
               </>
             )}
 

@@ -579,7 +579,9 @@ async def dynamic_sitemap():
 
 @api_router.get("/public/terapisti")
 async def public_list_terapisti():
-    docs = await db.terapisti.find({"documenti_verificati": True, "sospeso": {"$ne": True}}).to_list(100)
+    docs = await db.terapisti.find(
+        {"documenti_verificati": True, "sospeso": {"$ne": True}, "is_test": {"$ne": True}}
+    ).sort([("priority", -1), ("cognome", 1), ("nome", 1)]).to_list(100)
     for d in docs:
         d["_id"] = str(d["_id"])
         d.pop("note_cliniche", None)
@@ -591,7 +593,7 @@ async def public_get_terapista(tid: str):
     doc = await db.terapisti.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Terapeuta non trovato")
-    if not doc.get("documenti_verificati") or doc.get("sospeso"):
+    if not doc.get("documenti_verificati") or doc.get("sospeso") or doc.get("is_test"):
         raise HTTPException(status_code=404, detail="Terapeuta non trovato")
     doc["_id"] = str(doc["_id"])
     doc.pop("documenti", None)
@@ -600,7 +602,9 @@ async def public_get_terapista(tid: str):
 
 @api_router.post("/public/matching")
 async def matching(data: MatchingInput):
-    docs = await db.terapisti.find({"documenti_verificati": True, "sospeso": {"$ne": True}}).to_list(100)
+    docs = await db.terapisti.find(
+        {"documenti_verificati": True, "sospeso": {"$ne": True}, "is_test": {"$ne": True}}
+    ).to_list(100)
     PREF_MAP = {"Preferisco una donna": "F", "Preferisco un uomo": "M"}
     pref_genere = PREF_MAP.get(data.preferenza_terapeuta or "", None)
     ORARIO_MAP = {"Mattina (8-12)": (8,12), "Pomeriggio (12-18)": (12,18), "Sera (18-21)": (18,21)}
