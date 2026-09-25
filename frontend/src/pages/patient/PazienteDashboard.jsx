@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
-import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle, Sparkles, FileText } from "lucide-react";
+import { Calendar, Clock, Video, User, Save, CheckCircle, MessageCircle, Sparkles, FileText, Star } from "lucide-react";
 import ChatPanel from "@/components/shared/ChatPanel";
 import Mascotte from "@/components/shared/Mascotte";
 import { formatApiError } from "@/lib/apiError";
@@ -29,6 +29,7 @@ export default function PazienteDashboard() {
   const navigate = useNavigate();
   const [profilo, setProfilo] = useState(null);
   const [appuntamenti, setAppuntamenti] = useState([]);
+  const [pendingReviews, setPendingReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editProfile, setEditProfile] = useState(false);
   const [form, setForm] = useState({
@@ -42,8 +43,9 @@ export default function PazienteDashboard() {
   const fetchData = useCallback(() => {
     Promise.all([
       axios.get(`${API}/pazienti/profilo/me`, { withCredentials: true }).catch(() => null),
-      axios.get(`${API}/appuntamenti`, { withCredentials: true }).catch(() => ({ data: [] }))
-    ]).then(([p, a]) => {
+      axios.get(`${API}/appuntamenti`, { withCredentials: true }).catch(() => ({ data: [] })),
+      axios.get(`${API}/reviews/pending-appointments`, { withCredentials: true }).catch(() => ({ data: [] }))
+    ]).then(([p, a, r]) => {
       if (p) {
         setProfilo(p.data);
         setForm({
@@ -54,6 +56,7 @@ export default function PazienteDashboard() {
         });
       }
       setAppuntamenti(a.data);
+      setPendingReviews(r.data || []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -240,6 +243,48 @@ export default function PazienteDashboard() {
         </div>
         <span className="text-[#0A0A0A]/40 text-lg">→</span>
       </Link>
+
+      {/* Recensioni da lasciare — appare solo se ci sono sedute completate non ancora recensite */}
+      {pendingReviews.length > 0 && (
+        <div className="bg-gradient-to-br from-[#F5D419]/10 to-[#F58A1F]/10 border border-[#F5D419]/40 rounded-2xl p-5 shadow-sm" data-testid="pending-reviews-section">
+          <div className="flex items-center gap-2 mb-4">
+            <Star className="w-5 h-5 text-[#F58A1F] fill-[#F58A1F]" />
+            <h3 className="font-semibold text-[#0A0A0A] font-[Outfit]">
+              Com'è andata la tua {pendingReviews.length === 1 ? "seduta" : `${pendingReviews.length} sedute`}?
+            </h3>
+          </div>
+          <p className="text-sm text-[#0A0A0A]/70 mb-4">
+            La tua opinione aiuta altri pazienti a scegliere. Ci vogliono 30 secondi.
+          </p>
+          <div className="space-y-2">
+            {pendingReviews.slice(0, 3).map((r) => (
+              <div
+                key={r.appuntamento_id}
+                className="flex items-center justify-between gap-3 p-3 bg-white rounded-xl border border-[#0A0A0A]/8"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-sm text-[#0A0A0A] truncate">
+                    Dr. {r.terapista_nome} {r.terapista_cognome}
+                  </div>
+                  <div className="text-xs text-[#0A0A0A]/55">{formatItalianDateTime(r.data_ora)}</div>
+                </div>
+                <Link
+                  to={`/recensione/${r.appuntamento_id}`}
+                  data-testid={`leave-review-${r.appuntamento_id}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0A0A0A] hover:bg-[#1C1C1C] text-white text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap"
+                >
+                  <Star className="w-3 h-3" /> Lascia recensione
+                </Link>
+              </div>
+            ))}
+          </div>
+          {pendingReviews.length > 3 && (
+            <p className="text-xs text-[#0A0A0A]/50 mt-3 text-center">
+              +{pendingReviews.length - 3} altre sedute in attesa di recensione
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Prossime sessioni */}
       {prossime.length > 0 ? (

@@ -112,7 +112,7 @@ async def submit_terapeuta_candidatura(body: CandidaturaTerapistaInput, request:
             "email": email,
             "telefono": telefono,
             "messaggio": (body.messaggio or "").strip() or None,
-            "created_at": now.strftime("%d/%m/%Y %H:%M"),
+            "created_at": now.astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y %H:%M"),
         })
     except Exception as e:
         logging.error(f"[EMAIL] admin candidatura alert failed: {e}")

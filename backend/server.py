@@ -1149,6 +1149,7 @@ from routers.informed_consents import router as _informed_consents_router
 from routers.cancellations import router as _cancellations_router
 from routers.reviews import router as _reviews_router
 from routers.ambassadors import router as _ambassadors_router
+from routers.webhooks_resend import router as _webhooks_resend_router
 app.include_router(_build_admin_analytics_router(db, require_admin), prefix="/api")
 app.include_router(_appuntamenti_router, prefix="/api")
 app.include_router(_terapisti_router, prefix="/api")
@@ -1164,6 +1165,7 @@ app.include_router(_informed_consents_router, prefix="/api")
 app.include_router(_cancellations_router, prefix="/api")
 app.include_router(_reviews_router, prefix="/api")
 app.include_router(_ambassadors_router, prefix="/api")
+app.include_router(_webhooks_resend_router, prefix="/api")
 # CORS — supports multiple frontend origins (preview, production, custom domains) via ALLOWED_ORIGINS env var
 _extra_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 _cors_origins = list({
@@ -1353,6 +1355,15 @@ async def startup():
         {"$set": {"documenti_verificati": True}},
     )
     start_scheduler()
+
+    # Sweep any `in_corso` appointments whose session end + 30min has passed.
+    # Fixes rows stuck before the auto_complete hook existed OR whose
+    # review-invite job failed to fire (crash, restart, etc.)
+    try:
+        from booking_service import sweep_stale_in_corso
+        await sweep_stale_in_corso()
+    except Exception as e:
+        logging.exception(f"[STARTUP] sweep_stale_in_corso failed: {e}")
 
 
 async def _seed_blog_articles():

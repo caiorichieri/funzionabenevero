@@ -2,9 +2,10 @@
 import os
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import resend
+from deps import db
 
 logger = logging.getLogger(__name__)
 
@@ -209,16 +210,82 @@ def _reminder_template(ctx: dict, when: str) -> str:
 
 
 async def _send_raw(params: dict) -> bool:
+    """Low-level Resend send. Returns True on accept, False on failure.
+
+    Kept as a thin bool wrapper for compatibility with the many existing callers
+    that treat delivery as a fire-and-forget signal. New callers should prefer
+    `_send_tracked` which also persists an audit trail in `email_events`.
+    """
+    result = await _send_and_return(params)
+    return bool(result)
+
+
+async def _send_and_return(params: dict) -> dict | None:
+    """Send via Resend and return the API response dict (with `id`) on success, None on failure."""
     if not SEND_EMAILS or not RESEND_API_KEY or RESEND_API_KEY == "placeholder_resend_key":
         logger.info(f"[EMAIL DISABLED] {params.get('subject')} to {params.get('to')}")
-        return False
+        return None
     try:
         result = await asyncio.to_thread(resend.Emails.send, params)
-        logger.info(f"[EMAIL SENT] {params.get('subject')} to {params.get('to')} (id={result.get('id') if isinstance(result, dict) else result})")
-        return True
+        if not isinstance(result, dict):
+            result = {"id": str(result)}
+        logger.info(f"[EMAIL SENT] {params.get('subject')} to {params.get('to')} (id={result.get('id')})")
+        return result
     except Exception as e:
         logger.error(f"[EMAIL ERROR] {params.get('subject')} to {params.get('to')}: {e}")
-        return False
+        return None
+
+
+async def _send_tracked(
+    params: dict,
+    template: str,
+    *,
+    appuntamento_id: str | None = None,
+    paziente_id: str | None = None,
+    terapista_id: str | None = None,
+    fattura_id: str | None = None,
+) -> bool:
+    """Send via Resend and persist an `email_events` audit record.
+
+    On success the doc is created with status="sent" and the Resend id, so the
+    webhook (`POST /api/webhooks/resend`) can later append delivered/opened/clicked
+    events by resend_id. If sending fails we still write a "failed" row so the
+    admin sees the miss instead of a silent drop.
+    """
+    to = params.get("to")
+    subject = params.get("subject")
+    recipient = to[0] if isinstance(to, list) and to else to
+
+    # Tag every send so Resend groups them by template in its dashboard.
+    tags = list(params.get("tags") or [])
+    tags.append({"name": "template", "value": template})
+    if appuntamento_id:
+        tags.append({"name": "appuntamento_id", "value": str(appuntamento_id)})
+    params = {**params, "tags": tags}
+
+    result = await _send_and_return(params)
+    doc = {
+        "template": template,
+        "recipient": recipient,
+        "subject": subject,
+        "appuntamento_id": appuntamento_id,
+        "paziente_id": paziente_id,
+        "terapista_id": terapista_id,
+        "fattura_id": fattura_id,
+        "sent_at": datetime.now(timezone.utc),
+        "events": [],
+    }
+    if result and result.get("id"):
+        doc["resend_id"] = result["id"]
+        doc["status"] = "sent"
+    else:
+        doc["status"] = "failed"
+    try:
+        await db.email_events.insert_one(doc)
+    except Exception as e:
+        # Never let telemetry write kill the actual email flow
+        logger.warning(f"[EMAIL EVENTS] failed to persist audit row for {template}: {e}")
+    return bool(result)
 
 
 async def send_booking_confirmation_email(ctx: dict) -> bool:
@@ -1047,4 +1114,64 @@ Domande? Rispondi a questa email — arriverà a <a href="mailto:info@funzionabe
     except Exception as e:
         logger.exception(f"[FATTURA EMAIL FAILED] numero={numero} to={paziente_email}: {e}")
         return False, f"resend_error: {e!r}"[:400]
+
+
+async def send_review_invite_email(
+    paziente_email: str,
+    paziente_nome: str,
+    terapista_cognome: str,
+    appuntamento_id: str,
+    *,
+    paziente_id: str | None = None,
+    terapista_id: str | None = None,
+) -> bool:
+    """Post-session email inviting the patient to leave a review.
+
+    Migrated from `booking_service._send_review_invite_email` to the standard
+    email_service pipeline so it goes through `_send_tracked` and produces the
+    same audit trail (email_events collection) as every other transactional email.
+    """
+    if not paziente_email:
+        return False
+
+    frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
+    review_url = f"{frontend}/recensione/{appuntamento_id}"
+    dashboard_url = f"{frontend}/paziente"
+    dr_label = f"Dr. {terapista_cognome}" if terapista_cognome else "il tuo specialista"
+    subject = f"Com'è andata con {dr_label}?"
+
+    html = f"""<!DOCTYPE html><html lang="it"><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#F4F1ED;">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="font-family:Georgia,serif;font-size:22px;color:#F4F1ED;">funzionabene</div>
+<div style="font-size:10px;letter-spacing:3px;color:#6B8FA3;margin-top:6px;">GRAZIE PER LA SEDUTA</div>
+</td></tr>
+<tr><td style="padding:32px 40px;text-align:center;">
+<h1 style="font-family:Georgia,serif;font-size:26px;color:#D4A017;margin:0 0 14px;font-weight:500;">Com'è andata, {paziente_nome or ""}?</h1>
+<p style="color:rgba(230,226,216,0.8);font-size:15px;line-height:1.6;margin:0 0 24px;">
+Il tuo parere aiuta altri pazienti a trovare il/la professionista giusto/a.<br>
+Lascia una recensione in 30 secondi — sarà pubblicata dopo una breve verifica dell'amministrazione.
+</p>
+<a href="{review_url}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;letter-spacing:0.5px;">Lascia una recensione →</a>
+<p style="color:rgba(230,226,216,0.4);font-size:12px;line-height:1.6;margin:24px 0 0;">
+Trovi il pulsante anche nella <a href="{dashboard_url}" style="color:#D4A017;text-decoration:underline;">tua area riservata</a>, sezione "Com'è andata la tua seduta?".
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene — Psicologi e Sessuologi</p>
+</td></tr></table></body></html>"""
+
+    return await _send_tracked(
+        {
+            "from": f"FunzionaBene <{SENDER_EMAIL}>",
+            "to": [paziente_email],
+            "subject": subject,
+            "html": html,
+            "reply_to": "info@funzionabene.it",
+        },
+        template="review_invite",
+        appuntamento_id=appuntamento_id,
+        paziente_id=paziente_id,
+        terapista_id=terapista_id,
+    )
 

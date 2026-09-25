@@ -78,37 +78,97 @@ async def _send_sms_30min_reminder(app_id: str, ctx: dict) -> None:
 
 
 async def _send_review_invite_email(app_id: str, ctx: dict) -> None:
-    """Post-session email inviting the patient to leave a review."""
+    """Post-session email inviting the patient to leave a review.
+
+    Also transitions status `in_corso` → `completato` for sessions that both
+    participants attended but never got auto-closed. This is the single
+    guaranteed post-session hook, so we piggy-back the state cleanup here.
+
+    Thin wrapper that delegates to `email_service.send_review_invite_email` so
+    the send goes through the standard `_send_tracked` pipeline (email_events
+    audit trail, Resend tags for opened/clicked webhooks).
+    """
     try:
-        from email_service import _send_raw, SENDER_EMAIL
+        # Auto-complete the appointment if the session ended cleanly (both attended).
+        await _auto_complete_appointment(app_id)
+
+        from email_service import send_review_invite_email
         if not ctx.get("paziente_email"):
             return
-        frontend = (os.environ.get("FRONTEND_URL") or "https://funzionabene.it").rstrip("/")
-        link = f"{frontend}/recensione/{app_id}"
-        html = f"""<!DOCTYPE html><html><body style="margin:0;padding:40px 20px;background:#0A0A0A;font-family:Helvetica,Arial;color:#F4F1ED;">
-<table width="560" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#111;border-radius:20px;overflow:hidden;">
-<tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);">
-<div style="font-family:Georgia,serif;font-size:22px;">funzionabene</div>
-<div style="font-size:10px;letter-spacing:3px;color:#6B8FA3;margin-top:6px;">GRAZIE PER LA SEDUTA</div>
-</td></tr>
-<tr><td style="padding:32px 40px;text-align:center;">
-<h1 style="font-family:Georgia,serif;font-size:26px;color:#D4A017;margin:0 0 14px;font-weight:500;">Com'è andata, {ctx.get('paziente_nome','')}?</h1>
-<p style="color:rgba(230,226,216,0.8);font-size:15px;line-height:1.6;margin:0 0 24px;">
-Il tuo parere aiuta altri pazienti a trovare il/la professionista giusto/a. Lascia una recensione in 30 secondi — sarà pubblicata dopo una breve verifica dell'amministrazione.
-</p>
-<a href="{link}" style="display:inline-block;background:#D4A017;color:#0A0A0A;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:12px;">Lascia una recensione →</a>
-</td></tr>
-<tr><td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
-<p style="color:rgba(230,226,216,0.4);font-size:11px;margin:0;">© FunzionaBene</p>
-</td></tr></table></body></html>"""
-        await _send_raw({
-            "from": f"FunzionaBene <{SENDER_EMAIL}>",
-            "to": [ctx["paziente_email"]],
-            "subject": f"Com'è andata con Dr. {ctx.get('terapista_cognome','')}?",
-            "html": html,
-        })
+        await send_review_invite_email(
+            paziente_email=ctx["paziente_email"],
+            paziente_nome=ctx.get("paziente_nome", "") or "",
+            terapista_cognome=ctx.get("terapista_cognome", "") or "",
+            appuntamento_id=app_id,
+            paziente_id=ctx.get("paziente_id"),
+            terapista_id=ctx.get("terapista_id"),
+        )
     except Exception as e:
         logging.error(f"[REVIEW-INVITE] failed: {e}")
+
+
+async def _auto_complete_appointment(app_id: str) -> None:
+    """Transition `in_corso` → `completato` if the session end has passed.
+
+    Fixes the bug where `no_show_service` set `in_corso` at start+15min when
+    both participants attended, but never had a hook to move the state to
+    `completato` afterwards.
+    """
+    try:
+        appt = await db.appuntamenti.find_one({"_id": ObjectId(app_id)})
+        if not appt or appt.get("stato") != "in_corso":
+            return
+        await db.appuntamenti.update_one(
+            {"_id": ObjectId(app_id), "stato": "in_corso"},
+            {"$set": {
+                "stato": "completato",
+                "completato_at": datetime.now(timezone.utc),
+                "completato_source": "auto_post_session",
+            }},
+        )
+        logging.info(f"[AUTO-COMPLETE] appuntamento {app_id} marked completato")
+    except Exception as e:
+        logging.error(f"[AUTO-COMPLETE] failed for {app_id}: {e}")
+
+
+async def sweep_stale_in_corso() -> int:
+    """Startup sweep: any `in_corso` appointment whose session end + 30min is
+    already in the past gets flipped to `completato`. Handles:
+      - historical rows stuck before the auto_complete hook existed
+      - rows for which the review-invite job failed to fire (crash, restart, etc.)
+    Returns the number of rows updated.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        cursor = db.appuntamenti.find({"stato": "in_corso"})
+        updated = 0
+        async for appt in cursor:
+            try:
+                raw = appt.get("data_ora")
+                if not raw:
+                    continue
+                start = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+                if start.tzinfo is None:
+                    start = start.replace(tzinfo=timezone.utc)
+                dur = int(appt.get("durata_minuti") or 50)
+                if start + timedelta(minutes=dur + 30) < now:
+                    await db.appuntamenti.update_one(
+                        {"_id": appt["_id"], "stato": "in_corso"},
+                        {"$set": {
+                            "stato": "completato",
+                            "completato_at": now,
+                            "completato_source": "sweep_startup",
+                        }},
+                    )
+                    updated += 1
+            except Exception as inner:
+                logging.warning(f"[SWEEP] skipped {appt.get('_id')}: {inner}")
+        if updated:
+            logging.info(f"[SWEEP] auto-completed {updated} stale in_corso appointments")
+        return updated
+    except Exception as e:
+        logging.error(f"[SWEEP] failed: {e}")
+        return 0
 
 
 def _reminder_job_ids(app_id: str) -> list[str]:

@@ -1,74 +1,61 @@
-# Piano: fattura FZ-2026-0004 non recapitata + email brandizzata
+# Fix orario email admin "Nuova richiesta terapeuta"
 
-## Risposta alla domanda ("perché la fattura non parte se dovrebbe essere emessa prima dell'email e subito dopo il pagamento?")
+Nel corpo dell'email di notifica admin la riga `Registrazione: 24/09/2026 14:41` mostra 2h in meno rispetto al momento reale (16:41 ora italiana). Va corretta in modo che ogni **nuovo invio** riporti l'ora italiana esatta.
 
-Sono **due step distinti** dello stesso flusso, non uno solo:
+## Chi è impattato
 
-1. **Emissione della fattura** — allocazione del numero (FZ-2026-0004), generazione dell'XML TD01, rendering del PDF, salvataggio in DB e/o Object Storage. **Questo step è andato bene** per FZ-2026-0004: infatti la fattura appare in "Le mie fatture" del paziente ed è scaricabile.
+- Admin che riceve la notifica quando un nuovo terapista completa l'iscrizione.
+- Nessun impatto per pazienti, terapisti o processi in corso.
 
-2. **Invio della fattura via email** — recupero del PDF dallo storage, costruzione dell'email, invio a Resend. **Questo step è fallito silenziosamente.**
+## Ambito
 
-I due step girano uno dopo l'altro dentro il webhook Stripe, in un `try/except` unico. Se lo step 2 fallisce, lo step 1 resta valido (la fattura è emessa a fini fiscali) — ma il paziente non riceve la notifica via email.
+**Solo l'email admin "Un nuovo terapeuta si è registrato"**, campo `Registrazione: …`.
 
-### Perché lo step 2 può fallire dopo che lo step 1 è riuscito
+Nessun altro template viene toccato. Nessun dato storico viene modificato. Le email già inviate ieri restano come sono.
 
-Tre motivi concreti nel codice attuale, in ordine di probabilità:
+## Cosa cambia dal punto di vista utente
 
-**A · Recupero del PDF dallo storage inghiottito.** Quando la fattura viene emessa dal migration all'avvio (caso comune quando c'è stato un redeploy tra pagamento ed emissione), il PDF finisce in Object Storage. Al momento di allegarlo all'email, viene rifatto un fetch. Se c'è un errore temporaneo di rete o di credenziali, l'eccezione viene catturata e `pdf_bytes` resta vuoto. L'email parte comunque **senza allegato** e col template sbagliato (vedi punto B) — Resend la registra come "delivered" ma il paziente non la riconosce.
+Il campo `Registrazione:` nel prossimo email di notifica admin mostrerà:
 
-**B · Template completamente sbagliato.** Il codice riusa una funzione fatta per la ricevuta di firma di documenti legali (`send_signature_receipt_email`). Anche se l'email fosse arrivata:
-- Soggetto: "Ricevuta di sottoscrizione — Funzionabene" (zero parole "fattura").
-- Allegato: `ricevuta_sottoscrizione.pdf` (non riconoscibile).
-- Corpo: parla di hash SHA-256, timestamp UTC, firma digitale.
+**Prima** (bug attuale): `Registrazione: 24/09/2026 14:41`
+**Dopo** (fix): `Registrazione: 24/09/2026 16:41`
 
-Il paziente probabilmente l'ha ignorata o cestinata pensando fosse un documento legale già gestito. Legittima segnalazione "non ho ricevuto la fattura".
+L'ora coinciderà con quella del cellulare / laptop dell'admin, e sarà espressa in ora italiana automatica (CET d'inverno, CEST d'estate). Nessuna etichetta esplicita "ora italiana" viene aggiunta — il formato resta identico a oggi, si corregge solo il valore.
 
-**C · Idempotency guard.** Se un primo tentativo aveva marcato `email_sent_at` sulla fattura (anche parziale), il pulsante "Reinvia" del pannello admin oggi rispetta quel flag e non rifà l'invio → click silenzioso, nessuna email.
+## Come si fa
 
-Per FZ-2026-0004 è scattato uno di A/B/C. Nessuno di questi lascia traccia chiara nei log perché l'errore viene inghiottito senza segnalarlo nel diagnostico admin.
-
----
-
-## Cosa cambia
-
-Le decisioni confermate nella conversazione sono:
-- Soggetto email: **`"Fattura {NUMERO} per la tua seduta con Dr. {COGNOME}"`**
-- Reply-To: **`info@funzionabene.it`**
-- Mittente (from): resta **`noreply@funzionabene.it`** (dominio verificato su Resend, nessun rollback).
-
-### 1. Nuova email dedicata alla fattura
-Nuova funzione separata dall'invio della ricevuta di firma. Uso: webhook Stripe, pulsante admin "Reinvia", migration di boot.
-
-Contenuto:
-- **Soggetto**: `Fattura {NUMERO} per la tua seduta con Dr. {COGNOME}` (es. "Fattura FZ-2026-0004 per la tua seduta con Dr. De Clara").
-- **Allegato**: `Fattura_{NUMERO}.pdf` (es. `Fattura_FZ-2026-0004.pdf`).
-- **Corpo**:
-  - "Ciao {NOME}, ecco la fattura per la seduta con Dr. {COGNOME} del {GIORNO}."
-  - Blocco riepilogo: numero, data emissione, importo totale, causale.
-  - Nota fiscale: "Detraibile al 19% al 730 come spesa sanitaria (art. 15 TUIR). Conserva la fattura per 5 anni."
-  - Pulsante "Scarica la fattura dalla tua area" (link diretto a "Le mie fatture" — utile se l'allegato non arriva).
-- **Reply-To**: `info@funzionabene.it`.
-- **Footer**: `BIDOC SRL · P.IVA 01985930930 · info@funzionabene.it`.
-
-### 2. Robustezza dell'invio
-- Log verbose prima e dopo la chiamata a Resend con `email_id` del risultato. Distingue "non chiamato" da "chiamato ma Resend ha rifiutato" da "chiamato senza allegato".
-- Se il PDF non è recuperabile dallo storage, l'email parte comunque **senza allegato** ma col pulsante "Scarica dall'app" ben visibile. Meglio arrivare senza allegato che non arrivare.
-- Errori del fetch storage o della chiamata Resend vengono scritti in `payment_transactions.fattura_error` e `fattura_error_step` (rispettivamente `fetch_pdf` o `send_email`) — così il banner diagnostica dell'admin li mostra e l'admin sa cosa premere.
-
-### 3. "Reinvia" del pannello admin ora funziona sempre
-Il pulsante "Reinvia" bypassa il flag `email_sent_at`: se l'admin lo preme è un'azione esplicita, e va eseguita anche se un invio precedente risulta "riuscito" ma il paziente segnala di non averla ricevuta.
-
-### 4. Ripristino di FZ-2026-0004
-Dopo la release, dal pannello admin Fatture → riga FZ-2026-0004 → "Reinvia". Con il nuovo template + logging, o arriva al paziente (99% dei casi), oppure sappiamo esattamente dove sta il problema e correggiamo puntualmente.
+1. Si legge il codice della funzione che invia il "Nuova richiesta terapeuta".
+2. Si identifica il punto in cui il timestamp `Registrazione` viene formattato — quasi certamente un `datetime.utcnow()` o simile stampato senza conversione al fuso italiano.
+3. Si converte il valore ad **Europe/Rome** prima del `strftime`, così CET/CEST è gestito automaticamente da Python.
+4. Verifica finale a carico del **bug_testing_agent**: simula una nuova iscrizione terapista e conferma che l'orario nel corpo dell'email coincida con l'ora reale italiana.
 
 ## Cosa NON viene fatto
 
-- Nessuna modifica a `SENDER_EMAIL` (rimane `noreply@funzionabene.it`, dominio verificato).
-- Nessuna modifica ai template di conferma prenotazione o promemoria (funzionano).
-- Nessuna modifica al template della ricevuta di firma documenti legali (giusto per il suo caso d'uso).
+Escluso esplicitamente dall'ambito:
 
-## Assunzioni
+- Backfill di email storiche o dati nel database.
+- Refactor generale del formattatore date.
+- Audit di altri template email (promemoria seduta, fattura, conferma prenotazione, ecc.).
+- Aggiunta di label "ora italiana" o simili.
+- Modifiche al frontend.
+- Nuove variabili d'ambiente, nuove dipendenze o nuovi endpoint.
 
-- `info@funzionabene.it` esiste come casella di posta ed è controllata dal team di supporto.
-- FZ-2026-0004 è l'unico caso segnalato di fattura non recapitata — nessun backfill in massa.
-- L'admin ha accesso al pannello Fatture per premere "Reinvia" dopo il deploy.
+Se in futuro emergono altri email con lo stesso sintomo, saranno oggetto di un nuovo task separato.
+
+## Fasi
+
+### Fase 1 (MVP — quello che viene costruito ora)
+- Fix del formato timestamp `Registrazione:` nell'email di notifica admin "Nuova richiesta terapeuta".
+- Verifica obbligatoria via bug_testing_agent.
+
+### Fase 2 (fuori scope, solo se richiesto in futuro)
+- Auditoria estesa degli altri template.
+- Helper unico condiviso per la formattazione date-ora nell'intera app.
+- Regression test suite per CET/CEST.
+
+## Assumptions
+
+- Target fuso orario: **Europe/Rome**. La conversione avviene lato server prima di generare l'HTML.
+- Il formato visivo `dd/MM/YYYY HH:MM` (24h) resta uguale — cambia solo il valore.
+- La verifica finale è a carico del bug_testing_agent, non self-test manuale.
+- Il fix è puramente text-level nell'HTML dell'email futura: nessuna migrazione dati, nessun contratto API cambia.
