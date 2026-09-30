@@ -26,10 +26,10 @@ export const DPO = {
 };
 
 // E.164 international format without "+" (used by wa.me)
-export const WHATSAPP_NUMBER = "393451124503";
-// Pretty format for display
-export const PHONE_DISPLAY = "+39 345 112 4503";
-export const PHONE_E164 = "+393451124503";
+export const WHATSAPP_NUMBER = "393337116432";
+// FunzionaBene primary contact number - answered by concierge/HR
+export const PHONE_DISPLAY = "+39 333 711 6432";
+export const PHONE_E164 = "+393337116432";
 
 export const CONTACT_EMAIL = "info@bidoc.it";
 export const PRIVACY_EMAIL = "privacy@bidoc.it";

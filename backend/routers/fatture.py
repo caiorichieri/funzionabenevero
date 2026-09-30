@@ -123,7 +123,26 @@ async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
     ))
     year = datetime.now(timezone.utc).year
     data = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    causale = f"Prestazione psicologica del {appt.get('data_ora', '')[:10]}"
+    descrizione = "Prestazione psicologica"
+
+    # Look up Stripe payment reference for the "Dati pagamento" block (PDF + XML)
+    pagamento = {}
+    try:
+        tx = await db.payment_transactions.find_one(
+            {"appuntamento_id": appuntamento_id, "status": "paid"},
+            sort=[("paid_at", -1)],
+        ) or await db.payment_transactions.find_one({"appuntamento_id": appuntamento_id})
+        pi_id = (tx or {}).get("stripe_payment_intent_id")
+        paid_at = (tx or {}).get("paid_at") or (tx or {}).get("created_at")
+        pagamento = {
+            "metodo": "Carta di credito (Stripe)",
+            "modalita_sdi": "MP08",  # carta di pagamento
+            "numero_operazione": pi_id or None,
+            "data_pagamento": paid_at.strftime("%Y-%m-%d") if paid_at and hasattr(paid_at, "strftime") else data,
+        }
+    except Exception as e:
+        logger.warning(f"[FATTURA] payment lookup failed for appt={appuntamento_id}: {e}")
+        pagamento = {}
 
     # Validate anagraphics BEFORE allocating a fiscal number.
     # This dry-run also catches any character issues in cedente/cessionario.
@@ -136,14 +155,16 @@ async def _generate_fattura_paziente(appuntamento_id: str) -> dict:
     try:
         xml_bytes = generate_xml_sanitaria(
             numero=numero, data=data, terapeuta=terapeuta, paziente=paziente,
-            importo=importo, causale=causale,
+            importo=importo, causale=None,
+            descrizione=descrizione, pagamento=pagamento,
         )
         pdf_bytes = generate_pdf(
             fattura={
                 "numero": numero, "data": data, "totale": importo,
                 "imponibile": importo, "imposta": Decimal("0"),
-                "linee": [{"descrizione": causale, "prezzo": importo}],
-                "causale": causale,
+                "linee": [{"descrizione": descrizione, "prezzo": importo}],
+                "causale": None,
+                "pagamento": pagamento,
             },
             cedente_display=_safe_html_block(
                 f"<b>{escape(terapeuta.get('nome',''))} {escape(terapeuta.get('cognome',''))}</b>",
@@ -545,6 +566,108 @@ async def admin_fatture(kind: str = None, admin: dict = Depends(require_admin)):
     async for f in db.fatture.find(q).sort("created_at", -1).limit(2000):
         items.append(_serialize(f))
     return {"items": items, "count": len(items)}
+
+
+@router.get("/admin/fatture/terapeuti-with-invoices")
+async def admin_terapeuti_with_invoices(admin: dict = Depends(require_admin)):
+    """Populate the terapeuta dropdown in the ZIP-export UI: only therapists
+    that have at least one issued fattura sanitaria (or its NC)."""
+    tera_user_ids = await db.fatture.distinct(
+        "terapeuta_user_id",
+        {"kind": {"$in": ["sanitaria", "sanitaria_nc", "nota_credito_sanitaria"]}},
+    )
+    out = []
+    for uid in tera_user_ids:
+        if not uid:
+            continue
+        u = await find_user_by_id(uid)
+        if not u:
+            continue
+        out.append({
+            "user_id": uid,
+            "nome": u.get("nome", ""),
+            "cognome": u.get("cognome", ""),
+            "email": u.get("email"),
+        })
+    out.sort(key=lambda x: (x["cognome"].lower(), x["nome"].lower()))
+    return {"items": out}
+
+
+@router.get("/admin/fatture/export-zip")
+async def admin_export_fatture_zip(
+    terapeuta_user_id: str,
+    from_date: str,
+    to_date: str,
+    include_nc: bool = True,
+    admin: dict = Depends(require_admin),
+):
+    """Download a ZIP of all XML invoices for a therapist in a date range.
+
+    Sanitaria + (optional) sanitaria_nc / nota_credito_sanitaria only. Commissioni
+    B2B (piattaforma → terapeuta) are the platform's own fiscal flow and are
+    intentionally excluded — they don't belong in the therapist's cassetto fiscale.
+    """
+    import io
+    import zipfile
+    import base64
+
+    # Validate date bounds
+    try:
+        datetime.strptime(from_date, "%Y-%m-%d")
+        datetime.strptime(to_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(400, "Date non valide (formato atteso: YYYY-MM-DD)")
+
+    kinds = ["sanitaria"]
+    if include_nc:
+        kinds.extend(["sanitaria_nc", "nota_credito_sanitaria"])
+
+    query = {
+        "terapeuta_user_id": terapeuta_user_id,
+        "kind": {"$in": kinds},
+        "data": {"$gte": from_date, "$lte": to_date},
+    }
+
+    rows = await db.fatture.find(query).sort("data", 1).to_list(2000)
+    if not rows:
+        raise HTTPException(404, "Nessuna fattura trovata per il periodo selezionato")
+
+    # Resolve therapist name for the file name
+    u = await find_user_by_id(terapeuta_user_id)
+    if u:
+        slug = f"{u.get('cognome','').lower()}-{u.get('nome','').lower()}".strip("-").replace(" ", "-")
+    else:
+        slug = "terapeuta"
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for r in rows:
+            xml_bytes = None
+            # Prefer Object Storage → inline base64 fallback
+            if r.get("xml_storage_path"):
+                try:
+                    fetched = await asyncio.to_thread(get_object, r["xml_storage_path"])
+                    # get_object returns (bytes, content_type)
+                    xml_bytes = fetched[0] if isinstance(fetched, tuple) else fetched
+                except Exception as e:
+                    logger.warning(f"[EXPORT-ZIP] storage fetch failed for {r.get('numero')}: {e}")
+            if xml_bytes is None and r.get("xml_inline_b64"):
+                try:
+                    xml_bytes = base64.b64decode(r["xml_inline_b64"])
+                except Exception:
+                    pass
+            if xml_bytes is None:
+                logger.warning(f"[EXPORT-ZIP] no xml payload for {r.get('numero')}, skipping")
+                continue
+            zf.writestr(f"{r['numero']}.xml", xml_bytes)
+
+    buf.seek(0)
+    filename = f"fatture-{slug}-{from_date}-{to_date}.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/admin/fatture/diagnostics")

@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
-import { Download, FileText, Search, RefreshCw, Play, Loader2, Send } from "lucide-react";
+import { Download, FileText, Search, RefreshCw, Play, Loader2, Send, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { formatApiError } from "@/lib/apiError";
 
@@ -29,6 +29,65 @@ export default function FatturePage({ isAdmin = true }) {
   const [missing, setMissing] = useState(null); // { missing_count, missing[] }
   const [busyGenerate, setBusyGenerate] = useState(false);
   const [retryingAppt, setRetryingAppt] = useState(null);
+
+  // Export ZIP state (admin only)
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const jan1 = useMemo(() => `${new Date().getFullYear()}-01-01`, []);
+  const [terapeutiExport, setTerapeutiExport] = useState([]);
+  const [exportTerapeuta, setExportTerapeuta] = useState("");
+  const [exportFrom, setExportFrom] = useState(jan1);
+  const [exportTo, setExportTo] = useState(today);
+  const [exportIncludeNc, setExportIncludeNc] = useState(true);
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const loadTerapeutiForExport = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const r = await axios.get(`${API}/admin/fatture/terapeuti-with-invoices`, { withCredentials: true });
+      setTerapeutiExport(r.data?.items || []);
+    } catch { /* silent — dropdown just stays empty */ }
+  }, [isAdmin]);
+
+  const handleExportZip = async () => {
+    if (!exportTerapeuta) {
+      toast.error("Seleziona un terapeuta");
+      return;
+    }
+    setExportBusy(true);
+    try {
+      const r = await axios.get(`${API}/admin/fatture/export-zip`, {
+        params: {
+          terapeuta_user_id: exportTerapeuta,
+          from_date: exportFrom,
+          to_date: exportTo,
+          include_nc: exportIncludeNc,
+        },
+        responseType: "blob",
+        withCredentials: true,
+      });
+      // Extract filename from Content-Disposition or fall back
+      const disp = r.headers["content-disposition"] || "";
+      const match = disp.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `fatture-${exportFrom}-${exportTo}.zip`;
+      const url = URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`ZIP scaricato: ${filename}`);
+    } catch (e) {
+      // 404 → no fatture for the period. Extract the detail from JSON blob response.
+      let msg = "Errore durante l'esportazione";
+      if (e.response?.data instanceof Blob) {
+        try {
+          const text = await e.response.data.text();
+          msg = JSON.parse(text).detail || msg;
+        } catch { /* keep generic */ }
+      }
+      toast.error(msg);
+    } finally {
+      setExportBusy(false);
+    }
+  };
 
   const loadDiagnostics = useCallback(async () => {
     if (!isAdmin) return;
@@ -109,6 +168,7 @@ export default function FatturePage({ isAdmin = true }) {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadDiagnostics(); }, [loadDiagnostics]);
+  useEffect(() => { loadTerapeutiForExport(); }, [loadTerapeutiForExport]);
 
   const runJob = async (endpoint, label) => {
     if (!confirm(`Esegui: ${label}?`)) return;
@@ -206,6 +266,65 @@ export default function FatturePage({ isAdmin = true }) {
               (art. 15 TUIR — Spese sanitarie). Conservale per almeno 5 anni. Il tuo terapeuta le trasmetterà al Sistema TS per l&apos;inserimento automatico nel 730 precompilato.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Export XML in blocco per terapeuta (admin) */}
+      {isAdmin && terapeutiExport.length > 0 && (
+        <div className="bg-white border border-[#0A0A0A]/10 rounded-2xl p-4 sm:p-5" data-testid="admin-export-zip-box">
+          <div className="flex items-center gap-2 mb-3">
+            <Archive className="w-4 h-4 text-[#0A0A0A]/60" />
+            <h3 className="text-sm font-semibold text-[#0A0A0A]">Esporta XML in blocco</h3>
+          </div>
+          <p className="text-xs text-[#0A0A0A]/60 mb-3">
+            Scarica un ZIP con tutte le fatture XML di un terapeuta emesse nel periodo scelto (utile per il commercialista o per la trasmissione al SDI).
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <select
+              value={exportTerapeuta}
+              onChange={(e) => setExportTerapeuta(e.target.value)}
+              data-testid="export-terapeuta-select"
+              className="px-3 py-2 border border-[#0A0A0A]/15 rounded-full text-sm bg-white"
+            >
+              <option value="">Seleziona terapeuta…</option>
+              {terapeutiExport.map((t) => (
+                <option key={t.user_id} value={t.user_id}>Dr. {t.nome} {t.cognome}</option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={exportFrom}
+              onChange={(e) => setExportFrom(e.target.value)}
+              data-testid="export-from-date"
+              className="px-3 py-2 border border-[#0A0A0A]/15 rounded-full text-sm bg-white"
+            />
+            <input
+              type="date"
+              value={exportTo}
+              onChange={(e) => setExportTo(e.target.value)}
+              data-testid="export-to-date"
+              className="px-3 py-2 border border-[#0A0A0A]/15 rounded-full text-sm bg-white"
+            />
+            <button
+              onClick={handleExportZip}
+              disabled={exportBusy || !exportTerapeuta}
+              data-testid="export-zip-btn"
+              className="px-3 py-2 rounded-full bg-[#0A0A0A] hover:bg-[#1C1C1C] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium inline-flex items-center justify-center gap-1.5"
+            >
+              {exportBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+              Esporta XML in ZIP
+            </button>
+          </div>
+          <label className="mt-3 inline-flex items-center gap-2 text-xs text-[#0A0A0A]/70 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={exportIncludeNc}
+              onChange={(e) => setExportIncludeNc(e.target.checked)}
+              data-testid="export-include-nc"
+              className="rounded"
+            />
+            Includi note di credito
+          </label>
         </div>
       )}
 

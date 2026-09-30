@@ -5,7 +5,7 @@ import { API } from "@/contexts/AuthContext";
 import { X, Calendar, MessageCircle, ArrowRight, Loader2 } from "lucide-react";
 
 const GIORNI_IT = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
-const WHATSAPP_NUMBER = "393451124503"; // Italy, no + (wa.me format)
+const WHATSAPP_NUMBER = "393337116432"; // Italy, no + (wa.me format)
 const WHATSAPP_MSG = "Ciao Funzionabene, ho bisogno di piu orari per una terapia!";
 
 function formatSlot(iso) {

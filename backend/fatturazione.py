@@ -223,6 +223,17 @@ def _build_body(root, fattura: dict, natura: str = None, aliquota_iva: Decimal =
     if natura:
         _add(dr, "RiferimentoNormativo", "Prestazione sanitaria esente IVA art. 10 DPR 633/72 c.1 n.18")
 
+    # DatiPagamento (opzionale) — richiesto dallo SDI quando conosciamo il metodo effettivo
+    pagamento = fattura.get("pagamento") or {}
+    if pagamento.get("modalita_sdi"):
+        dp = _add(body, "DatiPagamento")
+        _add(dp, "CondizioniPagamento", "TP02")  # TP02 = pagamento completo in unica soluzione
+        ddp = _add(dp, "DettaglioPagamento")
+        _add(ddp, "ModalitaPagamento", pagamento["modalita_sdi"])
+        if pagamento.get("data_pagamento"):
+            _add(ddp, "DataScadenzaPagamento", pagamento["data_pagamento"])
+        _add(ddp, "ImportoPagamento", _q(fattura["totale"]))
+
 
 def _prettify(root) -> bytes:
     """Serialize with correct namespace and pretty formatting."""
@@ -235,8 +246,17 @@ def _prettify(root) -> bytes:
     return reparsed.toprettyxml(indent="  ", encoding="UTF-8")
 
 
-def generate_xml_sanitaria(*, numero: str, data: str, terapeuta: dict, paziente: dict, importo: Decimal, causale: str) -> bytes:
-    """Genera XML FatturaPA per prestazione sanitaria (esente IVA art. 10)."""
+def generate_xml_sanitaria(
+    *, numero: str, data: str, terapeuta: dict, paziente: dict,
+    importo: Decimal, causale: str,
+    descrizione: str = None, pagamento: dict = None,
+) -> bytes:
+    """Genera XML FatturaPA per prestazione sanitaria (esente IVA art. 10).
+
+    `descrizione` — testo della singola riga (DettaglioLinee.Descrizione). Se
+    non passato, ricade su `causale` per retrocompatibilità.
+    `pagamento` — se presente, aggiunge il blocco DatiPagamento (MP08 per Stripe).
+    """
     root = ET.Element("p:FatturaElettronica", {
         "xmlns:p": NSMAP_ATTR["xmlns:p"],
     })
@@ -267,10 +287,12 @@ def generate_xml_sanitaria(*, numero: str, data: str, terapeuta: dict, paziente:
     }
     _build_common_header(root, cedente, cessionario, "professionista", "privato")
     bollo_needed = Decimal(str(importo)) >= BOLLO_SOGLIA
+    riga_descrizione = descrizione or causale
     _build_body(root,
                 fattura={"numero": numero, "data": data, "totale": importo,
-                         "linee": [{"descrizione": causale, "prezzo": importo}],
-                         "causale": causale},
+                         "linee": [{"descrizione": riga_descrizione, "prezzo": importo}],
+                         "causale": causale,
+                         "pagamento": pagamento or {}},
                 natura="N4",  # esente
                 aliquota_iva=Decimal("0.00"),
                 bollo=bollo_needed)
@@ -413,6 +435,22 @@ def generate_pdf(*, fattura: dict, cedente_display: dict, cessionario_display: d
 
     story.append(Spacer(1, 0.4*cm))
 
+    # Blocco "Dati pagamento" (sopra i totali) — nuovo: mostra metodo + ID transazione Stripe
+    pagamento = fattura.get("pagamento") or {}
+    if pagamento.get("metodo") or pagamento.get("numero_operazione"):
+        pay_rows = [[Paragraph("<b>Dati pagamento</b>", body), ""]]
+        if pagamento.get("metodo"):
+            pay_rows.append(["Metodo:", pagamento["metodo"]])
+        if pagamento.get("numero_operazione"):
+            pay_rows.append(["N. operazione:", pagamento["numero_operazione"]])
+        story.append(Table(pay_rows, colWidths=[4*cm, 13*cm], style=TableStyle([
+            ('FONTSIZE', (0,0), (-1,-1), 9),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ])))
+        story.append(Spacer(1, 0.4*cm))
+
     # Totali
     imponibile = fattura.get("imponibile", fattura.get("totale"))
     imposta = fattura.get("imposta", Decimal("0"))
@@ -433,10 +471,19 @@ def generate_pdf(*, fattura: dict, cedente_display: dict, cessionario_display: d
 
     if is_sanitaria:
         story.append(Spacer(1, 0.5*cm))
-        story.append(Paragraph(
-            "Prestazione sanitaria esente IVA ai sensi dell'art. 10 c.1 n.18 DPR 633/72. "
-            "Marca da bollo virtuale €2,00 assolta ove applicabile (art. 6 tabella B DPR 642/72).",
-            small))
+        if Decimal(str(imponibile)) >= BOLLO_SOGLIA:
+            # Sopra soglia: nota esenzione IVA + marca da bollo assolta
+            story.append(Paragraph(
+                "Prestazione sanitaria esente IVA ai sensi dell'art. 10 c.1 n.18 DPR 633/72. "
+                "Marca da bollo virtuale €2,00 assolta ove applicabile (art. 6 tabella B DPR 642/72).",
+                small))
+        else:
+            # Sotto soglia €77,47: bollo non dovuto per legge
+            story.append(Paragraph(
+                "Prestazione sanitaria esente IVA ai sensi dell'art. 10 c.1 n.18 DPR 633/72. "
+                "Imposta di bollo non dovuta ai sensi dell'art. 13 della Tariffa, Parte I, "
+                "allegata al DPR 642/1972, in quanto l'importo non supera euro 77,47.",
+                small))
 
     if fattura.get("causale"):
         story.append(Spacer(1, 0.3*cm))

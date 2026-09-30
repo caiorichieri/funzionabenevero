@@ -1,5 +1,53 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-09-30 · Pulizia fatture sanitarie + WhatsApp number + admin ZIP export
+
+Sette ritocchi indipendenti sul flusso Prenota subito e sulle fatture elettroniche sanitarie, più un nuovo strumento admin per l'esportazione massiva degli XML.
+
+### 1. Numero WhatsApp `+39 333 711 6432`
+Sostituito `+39 345 112 4503` in due file:
+- `frontend/src/data/legalInfo.js` — `WHATSAPP_NUMBER`, `PHONE_DISPLAY`, `PHONE_E164`
+- `frontend/src/components/public/PrenotaSubitoModal.jsx` — costante `WHATSAPP_NUMBER`
+
+### 2 + 3. Nota bollo condizionata alla soglia €77,47 in `fatturazione.py::generate_pdf`
+- Sotto €77,47: **"Prestazione sanitaria esente IVA... Imposta di bollo non dovuta ai sensi dell'art. 13 della Tariffa, Parte I, allegata al DPR 642/1972, in quanto l'importo non supera euro 77,47."**
+- Sopra €77,47: testo esistente invariato (esenzione IVA + marca da bollo €2 assolta ove applicabile).
+- Riga "Marca da bollo €2 a carico del prestatore" nei totali resta condizionale al bollo dovuto (era già così).
+
+### 4 + 5. Descrizione riga = "Prestazione psicologica" + rimozione blocco "Causale:"
+- `routers/fatture.py::_generate_fattura_paziente`: introdotta variabile `descrizione = "Prestazione psicologica"` (statica, senza data). La data del pagamento resta nel blocco DatiPagamento e nella data di emissione.
+- `causale` passato come `None` al dict PDF → il blocco "Causale: …" a fine PDF non viene renderizzato (guard `if fattura.get("causale")` già esistente).
+- `generate_xml_sanitaria` accetta ora un parametro opzionale `descrizione: str = None`; se assente ricade su `causale` per retrocompatibilità con NC/commissioni. Quando `causale=None`, il tag `<Causale>` non viene aggiunto all'XML — `<Causale>` è opzionale in TD01 v1.2.2.
+
+### 6. Blocco "Dati pagamento" in PDF + `DatiPagamento` in XML
+- Nuovo blocco compatto sopra i totali del PDF: "Metodo: Carta di credito (Stripe)" + "N. operazione: pi_...".
+- `_build_body` aggiunge `<DatiPagamento>` con `<CondizioniPagamento>TP02</CondizioniPagamento>` + `<ModalitaPagamento>MP08</ModalitaPagamento>` (carta) + `<DataScadenzaPagamento>` + `<ImportoPagamento>` quando la fattura è pagata via Stripe.
+- Fonte dei dati: `db.payment_transactions` cercata in `_generate_fattura_paziente` — `stripe_payment_intent_id` come N. operazione, `paid_at` come data pagamento. Graceful degradation: se la transazione manca (fatture pre-Stripe, pagamenti manuali) mostra solo il metodo omettendo il N. operazione.
+
+### 7. Export ZIP XML per terapeuta + intervallo (admin)
+- `GET /api/admin/fatture/terapeuti-with-invoices` — dropdown source: terapisti con almeno una fattura emessa.
+- `GET /api/admin/fatture/export-zip?terapeuta_user_id=X&from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&include_nc=true` — ZIP in memoria con tutti gli XML sanitaria + (opzionale) sanitaria_nc + nota_credito_sanitaria del terapeuta nel range. Filename: `fatture-{cognome-nome}-{from}-{to}.zip`. Commissioni B2B escluse (non parte del cassetto fiscale del terapeuta come emittente).
+- Frontend `pages/admin/FatturePage.jsx` — nuovo box "Esporta XML in blocco" sopra la lista con dropdown + date + toggle "Includi note di credito" + bottone "Esporta XML in ZIP".
+
+### File toccati
+- `frontend/src/data/legalInfo.js`
+- `frontend/src/components/public/PrenotaSubitoModal.jsx`
+- `frontend/src/pages/admin/FatturePage.jsx`
+- `backend/fatturazione.py`
+- `backend/routers/fatture.py`
+
+### Test status
+- Suite fiscal esistente 13/13 PASS (test_iter35_fattura_email, test_fattura_auto_emit)
+- Smoke test manuale generatore: XML sotto/sopra soglia validato — no `<Causale>`, no `<DatiBollo>` sotto, `<DatiBollo>` presente sopra, `<ModalitaPagamento>MP08</ModalitaPagamento>` in entrambi
+- Export ZIP curl-testato con terapeuta reale: 200 OK, file ZIP valido con `FZ-2026-0084.xml` all'interno
+- Screenshot admin/fatture: box "Esporta XML in blocco" visibile in cima alla pagina con testids corretti
+
+### Fuori scope (esplicitamente rimandato)
+- Webhook Stripe che fallisce dal 21/09: notifica email dell'utente citata ma non gestita in questa release. Va ripreso separatamente prima del 30/09/2026 (data in cui Stripe disattiva l'endpoint).
+
+---
+
+
 ## 2026-09-24 · Fix "Prenota subito" mobile-vs-desktop + cleanup terapeuti demo + SMS/videocall live
 
 **Segnalazioni utente**:
