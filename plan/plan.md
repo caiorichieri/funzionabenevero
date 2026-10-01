@@ -1,88 +1,75 @@
-# Pulizia fatture sanitarie, contatto WhatsApp e export XML admin
+# Marca d'acqua BIDOC sulla fattura PDF — identica all'esempio
 
-Sei ritocchi indipendenti su contatto pubblico e generazione fatture elettroniche, più un nuovo strumento admin per esportare in blocco gli XML fiscali di un terapeuta filtrati per periodo.
-Interventi mirati e circoscritti: nessuno stravolge un flusso esistente, tutti convivono in un'unica release.
+Il logo a cuore BD viene stampato come filigrana al centro di ogni pagina della fattura PDF, replicando esattamente il mockup fornito dall'utente. Il risultato finale sarà visivamente indistinguibile dall'immagine di riferimento.
 
 ## Who it's for
 
-- Pazienti che aprono il CTA "Prenota subito" e cliccano "Più opzioni" → arrivano a un numero WhatsApp reale e presidiato.
-- Commercialista e verifiche fiscali del terapeuta → ricevono fatture sanitarie conformi in tutti i casi di soglia, senza note contraddittorie sulla marca da bollo.
-- Admin operativo → in un click scarica tutti gli XML fiscali di un terapeuta per un intervallo scelto, invece di aprirli uno per uno dal pannello.
+- **Pazienti** che aprono la propria fattura: riconoscono immediatamente il brand della piattaforma anche se la ricevuta è emessa in nome del terapeuta.
+- **Commercialista del terapeuta** che riceve il PDF: il documento è coerente visivamente con il resto della documentazione Bidoc.
+- **Terapeuta** che reinvia una ricevuta via "Reinvia" admin: trasmette un documento visibilmente branded, non un PDF anonimo generato da un gestionale generico.
 
 ## Core features and experience
 
-### 1. Numero WhatsApp pubblico corretto
-Sostituzione di `+39 345 112 4503` con `+39 333 711 6432` come contatto WhatsApp nel modale "Prenota subito" (link `wa.me/393337116432`). Rimozione anche ovunque altrove il vecchio numero compaia nel repository (footer, altre CTA, pagina contatti).
+### Filigrana identica all'esempio fornito
 
-### 2. Nota bollo sotto soglia €77,47 — testo dedicato
-Le fatture sanitarie con imponibile inferiore a €77,47 devono riportare come nota di rodapé esattamente:
-> *"Imposta di bollo non dovuta ai sensi dell'art. 13 della Tariffa, Parte I, allegata al DPR 642/1972, in quanto l'importo non supera euro 77,47."*
-Questa nota è sull'esenzione dal bollo per importo, non su un bollo assolto — è formalmente distinta dal caso sopra soglia.
+Il PNG del logo BD viene stampato al centro di ogni pagina A4 con esattamente queste caratteristiche, misurate direttamente dall'immagine di riferimento:
 
-### 3. Nota bollo sopra soglia — invariata
-Per imponibile ≥ €77,47 la nota resta quella attuale:
-> *"Prestazione sanitaria esente IVA ai sensi dell'art. 10 c.1 n.18 DPR 633/72. Marca da bollo virtuale €2,00 assolta ove applicabile (art. 6 tabella B DPR 642/72)."*
+- **Posizione**: centro geometrico assoluto della pagina (orizzontale e verticale).
+- **Dimensione**: 16 cm di lato (cuore inscritto in box quadrato), proporzione 1:1 originale preservata. Occupa circa l'80% della larghezza dell'area utile.
+- **Opacità**: 10%. Il cuore risulta visibile ma lascia perfettamente leggibile ogni elemento sovrapposto (intestazione, tabelle, totali, nota bollo).
+- **Colori**: logo bicolore originale invariato (B grigio-blu, D arancione) — l'opacità ridotta li fonde con il bianco carta nelle stesse tonalità soffuse dell'esempio.
+- **Dietro al testo**: la filigrana viene posata sul canvas prima che Platypus disegni il contenuto. Nessun elemento fiscale finisce coperto.
 
-### 4. Riga di dettaglio semplificata
-La descrizione della prestazione nelle fatture sanitarie diventa `"Prestazione psicologica"` — senza la data che oggi appare come `"Prestazione psicologica del 2026-09-23"`. La data della seduta rimane comunque presente in altri punti del documento (data emissione, DatiPagamento).
+### Applicata a tutte le fatture generate d'ora in avanti
 
-### 5. Rimozione del blocco "Causale:" in fondo al PDF
-Come conseguenza della #4, la sezione "Causale: …" a fine PDF sparisce. La stessa informazione ("Prestazione psicologica") è già la descrizione della riga, quindi non serve ripeterla in fondo.
+La modifica è centralizzata nel generatore `fatturazione.py::generate_pdf`, quindi vale per:
+- Fatture sanitarie TD01 (seduta pagata).
+- Note di credito sanitarie TD04 (rimborso/annullo).
+- Fatture commissione B2B (BIDOC → terapeuta, fine mese).
 
-### 6. Riferimento pagamento in fattura (PDF + XML)
-Nuovo blocco compatto **sopra i totali** del PDF, intitolato "Dati pagamento":
-- *Metodo:* Carta di credito (Stripe)
-- *N. operazione:* `pi_...` (il `stripe_payment_intent_id` della transazione Stripe collegata)
+Tutte e tre con lo stesso logo cuore BD, come nell'esempio.
 
-Nell'XML FatturaPA lo stesso dato entra nel blocco `DatiPagamento`: Modalità `MP08` (carta di pagamento), Data pagamento = data della transazione Stripe, Importo = totale fattura, Beneficiario = codice fiscale del terapeuta.
+### Fallback silenzioso se il logo manca
 
-### 7. Export ZIP degli XML per terapeuta e periodo (nuovo strumento admin)
-Nuova sezione nel pannello `/admin/fatture`, posizionata sopra la lista fatture:
-
-- **Dropdown "Terapeuta"** — mostra solo terapeuti con almeno una fattura emessa.
-- **Data inizio** + **Data fine** — default: 1° gennaio anno corrente → oggi.
-- **Toggle "Includi note di credito"** — default acceso.
-- **Bottone "Esporta XML in ZIP"** — download immediato di `fatture-{cognome-nome}-{data-inizio}-{data-fine}.zip`.
-
-Nel ZIP solo XML (nessun PDF), ciascuno nominato con il numero fattura (`FZ-2026-00XX.xml`). Le fatture di commissione B2B (piattaforma → terapeuta) non entrano nel pacchetto, perché non fanno parte del cassetto fiscale del terapeuta come emittente.
+Se il PNG non è presente nel container al momento della generazione (scenario remoto ma gestito), la filigrana viene saltata e il PDF esce senza watermark. Nessun errore propagato al chiamante, nessun impatto sulla validità fiscale.
 
 ## User flow
 
-**Paziente**: apre la home → tap "Prenota subito" → nel modale tap "Più opzioni" → si apre WhatsApp verso `+39 333 711 6432`.
-
-**Terapeuta e commercialista**: dopo ogni pagamento, il paziente riceve via email il PDF con la nota di bollo corretta per la soglia, la descrizione pulita, il riferimento Stripe visibile, e l'XML FatturaPA con il blocco `DatiPagamento` pronto per lo SDI.
-
-**Admin**: entra in `/admin/fatture` → seleziona terapeuta dal dropdown → sceglie intervallo date → click "Esporta XML in ZIP" → riceve il file zip con tutte le fatture (e, se toggle attivo, note di credito) del periodo.
+1. Paziente paga una seduta via Stripe → pipeline genera fattura TD01 con filigrana.
+2. Email con PDF allegato arriva al paziente → apre e vede documento identico al mockup.
+3. Admin clicca "Reinvia" su una fattura antecedente al deploy → PDF rigenerato con il nuovo layout.
 
 ## UI/UX feel
 
-- **Modale Prenota subito**: nessuna modifica visiva. Solo il link WhatsApp cambia.
-- **PDF fattura**: layout invariato. Cambia solo il testo della nota di piede (secondo la soglia), la stringa della riga di dettaglio, e appare un blocco "Dati pagamento" tra le voci e i totali. Il blocco "Causale:" a fine PDF sparisce.
-- **Pannello admin fatture**: il nuovo box "Esporta XML in blocco" appare in cima, distinto graficamente dalla lista sottostante. Coerente con lo stile dei filtri già presenti (input date + dropdown + primary button). Nessun redesign, solo aggiunta.
-- **Tono**: strumento operativo, non decorativo. Feedback immediato al click (spinner sul bottone durante la generazione, poi download del file).
+Replica fedele e non interpretativa del mockup fornito dall'utente. Il contenuto fiscale già oggi in produzione (impaginazione, numero fattura, Dati pagamento, nota bollo) rimane esattamente dov'è e com'è. L'unica cosa che cambia è l'aggiunta della filigrana BD cuore dietro al contenuto.
+
+Nessuna animazione, nessun layer interattivo: è un PDF, è una stampa fiscale.
 
 ## Implementation phases
 
-### Phase 1 — MVP (in questa release)
-Tutti e sette gli interventi sopra descritti. Sono cambi mirati, ciascuno tocca uno o due file, nessuno interferisce con gli altri. Le modifiche #4 e #5 sono in realtà un'unica variazione nel codice (la stessa variabile "causale"); la #2 e la #3 coesistono nello stesso ramo condizionale sul PDF generator; la #6 modifica lo stesso file della #2/#3; la #7 è tutta additiva. Perimetro contenuto, deploy unico.
+### Phase 1 — MVP: filigrana su tutte le fatture (ora)
 
-### Phase 2 — Robustezza fiscale (futuro)
-- Suite di regressione sulle fatture: casi sotto e sopra soglia, con verifica dei testi nel PDF e degli XML tramite validazione schema FatturaPA v1.2.2.
-- Validazione lato server dell'XML prima di persisterlo, per catturare eventuali errori del nuovo blocco `DatiPagamento` prima che arrivino al SDI.
+- Download del logo dal link asset fornito dall'utente e salvataggio in `backend/assets/bidoc_watermark.png` (versato nel repo, deve viaggiare col deploy).
+- Modifica di `generate_pdf` in `fatturazione.py`: aggiunta di una callback `onPage` di reportlab che disegna il logo sul canvas prima del flusso Platypus, con `canvas.setFillAlpha(0.10)` + `drawImage(..., mask='auto')` per preservare la trasparenza alpha del PNG.
+- Centro pagina A4: `width=16cm`, posizionato in `(A4.width-16cm)/2, (A4.height-16cm)/2`.
+- Nessuna modifica all'XML FatturaPA. Nessun endpoint nuovo, nessun env var nuovo, nessuna modifica al DB.
 
-### Phase 3 — Estensioni admin (futuro)
-- Nel ZIP di export, aggiunta di un PDF consolidato riepilogativo (totali del periodo, IVA, bollo, elenco fatture).
-- Invio automatico mensile al terapeuta del ZIP delle proprie fatture del mese chiuso.
-- Contatore live nel dashboard admin: fatture emesse mese/anno corrente, in errore, con bollo assolto.
+### Phase 2 — Varianti (futuro, non ora)
+
+- Filigrana testuale "BIDOC SRL" al posto del cuore BD per la fattura di commissione B2B, per distinguere a vista il flusso piattaforma→terapeuta dal flusso terapeuta→paziente. Oggi non richiesto: l'utente ha chiesto la stessa filigrana per tutti.
+- Toggle amministrativo per generare PDF senza filigrana su richiesta (es. archiviazione agenziale neutrale).
+
+### Phase 3 — Branding esteso (futuro)
+
+- Header della fattura con il logo Bidoc completo accanto all'intestazione del cedente.
+- Footer con QR code di verifica pubblica della fattura (`funzionabene.it/fattura/{numero}`).
 
 ## Assumptions
 
-- **Il numero WhatsApp `+39 333 711 6432` è già attivo su WhatsApp** e presidiato dalla persona giusta. Se il numero non è ancora registrato su WhatsApp, l'utente arriverebbe a un vicolo cieco.
-- **Il vecchio numero `+39 345 112 4503` non è utilizzato per altri scopi** (SMS, contatto commerciale, backup). Se lo fosse, la rimozione globale è troppo aggressiva e vale la pena confermare i punti d'uso prima di sostituire.
-- **Il metodo di pagamento è sempre "Carta di credito (Stripe)"** perché Stripe è oggi l'unico canale attivo. Se in futuro si aggiungono altri metodi, il testo dovrà derivare dinamicamente dal record `payment_transactions.payment_method` mantenendo l'infrastruttura pronta.
-- **Il campo `stripe_payment_intent_id` è sempre presente** sulle transazioni delle fatture emesse dopo l'integrazione Stripe. Le fatture antiche (pre-Stripe o pagamenti manuali) mostreranno solo "Metodo: Carta di credito (Stripe)" senza numero operazione — la sezione non si rompe, degrada gracefully.
-- **Il campo `Causale` è opzionale nello schema TD01 FatturaPA v1.2.2**, quindi rimuoverlo (metterlo a `None`) non compromette la validazione SDI. Nel caso improbabile di un rifiuto da regola custom Agenzia Entrate, si potrebbe reintrodurre un valore neutro tipo "Prestazione professionale".
-- **Il ZIP di export contiene solo `sanitaria` e `sanitaria_nc`** (fatture del terapeuta come emittente). Le commissioni B2B della piattaforma verso il terapeuta sono flusso fiscale distinto e non fanno parte del cassetto fiscale del terapeuta come emittente.
-- **Le modifiche al PDF valgono per le fatture emesse d'ora in avanti**. Le fatture già presenti in Object Storage non vengono rigenerate; il PDF antico resta col vecchio testo. Se qualcuno richiede una ristampa (via bottone "Reinvia" admin) il sistema genererà quello nuovo con il layout aggiornato.
-- **L'endpoint di export ZIP è read-only e admin-only**, idempotente, sicuro per volume anche se richiamato più volte. Con volumi previsti (massimo ~500 fatture per terapeuta all'anno) la generazione in-memory del ZIP resta ampiamente sotto ogni limite di risorse.
-- **Il webhook Stripe che sta fallendo dal 21 settembre (email Stripe ricevuta dall'utente) è fuori scope da questo piano**, per esplicita richiesta dell'utente. Verrà gestito separatamente in un'iterazione successiva. Il rischio è che dal 30 settembre Stripe disattivi l'endpoint e le fatture generate da pagamenti nuovi non si aggancino automaticamente all'appuntamento — da monitorare a parte.
+- **Il PNG `Bidoc Logo.png` fornito dall'utente** (409 KB) ha canale alpha trasparente intatto. `drawImage(mask='auto')` di reportlab preserva la trasparenza: lo sfondo bianco attorno al cuore resta invisibile, solo il cuore stesso riceve l'opacità ridotta.
+- **Replica esatta del mockup**: dimensioni (~16 cm), opacità (10%), posizione (centro assoluto), colori originali del logo. Nessuna variante proposta — se dopo il primo PDF reale servirà un ritocco (es. opacità 8% invece di 10% per qualche visualizzatore PDF), è un singolo parametro, correzione in un commit a seguire.
+- **Il logo viene versato nel repo** sotto `backend/assets/`, non in Object Storage. Per un file di 400 KB letto ad ogni generazione, filesystem locale è l'approccio corretto.
+- **Filigrana ripetuta su ogni pagina** se il PDF è multi-pagina (callback `onPage` reportlab). Oggi le fatture sanitarie sono monopagina ma la nota di credito o fatture multi-prestazione future potrebbero sforare.
+- **Fatture già persistite non vengono rigenerate**. Il PDF antico resta senza filigrana. "Reinvia" admin usa il nuovo layout.
+- **XML FatturaPA non toccato**: il SDI accetta solo contenuto strutturato testuale, non immagini. Il branding vive solo nel PDF leggibile da umani.
+- **Nessun test di regressione fiscal richiede update**: la suite esistente verifica contenuto testuale, non layout visivo del PDF.

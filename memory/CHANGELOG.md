@@ -1,5 +1,29 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-10-01 · Filigrana BIDOC su fatture PDF
+
+Il logo cuore BD viene stampato come filigrana al centro di ogni pagina delle fatture generate dalla piattaforma — stesso trattamento per sanitaria TD01, nota di credito TD04 e commissione B2B.
+
+### Implementazione
+- `backend/assets/bidoc_watermark.png` — logo 2000×2000 versato nel repo (419 KB).
+- `backend/fatturazione.py` — nuova funzione `_draw_watermark(canvas, doc)` registrata come callback `onFirstPage` + `onLaterPages` del `SimpleDocTemplate.build`.
+  - Posizione: centro geometrico A4 → `((A4.width-16cm)/2, (A4.height-16cm)/2)`.
+  - Dimensione: lato 16 cm, `preserveAspectRatio=True`.
+  - Opacità: 10% (`canvas.setFillAlpha(0.10)`).
+  - Trasparenza alpha: `mask="auto"` sul `drawImage` (il bianco dell'immagine si fonde col bianco carta, resta visibile solo il cuore BD).
+  - Fail-silent se il PNG manca → nessuna rottura della pipeline fiscale.
+
+### Verifica
+- Suite regressione fiscal 9/9 PASS (test_iter35_fattura_email + test_fattura_auto_emit).
+- Smoke test manuale: PDF reale generato (661 KB) + render PNG della prima pagina → cuore BD visibile centrale, intestazione/tabelle/Dati pagamento/nota bollo tutti leggibili sopra.
+
+### Fuori scope
+- XML FatturaPA invariato (SDI accetta solo testo strutturato, non immagini).
+- Fatture già persistite non rigenerate: PDF antichi restano senza filigrana. "Reinvia" admin genera col nuovo layout.
+
+---
+
+
 ## 2026-09-30 · Pulizia fatture sanitarie + WhatsApp number + admin ZIP export
 
 Sette ritocchi indipendenti sul flusso Prenota subito e sulle fatture elettroniche sanitarie, più un nuovo strumento admin per l'esportazione massiva degli XML.

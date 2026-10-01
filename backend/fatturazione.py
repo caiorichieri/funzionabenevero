@@ -7,6 +7,7 @@ MVP con campi obbligatori dello schema Agenzia delle Entrate. Due tipi:
 Serie fatture: "FZ-YYYY-NNNN" atomica via db.fattura_counters.
 """
 import logging
+import os
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
@@ -21,6 +22,10 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 logger = logging.getLogger(__name__)
+
+# BIDOC heart logo watermark — stamped behind every invoice page. Centered,
+# 16cm side, 10% opacity. Shipped with the backend container under /assets.
+_WATERMARK_PATH = os.path.join(os.path.dirname(__file__), "assets", "bidoc_watermark.png")
 
 # BIDOC SRL — cedente prestatore per le commissioni B2B, o "trasmittente" per fatture sanitarie
 BIDOC = {
@@ -386,6 +391,28 @@ def generate_xml_commissione(*, numero: str, data: str, terapeuta: dict, importo
 # ─── PDF leggibile ───────────────────────────────────────────────────────────
 
 
+def _draw_watermark(canvas_obj, _doc) -> None:
+    """ReportLab onPage callback — stamps the BIDOC heart logo at the centre of
+    the page before the Platypus flow renders on top. 16cm side, 10% opacity.
+    Fail-silent if the asset is missing (no PDF generation should ever break
+    because of branding assets)."""
+    if not os.path.exists(_WATERMARK_PATH):
+        return
+    try:
+        side = 16 * cm
+        x = (A4[0] - side) / 2
+        y = (A4[1] - side) / 2
+        canvas_obj.saveState()
+        canvas_obj.setFillAlpha(0.10)
+        canvas_obj.drawImage(
+            _WATERMARK_PATH, x, y, width=side, height=side,
+            preserveAspectRatio=True, mask="auto",
+        )
+        canvas_obj.restoreState()
+    except Exception as e:
+        logger.warning(f"[WATERMARK] skipped: {e}")
+
+
 def generate_pdf(*, fattura: dict, cedente_display: dict, cessionario_display: dict, is_sanitaria: bool) -> bytes:
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=1.8*cm, leftMargin=1.8*cm,
@@ -489,5 +516,5 @@ def generate_pdf(*, fattura: dict, cedente_display: dict, cessionario_display: d
         story.append(Spacer(1, 0.3*cm))
         story.append(Paragraph(f"<b>Causale:</b> {fattura['causale']}", small))
 
-    doc.build(story)
+    doc.build(story, onFirstPage=_draw_watermark, onLaterPages=_draw_watermark)
     return buf.getvalue()
