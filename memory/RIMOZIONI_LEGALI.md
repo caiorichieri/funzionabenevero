@@ -1,3 +1,5 @@
+
+
 # RIMOZIONI LEGALI — FunzionaBene (Fase C audit)
 
 Documento che traccia ogni testo o blocco di contenuto rimosso o modificato dal frontend/backend pubblico per motivi di conformità (testimonianze non verificabili, superlativi non dimostrabili, claim di cifratura non vera, numeri non documentati).
@@ -409,6 +411,103 @@ _Base di verifica_: documentazione obbligatoria caricata (CV, Laurea, Assicurazi
 - 76% e 9×: wording riformulato come al punto 7 ("dei pazienti con fobie specifiche negli studi", "negli stessi studi") per non far intendere risultati nostri.
 - Terza card "Prima piattaforma italiana…" → sostituita con "Integrate / nei percorsi di sessuologia, sempre guidate dal terapeuta e incluse nel costo della sessione" (fatto operativo verificabile).
 - Citazione corretta: Garcia-Palacios et al. (2007) *CyberPsychology & Behavior* 10(5), N=150, non JMIR 2022.
+
+---
+
+## 2026-02-21 (iterazione 2) — Precisazioni post-verifica
+
+### 12. Rimozione completa dei numeri VR 76% / 9× (ex punti 7 e 11)
+
+**Motivo**: lo studio Garcia-Palacios et al. (2007) riguarda **pazienti con fobie specifiche** (N=150), non pazienti con disfunzioni sessuali né terapia sessuologica. Pur avendo riformulato il wording per non far intendere risultati nostri, l'utente ha deciso di rimuovere i due numeri da **entrambe** le pagine e sostituirli con una frase generale.
+
+#### 12.1 HomePage — sezione sessioni immersive
+**File**: `/app/frontend/src/pages/public/HomePage.jsx:257-294`  
+**Testo originale integrale rimosso** (già rifletteva la correzione del 2026-02-21 iter 1):
+```jsx
+<div className="mt-10 grid sm:grid-cols-2 gap-6">
+  <div>
+    <div className="font-serif text-4xl lg:text-5xl text-[#0A0A0A]">76%</div>
+    <div className="text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/65 mt-2">
+      dei pazienti con fobie specifiche negli studi preferisce la realtà virtuale all'esposizione tradizionale<sup>*</sup>
+    </div>
+  </div>
+  <div>
+    <div className="font-serif text-4xl lg:text-5xl text-[#0A0A0A]">9×</div>
+    <div className="text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/65 mt-2">
+      tasso di rifiuto più basso con la VR rispetto all'esposizione in vivo, negli stessi studi<sup>*</sup>
+    </div>
+  </div>
+</div>
+... (nota footnote):
+<p className="mt-6 text-xs text-[#0A0A0A]/65 leading-relaxed">
+  <sup>*</sup> Garcia-Palacios A., Botella C., Hoffman H., Fabregat S. (2007) — <em>Comparing Acceptance and Refusal Rates of Virtual Reality Exposure vs. In Vivo Exposure by Patients with Specific Phobias</em>, CyberPsychology & Behavior 10(5), N=150. I dati si riferiscono a studi sulla realtà virtuale in generale, non a risultati di FunzionaBene.
+</p>
+```
+**Nuovo testo (frase sostitutiva)**:
+> La realtà virtuale è usata in psicoterapia da anni, ad esempio nel trattamento delle fobie. Noi la integriamo nei percorsi di sessuologia, sempre guidata dal tuo terapeuta.
+
+#### 12.2 SeduteImmersive — stats card
+**File**: `/app/frontend/src/pages/public/SeduteImmersive.jsx:115-139`  
+Testo originale integrale: tre card 76% / 9× / Integrate + nota Garcia-Palacios (vedi punto 11 nella sezione precedente).  
+**Nuovo testo**: box singolo con la frase:
+> La realtà virtuale è usata in psicoterapia da anni, ad esempio nel trattamento delle fobie. Noi la integriamo nei percorsi di sessuologia, sempre guidata dal terapeuta e inclusa nel costo della sessione.
+
+**Nessun numero, nessuna percentuale, nessuna citazione specifica.**
+
+---
+
+### 13. Frase "verificato" — formulazione più precisa (ex punto 6)
+
+**File**: `/app/frontend/src/pages/public/HomePage.jsx:534-536`  
+**Motivo**: nel flusso di onboarding non c'è integrazione con registri Albo esterni (psi.it/FNOPI/OMCeO). Esiste autocertificazione DPR 445/2000 + upload documento abilitazione + approvazione manuale admin. Formulazione aggiornata per non ingannare sulla natura della verifica.
+
+**Precedente iterazione (ora obsoleta)**:
+> Ogni terapeuta è verificato: iscrizione all'Albo e assicurazione RC professionale.
+
+**Nuovo**:
+> Iscrizione all'Albo **dichiarata e documentata**; assicurazione RC professionale verificata e monitorata.
+
+---
+
+### 14. "Riservato e cifrato" → precisazione "connessione cifrata"
+
+Allineamento del wording hero/meta/booking per non promettere forme di cifratura non dimostrabili. Niente "a riposo" (infrastruttura in transizione).
+
+#### 14.1 HomePage hero chip
+**File**: `/app/frontend/src/pages/public/HomePage.jsx:157`  
+**Originale**: `"Riservato e cifrato"`  
+**Nuovo**: `"Riservato · connessione cifrata"`
+
+#### 14.2 HomePage meta description
+**File**: `/app/frontend/src/pages/public/HomePage.jsx:72`  
+**Originale**: `description="Piattaforma italiana dedicata alla sessuologia. Psicologi e sessuologi iscritti all'Albo. Consulenze online riservate e cifrate."`  
+**Nuovo**: `description="Piattaforma italiana dedicata alla sessuologia. Psicologi e sessuologi iscritti all'Albo. Consulenze online riservate, con connessione cifrata."`
+
+#### 14.3 ChatMobilePage footer
+**File**: `/app/frontend/src/pages/patient/ChatMobilePage.jsx:115`  
+**Originale**: `"Chat riservata · cifrata"`  
+**Nuovo**: `"Chat riservata · cifrata in transito"`
+
+#### 14.4 FAQ privacy dati
+**File**: `/app/frontend/src/pages/public/FAQPage.jsx:25`  
+**Originale**: `"Assolutamente sì. Tutti i dati sono cifrati e conservati in conformità al GDPR. Le conversazioni con il tuo terapeuta sono coperte dal segreto professionale."`  
+**Nuovo**: `"Assolutamente sì. I dati sono cifrati in transito (HTTPS/TLS) e trattati in conformità al GDPR. Le conversazioni con il tuo terapeuta sono coperte dal segreto professionale."`
+
+---
+
+### 15. Scan DB per "end-to-end" — segnalazioni al legale
+
+Scan completo di tutte le collection MongoDB. Risultati NON toccati (dati legali/firmati):
+
+| Collection | Documento | Dove | Testo problematico |
+|---|---|---|---|
+| `contracts` | `termini_pazienti` v1 (`_id=6a7319a2a131492cc5de4634`) | art 9.1 `content_html` + `source_markdown` | "con cifratura **end-to-end** del flusso video/audio" |
+| `contracts` | `contratto_collaborazione` v1 (`_id=6a7319a2a131492cc5de4635`) | clausola sedute televisita, `content_html` + `source_markdown` | "con crittografia **end-to-end** e nessuna registrazione…" |
+| `registro_trattamenti` | (`_id=6a86bc52fafb9a7bfdf761da`) | campo `misure_sicurezza` | "Videoconsulto **end-to-end** encrypted (SRTP/DTLS)…" |
+
+**Nota critica**: il `registro_trattamenti` esiste **sia** hardcoded in `backend/server.py:1665` (che ho aggiornato al punto 4.5 della iter 1) **sia** come documento MongoDB. Due fonti disallineate. Decisione del DPO: quale sia l'autoritativa, se consolidarle, se creare v2 del Termini Pazienti e del Contratto Collaborazione.
+
+Nessun paziente/terapeuta deve ri-accettare finché il legale non decide.
 
 ---
 

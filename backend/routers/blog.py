@@ -95,6 +95,32 @@ async def public_blog():
     return docs
 
 
+@router.get("/public/blog/by-id/{art_id}")
+async def public_blog_by_id(art_id: str):
+    """Lookup by legacy ObjectId. Returns 301 redirect info (slug) if article exists.
+    Used by client-side to transparently rewrite /blog/<ObjectId> → /blog/<slug>."""
+    try:
+        oid = ObjectId(art_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Articolo non trovato")
+    doc = await db.articoli.find_one({"_id": oid, "stato": "pubblicato"})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Articolo non trovato")
+    slug = doc.get("slug")
+    doc["_id"] = str(doc["_id"])
+    return {"article": doc, "redirect_to_slug": slug}
+
+
+@router.get("/public/blog/slug/{slug}")
+async def public_blog_by_slug(slug: str):
+    """Primary lookup for the new URL scheme /blog/<slug>."""
+    doc = await db.articoli.find_one({"slug": slug, "stato": "pubblicato"})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Articolo non trovato")
+    doc["_id"] = str(doc["_id"])
+    return doc
+
+
 # ─── Blog inline image upload (admin/therapist) ───────────────────────────
 @router.post("/blog/upload-image")
 async def upload_blog_image(file: UploadFile = File(...), user: dict = Depends(require_auth)):

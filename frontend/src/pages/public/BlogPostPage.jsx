@@ -1,6 +1,6 @@
 import { sanitizeHtml } from "@/utils/safeHtml";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API } from "@/contexts/AuthContext";
 import { ArrowLeft, Calendar, User } from "lucide-react";
@@ -20,23 +20,50 @@ function hasHtmlMarkup(s) {
   return /<(p|em|strong|br)[\s>/]/i.test(s || "");
 }
 
+// MongoDB ObjectId detector: 24 hex chars.
+const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
+
 export default function BlogPostPage() {
-  const { id } = useParams();
+  const { id } = useParams();  // the :id route param — can be either ObjectId (legacy) or slug (new)
+  const navigate = useNavigate();
   const [articolo, setArticolo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    axios.get(`${API}/public/blog`).then(r => {
-      const found = (r.data || []).find(a => a._id === id);
-      setArticolo(found || null);
-    }).finally(() => setLoading(false));
-  }, [id]);
+    setLoading(true);
+    setNotFound(false);
+    const isObjectId = OBJECT_ID_RE.test(id || "");
+    if (isObjectId) {
+      // Legacy URL — fetch by id, then transparently rewrite URL to the slug.
+      axios.get(`${API}/public/blog/by-id/${id}`)
+        .then(r => {
+          const art = r.data?.article;
+          const slug = r.data?.redirect_to_slug;
+          if (!art) { setNotFound(true); return; }
+          if (slug) {
+            // Replace history so bookmarks/old links update to the slug URL.
+            navigate(`/blog/${slug}`, { replace: true });
+          } else {
+            setArticolo(art);
+          }
+        })
+        .catch(() => setNotFound(true))
+        .finally(() => setLoading(false));
+    } else {
+      // New URL — fetch by slug directly.
+      axios.get(`${API}/public/blog/slug/${encodeURIComponent(id)}`)
+        .then(r => setArticolo(r.data || null))
+        .catch(() => setNotFound(true))
+        .finally(() => setLoading(false));
+    }
+  }, [id, navigate]);
 
   if (loading) {
     return <main className="min-h-[calc(100vh-80px)] bg-transparent flex items-center justify-center text-[#0A0A0A]/50">Caricamento...</main>;
   }
 
-  if (!articolo) {
+  if (notFound || !articolo) {
     return (
       <main className="min-h-[calc(100vh-80px)] bg-transparent flex items-center justify-center px-6" data-testid="blog-not-found">
         <div className="text-center">
@@ -47,6 +74,7 @@ export default function BlogPostPage() {
     );
   }
 
+  const canonicalSlug = articolo.slug || articolo._id;  // slug always preferred for canonical
   const contenuto = articolo.contenuto || "";
   const isHtml = hasHtmlMarkup(contenuto);
   const plainExcerpt = (isHtml ? contenuto.replace(/<[^>]+>/g, " ") : contenuto)
@@ -59,7 +87,7 @@ export default function BlogPostPage() {
       <SEO
         title={articolo.titolo}
         description={plainExcerpt || `Articolo di ${articolo.autore_nome || "FunzionaBene"}`}
-        path={`/blog/${articolo._id}`}
+        path={`/blog/${canonicalSlug}`}
         image={articolo.immagine_url || undefined}
         jsonLd={{
           "@context": "https://schema.org",
@@ -75,7 +103,7 @@ export default function BlogPostPage() {
             "name": "FunzionaBene",
             "logo": { "@type": "ImageObject", "url": "https://funzionabene.it/assets/logo.png" }
           },
-          "mainEntityOfPage": { "@type": "WebPage", "@id": `https://funzionabene.it/blog/${articolo._id}` }
+          "mainEntityOfPage": { "@type": "WebPage", "@id": `https://funzionabene.it/blog/${canonicalSlug}` }
         }}
       />
       <article className="max-w-3xl mx-auto px-6 lg:px-10">

@@ -69,7 +69,7 @@ export default function HomePage() {
     <main data-testid="homepage" className="relative bg-transparent overflow-hidden">
       <SEO
         title="Psicologi e Sessuologi Online — 100% Sessuologia"
-        description="Piattaforma italiana dedicata alla sessuologia. Psicologi e sessuologi iscritti all'Albo. Consulenze online riservate e cifrate."
+        description="Piattaforma italiana dedicata alla sessuologia. Psicologi e sessuologi iscritti all'Albo. Consulenze online riservate, con connessione cifrata."
         path="/"
         jsonLd={{
           "@context": "https://schema.org",
@@ -154,7 +154,7 @@ export default function HomePage() {
             <div className="mt-16 flex flex-wrap items-center gap-x-10 gap-y-6 text-xs text-[#0A0A0A]/65">
               <span className="flex items-center gap-3">
                 <Mascotte name="abbraccio" theme="light" size={36} animation="breathe" />
-                Riservato e cifrato
+                Riservato · connessione cifrata
               </span>
               <span className="flex items-center gap-3">
                 <Mascotte name="pensativo" theme="light" size={36} animation="float" />
@@ -254,20 +254,10 @@ export default function HomePage() {
               FunzionaBene integra sessioni immersive nei percorsi di sessuologia.
             </p>
 
-            <div className="mt-10 grid sm:grid-cols-2 gap-6">
-              <div>
-                <div className="font-serif text-4xl lg:text-5xl text-[#0A0A0A]">76%</div>
-                <div className="text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/65 mt-2">
-                  dei pazienti con fobie specifiche negli studi preferisce la realtà virtuale all&apos;esposizione tradizionale<sup>*</sup>
-                </div>
-              </div>
-              <div>
-                <div className="font-serif text-4xl lg:text-5xl text-[#0A0A0A]">9×</div>
-                <div className="text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/65 mt-2">
-                  tasso di rifiuto più basso con la VR rispetto all&apos;esposizione in vivo, negli stessi studi<sup>*</sup>
-                </div>
-              </div>
-            </div>
+            <p className="mt-6 text-[15px] text-[#0A0A0A]/75 leading-relaxed max-w-xl">
+              La realtà virtuale è usata in psicoterapia da anni, ad esempio nel trattamento
+              delle fobie. Noi la integriamo nei percorsi di sessuologia, sempre guidata dal tuo terapeuta.
+            </p>
 
             <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/60 border border-[#0A0A0A]/10 text-xs text-[#0A0A0A]/75">
               <Check className="w-3.5 h-3.5" /> Incluse nel tuo percorso, nessun servizio extra da attivare
@@ -288,10 +278,6 @@ export default function HomePage() {
                 Inizia un percorso
               </Link>
             </div>
-
-            <p className="mt-6 text-xs text-[#0A0A0A]/65 leading-relaxed">
-              <sup>*</sup> Garcia-Palacios A., Botella C., Hoffman H., Fabregat S. (2007) — <em>Comparing Acceptance and Refusal Rates of Virtual Reality Exposure vs. In Vivo Exposure by Patients with Specific Phobias</em>, CyberPsychology &amp; Behavior 10(5), N=150. I dati si riferiscono a studi sulla realtà virtuale in generale, non a risultati di FunzionaBene.
-            </p>
           </div>
 
           {/* Right side: VR mascot centerpiece — replaces the photo */}
@@ -494,7 +480,7 @@ export default function HomePage() {
           <p className="text-lg lg:text-xl text-[#0A0A0A] leading-relaxed font-serif">
             Ogni professionista che entra in FunzionaBene passa da un colloquio con la nostra direzione clinica, una verifica dell'iscrizione all'Albo e una revisione dei suoi anni di pratica in sessuologia.
             <span className="block mt-4 text-[#6B8FA3]">
-              Ogni terapeuta è <strong className="text-[#0A0A0A]">verificato</strong>: iscrizione all&apos;Albo e assicurazione RC professionale.
+              Iscrizione all&apos;Albo <strong className="text-[#0A0A0A]">dichiarata e documentata</strong>; assicurazione RC professionale verificata e monitorata.
             </span>
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">

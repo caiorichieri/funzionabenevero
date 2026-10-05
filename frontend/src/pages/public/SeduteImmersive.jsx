@@ -112,31 +112,14 @@ export default function SeduteImmersive() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="max-w-6xl mx-auto px-6 lg:px-10 py-20" data-testid="immersive-stats">
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="brand-card !p-8">
-            <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">76%</div>
-            <p className="mt-4 text-sm text-[#0A0A0A]/75 leading-relaxed">
-              dei pazienti con fobie specifiche negli studi preferisce la realtà virtuale all&apos;esposizione tradizionale.
-            </p>
-          </div>
-          <div className="brand-card !p-8">
-            <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">9×</div>
-            <p className="mt-4 text-sm text-[#0A0A0A]/75 leading-relaxed">
-              tasso di rifiuto più basso con la VR rispetto all&apos;esposizione in vivo, negli stessi studi.
-            </p>
-          </div>
-          <div className="brand-card !p-8">
-            <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">Integrate</div>
-            <p className="mt-4 text-sm text-[#0A0A0A]/75 leading-relaxed">
-              nei percorsi di sessuologia, sempre guidate dal terapeuta e incluse nel costo della sessione.
-            </p>
-          </div>
+      {/* VR context */}
+      <section className="max-w-6xl mx-auto px-6 lg:px-10 py-20" data-testid="immersive-context">
+        <div className="brand-card !p-10 max-w-3xl mx-auto text-center">
+          <p className="text-[17px] text-[#0A0A0A]/80 leading-relaxed">
+            La realtà virtuale è usata in psicoterapia da anni, ad esempio nel trattamento delle fobie.
+            Noi la integriamo nei percorsi di sessuologia, sempre guidata dal terapeuta e inclusa nel costo della sessione.
+          </p>
         </div>
-        <p className="mt-8 text-xs text-[#0A0A0A]/60 leading-relaxed text-center max-w-3xl mx-auto">
-          Fonte: Garcia-Palacios A., Botella C., Hoffman H., Fabregat S. (2007) — <em>Comparing Acceptance and Refusal Rates of Virtual Reality Exposure vs. In Vivo Exposure by Patients with Specific Phobias</em>, CyberPsychology &amp; Behavior 10(5), N=150. I dati si riferiscono a studi sulla realtà virtuale in generale, non a risultati di FunzionaBene.
-        </p>
       </section>
 
       {/* How it works */}

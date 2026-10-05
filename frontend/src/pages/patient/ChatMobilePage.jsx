@@ -112,7 +112,7 @@ export default function ChatMobilePage() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-sm text-[#0A0A0A] truncate">{selected.terapeuta_nome || selected.paziente_nome}</div>
-          <div className="text-[10px] text-[#0A0A0A]/50">Chat riservata · cifrata</div>
+          <div className="text-[10px] text-[#0A0A0A]/50">Chat riservata · cifrata in transito</div>
         </div>
       </div>
 

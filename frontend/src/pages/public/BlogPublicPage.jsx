@@ -71,7 +71,7 @@ export default function BlogPublicPage() {
             className="mb-16 grid md:grid-cols-[1.1fr_1fr] gap-0 bg-gradient-to-br from-[#0A0A0A] via-[#0A0A0A]/12 to-white border border-[#0A0A0A]/10 rounded-3xl overflow-hidden"
           >
             {hero.immagine_url && (
-              <Link to={`/blog/${hero._id}`} className="relative aspect-[4/3] md:aspect-auto overflow-hidden block group">
+              <Link to={`/blog/${hero.slug || hero._id}`} className="relative aspect-[4/3] md:aspect-auto overflow-hidden block group">
                 <img
                   src={hero.immagine_url}
                   alt=""
@@ -98,7 +98,7 @@ export default function BlogPublicPage() {
                   <span className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5" />{formatDate(hero.created_at)}</span>
                 </div>
                 <Link
-                  to={`/blog/${hero._id}`}
+                  to={`/blog/${hero.slug || hero._id}`}
                   data-testid="blog-hero-link"
                   className="mt-8 inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-br from-[#F58A1F] to-[#F5D419] hover:from-[#E07A0F] hover:to-[#E5C419] text-[#0A0A0A] font-bold rounded-2xl shadow-md hover:shadow-lg text-sm font-medium tracking-wide transition-all"
                 >
@@ -122,7 +122,7 @@ export default function BlogPublicPage() {
                 className="brand-card group flex flex-col overflow-hidden !p-0"
               >
                 {a.immagine_url && (
-                  <Link to={`/blog/${a._id}`} className="relative aspect-[16/10] overflow-hidden block">
+                  <Link to={`/blog/${a.slug || a._id}`} className="relative aspect-[16/10] overflow-hidden block">
                     <img
                       src={a.immagine_url}
                       alt=""
@@ -145,7 +145,7 @@ export default function BlogPublicPage() {
                   <div className="flex items-center justify-between pt-4 border-t border-[#0A0A0A]/10">
                     <span className="text-xs text-[#0A0A0A]/50">{formatDate(a.created_at)}</span>
                     <Link
-                      to={`/blog/${a._id}`}
+                      to={`/blog/${a.slug || a._id}`}
                       data-testid={`blog-card-link-${i}`}
                       className="text-xs tracking-[0.15em] uppercase text-[#0A0A0A] hover:text-[#0A0A0A]/70"
                     >

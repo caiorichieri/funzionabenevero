@@ -1,0 +1,114 @@
+{
+  "generated_at": "2026-10-05T12:31:09.378507+00:00",
+  "backup_collection": "articoli_backup_20261005_123109",
+  "total": 15,
+  "already_had_slug": 0,
+  "needs_update": 15,
+  "mapping": [
+    {
+      "id": "6a95319d10ccafc2ca1d6138",
+      "title": "Il desiderio sessuale : cos'è, come cambia e quando ascoltarlo",
+      "existing_slug": "",
+      "proposed_slug": "il-desiderio-sessuale-cos-e-come-cambia-e-quando-ascoltarlo",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6139",
+      "title": "Eiaculazione precoce: oltre il tabù , verso la cura",
+      "existing_slug": "",
+      "proposed_slug": "eiaculazione-precoce-oltre-il-tabu-verso-la-cura",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d613a",
+      "title": "Vaginismo: quando il corpo chiede protezione",
+      "existing_slug": "",
+      "proposed_slug": "vaginismo-quando-il-corpo-chiede-protezione",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d613b",
+      "title": "Disfunzione erettile: ritrovare la fiducia nel proprio corpo",
+      "existing_slug": "",
+      "proposed_slug": "disfunzione-erettile-ritrovare-la-fiducia-nel-proprio-corpo",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d613c",
+      "title": "L'orgasmo femminile: un viaggio , non una destinazione",
+      "existing_slug": "",
+      "proposed_slug": "l-orgasmo-femminile-un-viaggio-non-una-destinazione",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d613d",
+      "title": "Comunicazione e intimità : come parlarsi davvero",
+      "existing_slug": "",
+      "proposed_slug": "comunicazione-e-intimita-come-parlarsi-davvero",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d613e",
+      "title": "La sessualità nel tempo : cambia, ma non finisce",
+      "existing_slug": "",
+      "proposed_slug": "la-sessualita-nel-tempo-cambia-ma-non-finisce",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d613f",
+      "title": "Orientamento sessuale e identità di genere : un percorso di scoperta",
+      "existing_slug": "",
+      "proposed_slug": "orientamento-sessuale-e-identita-di-genere-un-percorso-di-scoperta",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6140",
+      "title": "Il desiderio dopo il parto : ritrovarsi nel corpo che cambia",
+      "existing_slug": "",
+      "proposed_slug": "il-desiderio-dopo-il-parto-ritrovarsi-nel-corpo-che-cambia",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6141",
+      "title": "Pornografia e intimità reale : quando lo schermo prende il sopravvento",
+      "existing_slug": "",
+      "proposed_slug": "pornografia-e-intimita-reale-quando-lo-schermo-prende-il-sopravvento",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6142",
+      "title": "Anorgasmia: quando il piacere sembra lontano",
+      "existing_slug": "",
+      "proposed_slug": "anorgasmia-quando-il-piacere-sembra-lontano",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6143",
+      "title": "Sessualità e malattia cronica: il corpo cambia , il piacere può restare",
+      "existing_slug": "",
+      "proposed_slug": "sessualita-e-malattia-cronica-il-corpo-cambia-il-piacere-puo-restare",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6144",
+      "title": "Dispareunia: quando fare l'amore fa male",
+      "existing_slug": "",
+      "proposed_slug": "dispareunia-quando-fare-l-amore-fa-male",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6145",
+      "title": "Immagine corporea e sessualità: amarsi per amarsi",
+      "existing_slug": "",
+      "proposed_slug": "immagine-corporea-e-sessualita-amarsi-per-amarsi",
+      "changed": true
+    },
+    {
+      "id": "6a95319d10ccafc2ca1d6146",
+      "title": "La terapia sessuologica: cos'è davvero e a chi si rivolge",
+      "existing_slug": "",
+      "proposed_slug": "la-terapia-sessuologica-cos-e-davvero-e-a-chi-si-rivolge",
+      "changed": true
+    }
+  ]
+}

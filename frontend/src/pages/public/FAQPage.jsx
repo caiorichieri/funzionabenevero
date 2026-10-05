@@ -22,7 +22,7 @@ const FALLBACK_FAQ = [
   },
   {
     domanda: "I miei dati sono protetti?",
-    risposta: "Assolutamente sì. Tutti i dati sono cifrati e conservati in conformità al GDPR. Le conversazioni con il tuo terapeuta sono coperte dal segreto professionale.",
+    risposta: "Assolutamente sì. I dati sono cifrati in transito (HTTPS/TLS) e trattati in conformità al GDPR. Le conversazioni con il tuo terapeuta sono coperte dal segreto professionale.",
   },
   {
     domanda: "Posso cambiare terapeuta se non mi trovo bene?",

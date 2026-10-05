@@ -28,10 +28,21 @@ Costruire una piattaforma psi/sessuologia completa che gestisca: terapisti (onbo
 Vedi `CHANGELOG.md` per lo storico completo.
 
 ### Ultime cose fatte
-- 2026-02-21 — **Fase C audit legale**: rimozione testimonianze fittizie (data/HomePage), rimozione pannello stats fittizi LoginPage, riformulazione claim "end-to-end" (5 occorrenze FE + 1 BE), riformulazione "Prima piattaforma italiana" (7 occorrenze), riformulazione "1 su 8 ammessi", correzione citazione fonte VR (76%/9×) con wording che chiarisce "studi sulla realtà virtuale, non risultati di FunzionaBene", riformulazione "ogni trimestre" → "avvisi automatici 60/30 gg prima scadenza assicurazione" (fatto operativo verificabile). Documento completo in `/app/memory/RIMOZIONI_LEGALI.md`. Testato con screenshot smoke + 5 assertion check su ChiSiamo page.
+- 2026-02-21 — **Fase D Blog Slug Migration + 301**:
+  - 15 articoli in collection `articoli` hanno ora campo `slug` (kebab-case, idempotente, backup collection `articoli_backup_20261005_123109`).
+  - Index unique sparse creato su `articoli.slug`.
+  - Nuovi endpoint backend: `GET /api/public/blog/slug/{slug}` (primary lookup) e `GET /api/public/blog/by-id/{id}` (legacy, restituisce `redirect_to_slug`).
+  - BlogPostPage.jsx: rilevamento ObjectId → chiamata `/by-id/`, `navigate(slug, { replace: true })`. Canonical SEMPRE sullo slug.
+  - BlogPublicPage.jsx: tutti i link `to={/blog/${a.slug || a._id}}` (preserva compatibilità).
+  - Prerender: snapshots solo con URL slug (zero ObjectId pre-renderizzati).
+  - Sitemap: URL slug.
+  - Fix bonus: rimosso canonical hardcoded in `public/index.html` (era `funzionabene.it/`) che causava canonical doppio su tutte le pagine pre-renderizzate.
+  - 47/47 route pre-renderizzate con canonical corretto, verificato empiricamente sul preview (slug + ObjectId URL entrambi renderizzano correttamente, redirect client-side ok).
+  - Opzione (a) middleware FastAPI 301 **NON possibile** nell'ingress Emergent (`/blog/*` va al frontend, backend non lo vede). Preparato `/app/memory/nginx_blog_301.conf` per futuro VPS self-hosted.
+- 2026-02-21 — **Fase C audit legale (iter 1+2)**: rimozione testimonianze fittizie, stat panel LoginPage, claim "end-to-end" (frontend + backend GDPR), "Prima piattaforma italiana" x7, "1 su 8 ammessi", numeri VR 76%/9× rimossi completamente (studio Garcia-Palacios 2007 su fobie, non pertinente alla sessuologia), riformulazione claim "verificato" terapisti, "ogni trimestre" → "avvisi automatici 60/30 gg". Doc completo in `/app/memory/RIMOZIONI_LEGALI.md`.
 
 ### In progress
-- **Fase D** — Blog slug migration + redirect HTTP 301 su `/blog/<ObjectId>` → `/blog/<slug>` (NEXT).
+- **Deploy di C+D in produzione** (NEXT — eseguire ora).
 
 ### Backlog
 - Deploy di C+D (DOPO verifica utente di C+D).
