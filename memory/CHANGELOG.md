@@ -1,5 +1,28 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-10-05 · BookingSheet mobile — WhatsApp + Rifai questionario come fallback
+
+Richiesta utente: nella visualizzazione telefono, quando il paziente arriva al Riepilogo per acquistare la seduta e l'orario non lo convince, deve avere due vie d'uscita visibili senza chiudere il sheet.
+
+### Implementazione in `components/public/BookingSheet.jsx` (step `review`)
+Sotto il bottone primario "Continua", nuova sezione separata da una divider con copy *"L'orario non ti convince?"* e due CTA:
+
+1. **Scrivici su WhatsApp** (verde `#25D366`) — apre `wa.me/${WHATSAPP_NUMBER}` con messaggio pre-compilato: *"Ciao, sto cercando un orario con Dr. {nome} {cognome} ma quelli disponibili non mi vanno bene. Potete aiutarmi?"*. Numero preso da `legalInfo.js::WHATSAPP_NUMBER`.
+2. **Rifai il questionario** (bianco con bordo) — chiama `onClose()` per chiudere lo sheet e `navigate("/questionario")` per riaprire il flusso di matching.
+
+### Dettagli tecnici
+- Importato `useNavigate` da `react-router-dom`.
+- Importato `MessageCircle` e `RotateCcw` da `lucide-react` per le icone.
+- Importato `WHATSAPP_NUMBER` da `@/data/legalInfo` → nessun hard-code del numero nel componente.
+- `data-testid`: `booking-whatsapp-help` e `booking-redo-questionnaire` per automazione.
+
+### Verifica
+- Screenshot Playwright viewport 390×844 (iPhone 12/13): entrambi i bottoni visibili sotto "Continua".
+- Nessuna modifica agli step successivi (auth/otp/dati-fiscali/payment/sms-otp/success).
+
+---
+
+
 ## 2026-10-01 · Filigrana BIDOC su fatture PDF
 
 Il logo cuore BD viene stampato come filigrana al centro di ogni pagina delle fatture generate dalla piattaforma — stesso trattamento per sanitaria TD01, nota di credito TD04 e commissione B2B.

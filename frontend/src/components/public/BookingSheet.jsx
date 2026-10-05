@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
-import { X, Check, Mail, Lock, User as UserIcon, CreditCard, ShieldCheck, ArrowRight, Smartphone } from "lucide-react";
+import { X, Check, Mail, Lock, User as UserIcon, CreditCard, ShieldCheck, ArrowRight, Smartphone, MessageCircle, RotateCcw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { WHATSAPP_NUMBER } from "@/data/legalInfo";
 import DatiFiscaliStep from "@/components/public/DatiFiscaliStep";
 
 const GIORNI_IT = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
@@ -25,6 +27,7 @@ function formatSlot(iso) {
 // Steps: review → auth (login or register) → otp → dati-fiscali → payment → sms-otp → success
 export default function BookingSheet({ open, onClose, terapista, slot, currentUser }) {
   const { login, refreshUser } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState("review");
   const [mode, setMode] = useState("register"); // register | login
   const [form, setForm] = useState({ nome: "", cognome: "", email: "", password: "", otp: "", privacy: false });
@@ -287,6 +290,34 @@ export default function BookingSheet({ open, onClose, terapista, slot, currentUs
                 >
                   Continua <ArrowRight className="w-4 h-4" />
                 </button>
+
+                {/* Fallback secondari: nessun orario adatto → scrivi su WhatsApp o rifai questionario */}
+                <div className="mt-5 pt-5 border-t border-[#0A0A0A]/10 space-y-2.5">
+                  <p className="text-xs text-[#0A0A0A]/55 text-center mb-1">
+                    L'orario non ti convince?
+                  </p>
+                  <a
+                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+                      `Ciao, sto cercando un orario con Dr. ${terapista.nome} ${terapista.cognome} ma quelli disponibili non mi vanno bene. Potete aiutarmi?`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="booking-whatsapp-help"
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-[#25D366] hover:bg-[#1EBE57] text-white font-medium text-sm transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Scrivici su WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => { onClose?.(); navigate("/questionario"); }}
+                    data-testid="booking-redo-questionnaire"
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white border border-[#0A0A0A]/15 hover:border-[#0A0A0A]/40 text-[#0A0A0A] font-medium text-sm transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Rifai il questionario
+                  </button>
+                </div>
               </div>
             )}
 
