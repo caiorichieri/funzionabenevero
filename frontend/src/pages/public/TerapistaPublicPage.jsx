@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { API, useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
-import { Award, BookOpen, Calendar, Clock, Globe, GraduationCap, MapPin, Star } from "lucide-react";
+import { Award, BookOpen, Calendar, Clock, Globe, GraduationCap, MapPin } from "lucide-react";
 import BookingSheet from "@/components/public/BookingSheet";
 import SEO from "@/components/shared/SEO";
 

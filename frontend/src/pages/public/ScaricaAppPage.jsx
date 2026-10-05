@@ -119,7 +119,7 @@ export default function ScaricaAppPage() {
               <Feature icon={<Calendar className="w-4 h-4" />} title="I tuoi appuntamenti, ovunque" body="Promemoria, riprogrammazione, accesso video — in tre tap." />
               <Feature icon={<BookHeart className="w-4 h-4" />} title="Diario emozionale" body="Note brevi che il tuo terapeuta legge prima della sessione, se vuoi." />
               <Feature icon={<MessageCircle className="w-4 h-4" />} title="Chat con il terapeuta" body="Messaggi diretti tra una sessione e l'altra." />
-              <Feature icon={<ShieldCheck className="w-4 h-4" />} title="Riservatezza assoluta" body="Cifratura end-to-end, GDPR, dati in Europa." />
+              <Feature icon={<ShieldCheck className="w-4 h-4" />} title="Riservatezza assoluta" body="Comunicazione cifrata, GDPR, dati in Europa." />
             </ul>
             <Link
               to="/registrati"

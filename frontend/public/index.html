@@ -90,6 +90,11 @@
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <div id="root"></div>
         <script>
+            // Skip PostHog + any analytics during pre-rendering snapshots.
+            // Our build-time Puppeteer runner sends UA="ReactSnap"; we also honour
+            // the standard ?no-analytics=1 query flag used by some pre-renderers.
+            var __IS_PRERENDER = /ReactSnap/i.test(navigator.userAgent) || /no-analytics/.test(location.search);
+            if (!__IS_PRERENDER) {
             !(function (t, e) {
                 var o, n, p, r;
                 e.__SV ||
@@ -159,6 +164,7 @@
                     capturePerformance: false,
                 },
             });
+            }  // end !__IS_PRERENDER
         </script>
     </body>
 </html>

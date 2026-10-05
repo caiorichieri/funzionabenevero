@@ -32,13 +32,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-transparent flex">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#0A0A0A] flex-col justify-between p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-[#0A0A0A] flex-col justify-center p-12">
         <div>
           <div className="flex items-center gap-3 mb-16">
             <img src="/assets/logo.png" alt="FunzionaBene" className="w-12 h-12 object-contain" />
             <span className="text-white text-xl font-semibold font-[Outfit]">funzionabene</span>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-md">
             <h1 className="text-4xl font-bold text-white font-[Outfit] leading-tight">
               Benvenuto nel<br />
               <span className="text-[#E9D628]">Gestionale</span>
@@ -47,19 +47,6 @@ export default function LoginPage() {
               Piattaforma sessuologia online FunzionaBene.
             </p>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {[
-            { label: "Terapisti", value: "12+" },
-            { label: "Pazienti", value: "340+" },
-            { label: "Sessioni/mese", value: "480+" },
-            { label: "Soddisfazione", value: "98%" }
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <div className="text-2xl font-bold text-[#E9D628] font-[Outfit]">{stat.value}</div>
-              <div className="text-[rgba(253,251,247,0.6)] text-sm mt-1">{stat.label}</div>
-            </div>
-          ))}
         </div>
       </div>
 

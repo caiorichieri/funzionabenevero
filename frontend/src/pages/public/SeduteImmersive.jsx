@@ -60,7 +60,7 @@ export default function SeduteImmersive() {
     <main className="min-h-[calc(100vh-80px)] relative bg-transparent overflow-hidden" data-testid="immersive-page">
       <SEO
         title="Sedute immersive — VR terapeutica per fobie e ansia sessuale"
-        description="Prima piattaforma italiana di sessioni immersive per disfunzioni, ansia da prestazione e fobie sessuali. Sempre guidate dal terapeuta. Evidence-based."
+        description="Piattaforma italiana di sessioni immersive per disfunzioni, ansia da prestazione e fobie sessuali. Sempre guidate dal terapeuta. Evidence-based."
         path="/sedute-immersive"
       />
       {/* Continuous atmospheric backdrop — gold ↔ blue blooms only */}
@@ -118,24 +118,24 @@ export default function SeduteImmersive() {
           <div className="brand-card !p-8">
             <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">76%</div>
             <p className="mt-4 text-sm text-[#0A0A0A]/75 leading-relaxed">
-              dei pazienti, in studi su terapia espositiva per ansia e fobie, preferisce la realtà virtuale all&apos;esposizione tradizionale.
+              dei pazienti con fobie specifiche negli studi preferisce la realtà virtuale all&apos;esposizione tradizionale.
             </p>
           </div>
           <div className="brand-card !p-8">
             <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">9×</div>
             <p className="mt-4 text-sm text-[#0A0A0A]/75 leading-relaxed">
-              tasso di rifiuto del trattamento più basso in VR rispetto all&apos;esposizione tradizionale.
+              tasso di rifiuto più basso con la VR rispetto all&apos;esposizione in vivo, negli stessi studi.
             </p>
           </div>
           <div className="brand-card !p-8">
-            <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">Prima</div>
+            <div className="font-serif text-5xl lg:text-6xl text-[#0A0A0A]">Integrate</div>
             <p className="mt-4 text-sm text-[#0A0A0A]/75 leading-relaxed">
-              piattaforma italiana di sessuologia ad adottare questo approccio in modo strutturale.
+              nei percorsi di sessuologia, sempre guidate dal terapeuta e incluse nel costo della sessione.
             </p>
           </div>
         </div>
         <p className="mt-8 text-xs text-[#0A0A0A]/60 leading-relaxed text-center max-w-3xl mx-auto">
-          Fonti: Garcia-Palacios A. et al. — <em>studio sull&apos;accettabilità dell&apos;esposizione in VR vs in vivo per fobie specifiche</em>. Meta-analisi JMIR 2022 sull&apos;efficacia della VR-CBT per disturbi d&apos;ansia.
+          Fonte: Garcia-Palacios A., Botella C., Hoffman H., Fabregat S. (2007) — <em>Comparing Acceptance and Refusal Rates of Virtual Reality Exposure vs. In Vivo Exposure by Patients with Specific Phobias</em>, CyberPsychology &amp; Behavior 10(5), N=150. I dati si riferiscono a studi sulla realtà virtuale in generale, non a risultati di FunzionaBene.
         </p>
       </section>
 
@@ -212,8 +212,8 @@ export default function SeduteImmersive() {
         <div className="grid md:grid-cols-3 gap-6">
           {[
             { icon: Home, titolo: "Dal tuo salotto", desc: "Nessuno spostamento, nessuna sala d'attesa. Il tuo spazio sicuro." },
-            { icon: Shield, titolo: "Riservato per costruzione", desc: "Le sessioni non vengono registrate. Comunicazione cifrata end-to-end." },
-            { icon: Award, titolo: "Solo evidence-based", desc: "Tecniche supportate da ricerca peer-reviewed. Zero marketing vuoto." },
+            { icon: Shield, titolo: "Riservato per costruzione", desc: "Le sessioni non vengono registrate. Videochiamata cifrata." },
+            { icon: Award, titolo: "Solo evidence-based", desc: "Tecniche supportate da ricerca peer-reviewed." },
             { icon: Check, titolo: "Sempre incluse", desc: "Le sessioni immersive sono comprese nel tuo percorso, senza costi aggiuntivi." },
             { icon: Headphones, titolo: "Interrompibile sempre", desc: "Hai il controllo totale. Esci quando vuoi, senza spiegazioni." },
             { icon: Sparkles, titolo: "Opzionale", desc: "Se non fa per te, il percorso tradizionale è altrettanto efficace." },

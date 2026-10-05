@@ -2,9 +2,9 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowRight, ShieldCheck, Heart, Award, Lock, Sparkles, Check, X,
-  Quote, AlertCircle, MessageCircle
+  AlertCircle, MessageCircle
 } from "lucide-react";
-import { AREE_INTERVENTO, AREE_CATEGORIE, TESTIMONIANZE } from "@/data/areeIntervento";
+import { AREE_INTERVENTO, AREE_CATEGORIE } from "@/data/areeIntervento";
 import Mascotte from "@/components/shared/Mascotte";
 import PrenotaSubitoCTA from "@/components/public/PrenotaSubitoCTA";
 import AppSection from "@/components/public/AppSection";
@@ -26,7 +26,7 @@ const BENEFITS = [
   },
   {
     titolo: "Sessioni immersive",
-    descrizione: "Prima piattaforma italiana a offrire sessioni terapeutiche immersive per disfunzioni, fobie e blocchi. Sempre guidate dal tuo terapeuta.",
+    descrizione: "Piattaforma italiana che integra sessioni terapeutiche immersive per disfunzioni, fobie e blocchi. Sempre guidate dal tuo terapeuta.",
     icon: Sparkles,
     highlight: true,
   },
@@ -37,7 +37,7 @@ const BENEFITS = [
   },
   {
     titolo: "Riservatezza assoluta",
-    descrizione: "Cifratura end-to-end, segreto professionale, zero dati condivisi. La tua intimità è intima davvero.",
+    descrizione: "Videochiamate cifrate, segreto professionale, zero dati condivisi. La tua intimità è intima davvero.",
     icon: Lock,
   },
   {
@@ -69,7 +69,7 @@ export default function HomePage() {
     <main data-testid="homepage" className="relative bg-transparent overflow-hidden">
       <SEO
         title="Psicologi e Sessuologi Online — 100% Sessuologia"
-        description="Prima piattaforma italiana 100% dedicata alla sessuologia. Psicologi e sessuologi iscritti all'Albo, prima sessione entro 48 ore. Online, riservato, cifrato."
+        description="Piattaforma italiana dedicata alla sessuologia. Psicologi e sessuologi iscritti all'Albo. Consulenze online riservate e cifrate."
         path="/"
         jsonLd={{
           "@context": "https://schema.org",
@@ -251,20 +251,20 @@ export default function HomePage() {
               ti ricorda. <strong className="text-[#0A0A0A]">Uno spazio che, per la prima volta, è davvero soltanto tuo.</strong>
             </p>
             <p className="mt-5 text-sm text-[#0A0A0A]/55 italic">
-              FunzionaBene è la prima piattaforma italiana a integrare sessioni immersive nei percorsi di sessuologia.
+              FunzionaBene integra sessioni immersive nei percorsi di sessuologia.
             </p>
 
             <div className="mt-10 grid sm:grid-cols-2 gap-6">
               <div>
                 <div className="font-serif text-4xl lg:text-5xl text-[#0A0A0A]">76%</div>
                 <div className="text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/65 mt-2">
-                  dei pazienti, in studi su terapia espositiva per ansia e fobie, preferisce la realtà virtuale all&apos;esposizione tradizionale<sup>*</sup>
+                  dei pazienti con fobie specifiche negli studi preferisce la realtà virtuale all&apos;esposizione tradizionale<sup>*</sup>
                 </div>
               </div>
               <div>
                 <div className="font-serif text-4xl lg:text-5xl text-[#0A0A0A]">9×</div>
                 <div className="text-xs tracking-[0.15em] uppercase text-[#0A0A0A]/65 mt-2">
-                  tasso di rifiuto del trattamento più basso in VR rispetto all&apos;esposizione tradizionale<sup>*</sup>
+                  tasso di rifiuto più basso con la VR rispetto all&apos;esposizione in vivo, negli stessi studi<sup>*</sup>
                 </div>
               </div>
             </div>
@@ -290,7 +290,7 @@ export default function HomePage() {
             </div>
 
             <p className="mt-6 text-xs text-[#0A0A0A]/65 leading-relaxed">
-              <sup>*</sup> Garcia-Palacios A. et al. — <em>studio sull&apos;accettabilità dell&apos;esposizione in VR vs in vivo per fobie specifiche</em>. Meta-analisi JMIR 2022 sull&apos;efficacia della VR-CBT per disturbi d&apos;ansia.
+              <sup>*</sup> Garcia-Palacios A., Botella C., Hoffman H., Fabregat S. (2007) — <em>Comparing Acceptance and Refusal Rates of Virtual Reality Exposure vs. In Vivo Exposure by Patients with Specific Phobias</em>, CyberPsychology &amp; Behavior 10(5), N=150. I dati si riferiscono a studi sulla realtà virtuale in generale, non a risultati di FunzionaBene.
             </p>
           </div>
 
@@ -407,44 +407,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ────────── TESTIMONIANZE ────────── */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-10 py-24 lg:py-32" data-testid="testimonianze-section">
-        <div className="mb-16 max-w-2xl">
-          <span className="text-[#0A0A0A] text-xs tracking-[0.25em] uppercase">Storie dei nostri pazienti</span>
-          <h2 className="mt-4 font-serif text-4xl lg:text-5xl text-[#0A0A0A] leading-tight">
-            Qualcuno l&apos;ha già fatto<br />prima di te.
-          </h2>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {TESTIMONIANZE.map((t, i) => (
-            <motion.blockquote
-              key={i}
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: (i % 3) * 0.1 }}
-              data-testid={`testimonial-${i}`}
-              className="p-7 brand-card flex flex-col"
-            >
-              <Quote className="w-6 h-6 text-[#0A0A0A]/60 mb-4" />
-              <p className="text-[#0A0A0A]/85 leading-relaxed font-serif text-lg flex-1">
-                &quot;{t.testo}&quot;
-              </p>
-              <div className="mt-6 pt-5 border-t border-[#0A0A0A]/10">
-                <div className="text-sm text-[#0A0A0A]">{t.nome}</div>
-                <div className="text-xs tracking-[0.15em] uppercase text-[#6B8FA3] mt-1">{t.area}</div>
-                <div className="text-xs text-[#0A0A0A]/50 mt-1">{t.durata}</div>
-              </div>
-            </motion.blockquote>
-          ))}
-        </div>
-
-        <p className="mt-12 text-xs text-[#0A0A0A]/65 text-center max-w-2xl mx-auto leading-relaxed">
-          Testimonianze rappresentative. Nomi, età e dettagli sono stati modificati per tutelare la riservatezza dei pazienti, come previsto dal codice deontologico degli psicologi e dal GDPR.
-        </p>
-      </section>
-
       {/* ────────── A COSA SERVE / NON SERVE ────────── */}
       <section className="relative" data-testid="serve-section">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 py-24 lg:py-32 grid lg:grid-cols-2 gap-10">
@@ -532,7 +494,7 @@ export default function HomePage() {
           <p className="text-lg lg:text-xl text-[#0A0A0A] leading-relaxed font-serif">
             Ogni professionista che entra in FunzionaBene passa da un colloquio con la nostra direzione clinica, una verifica dell'iscrizione all'Albo e una revisione dei suoi anni di pratica in sessuologia.
             <span className="block mt-4 text-[#6B8FA3]">
-              Solo <strong className="text-[#0A0A0A]">1 su 8</strong> dei professionisti che si candidano viene ammesso.
+              Ogni terapeuta è <strong className="text-[#0A0A0A]">verificato</strong>: iscrizione all&apos;Albo e assicurazione RC professionale.
             </span>
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">

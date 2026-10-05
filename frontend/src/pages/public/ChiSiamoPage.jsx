@@ -15,7 +15,7 @@ const VALUES = [
   {
     icon: Sparkles,
     titolo: "Innovazione clinica",
-    desc: "Siamo la prima piattaforma italiana a integrare <strong>sessioni immersive</strong> nei percorsi di sessuologia. Non per moda tecnologica, ma perché la ricerca lo dimostra: funziona.",
+    desc: "Integriamo <strong>sessioni immersive</strong> nei percorsi di sessuologia. Non per moda tecnologica, ma perché la ricerca sulle tecnologie immersive mostra risultati promettenti per fobie e disturbi d'ansia.",
   },
   {
     icon: Heart,
@@ -25,7 +25,7 @@ const VALUES = [
   {
     icon: ShieldCheck,
     titolo: "Riservatezza assoluta",
-    desc: "I tuoi dati sono cifrati end-to-end, custoditi su server europei. Le sessioni sono coperte dal segreto professionale. La tua intimità è intima davvero.",
+    desc: "I tuoi dati sono cifrati e custoditi su server europei conformi al GDPR. Le sessioni sono coperte dal segreto professionale. La tua intimità è intima davvero.",
   },
   {
     icon: Award,
@@ -43,7 +43,7 @@ const STATS = [
   { n: "100%", desc: "Specialisti in sessuologia" },
   { n: "Una squadra", desc: "di terapeuti selezionati con cura" },
   { n: "50 min", desc: "Durata di ogni sessione" },
-  { n: "Prima", desc: "piattaforma italiana con sessioni immersive" },
+  { n: "Immersive", desc: "sessioni VR integrate nei percorsi di sessuologia" },
 ];
 
 export default function ChiSiamoPage() {
@@ -51,7 +51,7 @@ export default function ChiSiamoPage() {
     <main className="min-h-[calc(100vh-80px)] relative bg-transparent overflow-hidden" data-testid="chisiamo-page">
       <SEO
         title="Chi siamo — Cura nella scelta, cura nel percorso"
-        description="FunzionaBene: la piattaforma italiana 100% dedicata alla sessuologia. Professionisti scelti uno a uno, iper-specializzati e iscritti all'Albo."
+        description="FunzionaBene: la piattaforma italiana 100% sessuologia. Professionisti scelti uno a uno, iper-specializzati e iscritti all'Albo."
         path="/chi-siamo"
       />
       {/* Continuous atmospheric backdrop */}
@@ -186,9 +186,9 @@ export default function ChiSiamoPage() {
                 non solo un corso fatto una volta, ma anni di pratica specifica.
               </p>
               <p>
-                Verifichiamo <strong className="text-[#0A0A0A]">ogni trimestre</strong> l&apos;iscrizione all&apos;Albo, la validità
-                della polizza assicurativa professionale e la partecipazione a percorsi di supervisione continua.
-                Se qualcosa scade, sospendiamo immediatamente il terapeuta dalla piattaforma.
+                Riceviamo <strong className="text-[#0A0A0A]">avvisi automatici 60 e 30 giorni</strong> prima della scadenza
+                dell&apos;assicurazione professionale di ogni terapeuta. Se la polizza scade senza essere rinnovata,
+                il profilo viene sospeso dalla piattaforma.
               </p>
               <Link to="/questionario" className="inline-flex items-center gap-2 text-[#0A0A0A] hover:text-[#0A0A0A]/70 text-sm tracking-wide mt-4">
                 Conosci i nostri specialisti <ArrowRight className="w-4 h-4" />

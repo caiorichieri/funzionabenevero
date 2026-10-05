@@ -1662,7 +1662,7 @@ async def _seed_registro_trattamenti():
             "categorie_particolari": "Nessuna (i contenuti clinici non transitano dalla Piattaforma).",
             "destinatari": "Daily.co (videoconferenza — Sub-Responsabile ex art. 28.4 GDPR).",
             "trasferimenti_extra_ue": "Daily.co (USA) — SCC UE + Data Processing Agreement.",
-            "misure_sicurezza": "Videoconsulto end-to-end encrypted (SRTP/DTLS), stanze temporanee con token JWT a scadenza, nessuna registrazione video lato piattaforma, log accessi.",
+            "misure_sicurezza": "Videoconsulto cifrato in transito (SRTP/DTLS) via Daily.co (architettura SFU), stanze temporanee con token JWT a scadenza, nessuna registrazione né trascrizione video lato piattaforma, log accessi.",
             "termini_cancellazione": "Metadati appuntamento: 10 anni (obbligo fiscale collegato). Link videoconsulto: cancellati alla scadenza della sessione.",
             "note": "",
         },
