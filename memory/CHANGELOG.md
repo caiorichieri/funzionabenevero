@@ -1,5 +1,24 @@
 # CHANGELOG — funzionabene.it
 
+## 2026-10-05 · Rimosse referenze "Emergent" dal frontend pubblico
+
+Richiesta utente: alcune ricerche Google rimandavano al termine "Emergent" dal sito. Rimosse le due uniche referenze pubbliche:
+
+### File toccati
+- `frontend/public/index.html` — rimossa riga `<script src="https://assets.emergent.sh/scripts/emergent-main.js">` (linea 43)
+- `frontend/public/_headers.json` — rimossa `https://assets.emergent.sh` dal `script-src` del CSP
+
+### Benefici collaterali
+- **Risolve il P1 "Platform Cookies Pre-Consent"** del handoff: i cookie `__emg_vid` e `__emg_sid` che venivano iniettati PRIMA del consenso GDPR non vengono più generati (lo script emergent-main.js era la fonte).
+- Playwright confermato: 0 cookie `__emg_*` dopo il reload del sito; `emergent-main.js` e `assets.emergent.sh` non più presenti nell'HTML renderizzato; nessun errore JS.
+
+### Note
+- Backend ha ancora referenze interne (`EMERGENT_LLM_KEY` env var, commenti in `storage_service.py` e `object_storage.py`), ma **non appaiono mai nell'HTML pubblico** → invisibili al Google crawler.
+- La rimozione definitiva dalle SERP di Google richiede: (1) deploy in produzione; (2) richiesta di reindicizzazione via Google Search Console; (3) attesa aggiornamento cache Google (giorni-settimane).
+
+---
+
+
 ## 2026-10-05 · BookingSheet mobile — WhatsApp + Rifai questionario come fallback
 
 Richiesta utente: nella visualizzazione telefono, quando il paziente arriva al Riepilogo per acquistare la seduta e l'orario non lo convince, deve avere due vie d'uscita visibili senza chiudere il sheet.
