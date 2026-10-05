@@ -11,6 +11,7 @@ from fastapi.responses import Response
 from deps import db, require_auth, require_admin
 from models import ArticoloInput
 from storage_service import put_object, get_object, mime_for_ext, APP_NAME as STORAGE_APP
+from utils.slugify import make_unique_slug
 
 router = APIRouter()
 
@@ -38,6 +39,9 @@ async def create_articolo(data: ArticoloInput, user: dict = Depends(require_auth
     doc["autore_nome"] = f"{user.get('nome','')} {user.get('cognome','')}".strip()
     doc["stato"] = "bozza" if user["role"] == "terapeuta" else "pubblicato"
     doc["created_at"] = datetime.now(timezone.utc)
+    # Auto-generate kebab-case slug (collision-safe) from the title.
+    if doc.get("titolo"):
+        doc["slug"] = await make_unique_slug(db, doc["titolo"])
     result = await db.articoli.insert_one(doc)
     doc["_id"] = str(result.inserted_id)
     return doc
@@ -52,6 +56,15 @@ async def update_articolo(art_id: str, data: ArticoloInput, user: dict = Depends
         raise HTTPException(status_code=403, detail="Accesso negato")
     update = data.model_dump(exclude_none=True)
     update["updated_at"] = datetime.now(timezone.utc)
+    # Regenerate slug if the title changed (or if the article never had one).
+    new_title = update.get("titolo")
+    needs_new_slug = (new_title and new_title != doc.get("titolo")) or not doc.get("slug")
+    if needs_new_slug and (new_title or doc.get("titolo")):
+        update["slug"] = await make_unique_slug(
+            db,
+            new_title or doc.get("titolo"),
+            exclude_id=ObjectId(art_id),
+        )
     await db.articoli.update_one({"_id": ObjectId(art_id)}, {"$set": update})
     doc = await db.articoli.find_one({"_id": ObjectId(art_id)})
     doc["_id"] = str(doc["_id"])

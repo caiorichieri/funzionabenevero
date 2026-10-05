@@ -1328,6 +1328,14 @@ async def startup():
     await _seed_registro_trattamenti()
     await _seed_blog_articles()
 
+    # Run one-shot blog slug migration (idempotent; aborts safely if backup fails).
+    try:
+        from migrations.blog_slug_migration import run_blog_slug_migration
+        report = await run_blog_slug_migration(db)
+        logging.info(f"[BLOG_SLUG] startup report: {report}")
+    except Exception as e:
+        logging.exception(f"[BLOG_SLUG] migration import/call failed; server continues: {e}")
+
     # Initialize Emergent Object Storage (used for therapist verification documents)
     try:
         from storage_service import init_storage

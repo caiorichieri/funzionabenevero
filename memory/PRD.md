@@ -28,7 +28,22 @@ Costruire una piattaforma psi/sessuologia completa che gestisca: terapisti (onbo
 Vedi `CHANGELOG.md` per lo storico completo.
 
 ### Ultime cose fatte
-- 2026-02-21 — **Fix prerender resiliency** (post-RCA deploy `9df628ff`):
+- 2026-02-21 (iter 3) — **Blog slug prod migration + sitemap generator**:
+  - `backend/migrations/blog_slug_migration.py`: routine startup idempotente con mappa fissa dei 15 _id_prod → slug approvata dall'utente. Crea backup `articoli_backup_slug_migration_YYYYMMDD_HHMMSS`, abort se backup_count ≠ live_articoli_count, applica `$set slug` SOLO su articoli senza slug già presenti. Index unique sparse. Se backup fallisce → log ERROR ma server parte comunque.
+  - `backend/utils/slugify.py`: helper condiviso NFKD-aware. `make_unique_slug(db, title, exclude_id)` con suffisso `-2`, `-3` su collisione.
+  - `routers/blog.py`: `create_articolo` genera slug automaticamente; `update_articolo` ri-genera slug se cambia titolo o se slug mancante.
+  - `frontend/scripts/generate-sitemap.js`: nuovo script pure-Node, zero Chromium. Mappa fissa 15 blog slug + API `/public/blog` per nuovi articoli (deduplica) + API `/public/terapisti` opzionale. Sovrascrive sempre `build/sitemap.xml`. Mai fallisce il build.
+  - `package.json` postbuild: `generate-sitemap.js && prerender.js`.
+  - Rimosso `public/sitemap.xml` statico committato.
+  - Verifiche locali: 47 URL con API, 38 URL senza API; auto-slug create/update testato con curl (OK).
+- 2026-02-21 (iter 2) — **Fix prerender resiliency** (post-RCA deploy `9df628ff`):
+  - `backend/migrations/blog_slug_migration.py`: routine startup idempotente con mappa fissa dei 15 _id_prod → slug approvata dall'utente. Crea backup `articoli_backup_slug_migration_YYYYMMDD_HHMMSS`, abort se backup_count ≠ live_articoli_count, applica `$set slug` SOLO su articoli senza slug già presenti. Index unique sparse. Se backup fallisce → log ERROR ma server parte comunque.
+  - `backend/utils/slugify.py`: helper condiviso NFKD-aware. `make_unique_slug(db, title, exclude_id)` con suffisso `-2`, `-3` su collisione.
+  - `routers/blog.py`: `create_articolo` genera slug automaticamente; `update_articolo` ri-genera slug se cambia titolo o se slug mancante.
+  - `frontend/scripts/generate-sitemap.js`: nuovo script pure-Node, zero Chromium. Mappa fissa 15 blog slug + API `/public/blog` per nuovi articoli (deduplica) + API `/public/terapisti` opzionale. Sovrascrive sempre `build/sitemap.xml`. Mai fallisce il build.
+  - `package.json` postbuild: `generate-sitemap.js && prerender.js`.
+  - Rimosso `public/sitemap.xml` statico committato.
+  - Verifiche locali: 47 URL con API, 38 URL senza API; auto-slug create/update testato con curl (OK).
   - `scripts/prerender.js` reso best-effort: Chromium mancante o PRERENDER_ENABLED=false → `exit 0` con warning (build non fallisce più). Static routes fatali, dinamiche (blog/terapisti) best-effort. Articoli senza `slug` saltati (mai `/blog/<ObjectId>` generati). Sitemap elenca solo route pre-renderizzate con successo.
   - Risolto build-time vs post-deploy ordering flaw: al deploy iniziale il backend vecchio non ha i nuovi endpoint `/public/blog/by-id/` → listBlogSlugs vede articoli senza slug → 0 blog pre-renderizzati, build passa comunque. Al secondo deploy slug sono live → pre-render completo.
   - Verifica locale: yarn build senza env var → 23 static OK; con env var → 47/47 (23 static + 15 blog slug + 9 terapisti), 0 ObjectId pre-renderizzati.
