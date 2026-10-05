@@ -54,17 +54,31 @@ async function fetchJson(url) {
 }
 
 async function listBlogSlugs() {
-  if (!API_URL) die("REACT_APP_BACKEND_URL not set — cannot fetch blog posts.");
+  if (!API_URL) {
+    log("WARN: REACT_APP_BACKEND_URL not set — skipping blog pre-render.");
+    return [];
+  }
   log(`Fetching blog list from ${API_URL}/api/public/blog …`);
-  const list = await fetchJson(`${API_URL}/api/public/blog`).catch((e) => die("API /public/blog unreachable at build time", e));
+  let list;
+  try {
+    list = await fetchJson(`${API_URL}/api/public/blog`);
+  } catch (e) {
+    log(`WARN: API /public/blog unreachable (${e.message}) — skipping blog pre-render.`);
+    return [];
+  }
   if (!Array.isArray(list) || list.length === 0) {
     log("WARN: /api/blog returned empty list — no blog posts to pre-render.");
     return [];
   }
-  const out = list
-    .map((p) => p.slug || p._id || p.id)
-    .filter(Boolean)
-    .map((s) => `/blog/${s}`);
+  // Only pre-render articles that have a kebab-case `slug` set in the DB.
+  // Articles without a slug (not migrated yet) are skipped — avoids emitting
+  // /blog/<ObjectId> routes which would 404 on the new backend contract.
+  const withSlug = list.filter((p) => p && typeof p.slug === "string" && p.slug.length > 0);
+  const skipped = list.length - withSlug.length;
+  if (skipped > 0) {
+    log(`  skipping ${skipped} blog post(s) without a slug (not yet migrated).`);
+  }
+  const out = withSlug.map((p) => `/blog/${p.slug}`);
   log(`  → ${out.length} blog routes`);
   return out;
 }
@@ -168,12 +182,27 @@ function writeSitemap(routes) {
 
 (async function main() {
   if (!fs.existsSync(BUILD_DIR)) die("build/ does not exist — run `yarn build` first.");
-  if (!fs.existsSync(CHROMIUM)) die(`Chromium not found at ${CHROMIUM}. Install it or set CHROMIUM_PATH.`);
+  // Chromium is required for pre-rendering, but prerender is a best-effort SEO
+  // optimisation — it must NEVER block the production build. If Chromium is
+  // not installed in the build environment (e.g. some CI stages), we exit 0
+  // and let the SPA ship as pure CSR. Static pre-rendered HTML can be regenerated
+  // on a subsequent build once Chromium is wired up.
+  if (!fs.existsSync(CHROMIUM)) {
+    console.warn(`\x1b[33m[prerender] WARN: Chromium not found at ${CHROMIUM}. Skipping pre-render — the SPA will ship as pure CSR. Set CHROMIUM_PATH or install chromium to enable SEO snapshots.\x1b[0m`);
+    process.exit(0);
+  }
+
+  // Allow operators to explicitly disable prerender via env flag, independent of Chromium.
+  if (process.env.PRERENDER_ENABLED === "false" || process.env.PRERENDER_ENABLED === "0") {
+    log("PRERENDER_ENABLED=false — skipping pre-render.");
+    process.exit(0);
+  }
 
   const blogRoutes = await listBlogSlugs();
   const teraRoutes = await listTerapeutiRoutes();
   const routes = [...STATIC_ROUTES, ...blogRoutes, ...teraRoutes];
-  log(`Total routes to pre-render: ${routes.length}`);
+  const STATIC_SET = new Set(STATIC_ROUTES);
+  log(`Total routes to pre-render: ${routes.length} (${STATIC_ROUTES.length} static, ${blogRoutes.length} blog, ${teraRoutes.length} therapist)`);
 
   const server = await startStaticServer();
   let browser;
@@ -191,7 +220,8 @@ function writeSitemap(routes) {
         "--disable-features=IsolateOrigins,site-per-process",
       ],
     });
-    let failures = 0;
+    let staticFailures = 0;
+    let dynamicFailures = 0;
     const rendered = new Map();
     for (const route of routes) {
       try {
@@ -200,15 +230,33 @@ function writeSitemap(routes) {
         rendered.set(route, html);  // defer disk write until all renders are done
         console.log(`ok (${html.length}b)`);
       } catch (e) {
-        failures++;
-        console.log(`FAIL: ${e.message}`);
+        if (STATIC_SET.has(route)) {
+          staticFailures++;
+          console.log(`FAIL (static): ${e.message}`);
+        } else {
+          dynamicFailures++;
+          console.log(`SKIP (dynamic, non-fatal): ${e.message}`);
+        }
       }
     }
-    if (failures > 0) die(`${failures}/${routes.length} routes failed. Build aborted.`);
+    // Fail the build only if any STATIC route failed. Dynamic routes (blog/terapisti)
+    // depend on backend/DB state that may lag the deploy; a transient failure there
+    // must not block the release. Rendered static pages + fresh sitemap are enough.
+    if (staticFailures > 0) {
+      die(`${staticFailures}/${STATIC_ROUTES.length} STATIC routes failed. Build aborted.`);
+    }
     // Now flush to disk — safe because the static server has served all routes.
     for (const [route, html] of rendered) writeRouteHtml(route, html);
-    writeSitemap(routes);
-    log(`✅ Pre-render complete: ${routes.length}/${routes.length} routes OK.`);
+    // Sitemap only lists successfully-rendered routes.
+    const renderedRoutes = Array.from(rendered.keys());
+    writeSitemap(renderedRoutes);
+    const okCount = rendered.size;
+    const totalCount = routes.length;
+    if (dynamicFailures > 0) {
+      log(`⚠️  Pre-render complete with warnings: ${okCount}/${totalCount} routes OK, ${dynamicFailures} dynamic route(s) skipped.`);
+    } else {
+      log(`✅ Pre-render complete: ${okCount}/${totalCount} routes OK.`);
+    }
   } finally {
     if (browser) await browser.close();
     try { server.kill("SIGTERM"); } catch { /* ignore */ }

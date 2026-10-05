@@ -28,7 +28,11 @@ Costruire una piattaforma psi/sessuologia completa che gestisca: terapisti (onbo
 Vedi `CHANGELOG.md` per lo storico completo.
 
 ### Ultime cose fatte
-- 2026-02-21 — **Fase D Blog Slug Migration + 301**:
+- 2026-02-21 — **Fix prerender resiliency** (post-RCA deploy `9df628ff`):
+  - `scripts/prerender.js` reso best-effort: Chromium mancante o PRERENDER_ENABLED=false → `exit 0` con warning (build non fallisce più). Static routes fatali, dinamiche (blog/terapisti) best-effort. Articoli senza `slug` saltati (mai `/blog/<ObjectId>` generati). Sitemap elenca solo route pre-renderizzate con successo.
+  - Risolto build-time vs post-deploy ordering flaw: al deploy iniziale il backend vecchio non ha i nuovi endpoint `/public/blog/by-id/` → listBlogSlugs vede articoli senza slug → 0 blog pre-renderizzati, build passa comunque. Al secondo deploy slug sono live → pre-render completo.
+  - Verifica locale: yarn build senza env var → 23 static OK; con env var → 47/47 (23 static + 15 blog slug + 9 terapisti), 0 ObjectId pre-renderizzati.
+- 2026-02-21 — **Fase D Blog Slug Migration + 301** (vecchia versione, superseded dal fix prerender):
   - 15 articoli in collection `articoli` hanno ora campo `slug` (kebab-case, idempotente, backup collection `articoli_backup_20261005_123109`).
   - Index unique sparse creato su `articoli.slug`.
   - Nuovi endpoint backend: `GET /api/public/blog/slug/{slug}` (primary lookup) e `GET /api/public/blog/by-id/{id}` (legacy, restituisce `redirect_to_slug`).
