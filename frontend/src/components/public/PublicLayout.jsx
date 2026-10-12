@@ -182,12 +182,9 @@ function Footer() {
 
       {/* Bando Trasparenza — cofinanziamento UE / Regione FVG */}
       <div className="max-w-7xl mx-auto px-6 lg:px-10 pb-8">
-        <a
-          href="https://www.bidoc.it/trasparenza"
-          target="_blank"
-          rel="noopener noreferrer"
+        <div
           data-testid="footer-trasparenza-banner"
-          className="block w-full md:w-2/5 mx-auto md:mx-0 hover:opacity-80 transition-opacity"
+          className="w-full md:w-2/5 mx-auto md:mx-0"
           title="Bando di trasparenza — cofinanziato dall'Unione Europea e Regione Friuli Venezia Giulia"
         >
           <img
@@ -196,7 +193,18 @@ function Footer() {
             className="w-full h-auto"
             loading="lazy"
           />
-        </a>
+          <p className="mt-2 text-[10px] text-[#0A0A0A]/40 leading-tight">
+            <a
+              href="https://www.bidoc.it/trasparenza"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="footer-trasparenza-link"
+              className="underline-offset-2 hover:underline hover:text-[#0A0A0A]/60 transition-colors"
+            >
+              Informazioni sul bando di trasparenza
+            </a>
+          </p>
+        </div>
       </div>
 
       <div className="border-t border-[#0A0A0A]/10">
